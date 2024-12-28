@@ -1,0 +1,29 @@
+<ion-content [fullscreen]="true">
+
+      <ion-title class="title">TrackXpress</ion-title>
+
+      <ion-icon name="chevron-back" class="back" [routerLink]="['/landing']"></ion-icon>
+
+   <form>
+      <div class="form">
+        <p class="description">Login Now</p>
+        <div class = "form-group">
+        <ion-item class="input">
+            <ion-input>
+            </ion-input>
+            <ion-icon name="person-outline"></ion-icon>
+        </ion-item>
+        <ion-item class="input">
+            <ion-input>
+            </ion-input>
+            <ion-icon name="lock-closed-outline"></ion-icon>
+        </ion-item>
+        <div class="text">
+          <a [routerLink]="['/reset-password']">Forget password?</a>
+        </div>
+        <ion-button class="button" expand="block" [routerLink]="['/home']">Login</ion-button>
+        <p class="text2">No account? <a [routerLink]="['/signup']">Signup here</a></p>
+      </div>
+      </div>
+   </form>
+</ion-content>
