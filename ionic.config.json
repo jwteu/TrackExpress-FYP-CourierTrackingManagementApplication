@@ -1,0 +1,7 @@
+{
+  "name": "courier-tracking",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "angular"
+}
