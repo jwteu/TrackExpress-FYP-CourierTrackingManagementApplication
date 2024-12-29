@@ -1,13 +1,89 @@
 <ion-header [translucent]="true">
   <ion-toolbar>
-    <ion-title>signup</ion-title>
+    <ion-title>Sign Up</ion-title>
+    <ion-buttons slot="start">
+      <ion-back-button [routerLink]="['/login']"></ion-back-button>
+    </ion-buttons>
   </ion-toolbar>
 </ion-header>
 
 <ion-content [fullscreen]="true">
-  <ion-header collapse="condense">
-    <ion-toolbar>
-      <ion-title size="large">signup</ion-title>
-    </ion-toolbar>
-  </ion-header>
+  <form [formGroup]="signupForm" (ngSubmit)="onSubmit()">
+    <ion-item>
+      <ion-label position="floating">Name</ion-label>
+      <ion-input formControlName="name" type="text"></ion-input>
+    </ion-item>
+    <ion-text color="danger" *ngIf="signupForm.get('name')!.touched && signupForm.get('name')!.invalid">
+      Name is required.
+    </ion-text>
+
+    <ion-item>
+      <ion-label position="floating">Email</ion-label>
+      <ion-input formControlName="email" type="email"></ion-input>
+    </ion-item>
+    <ion-text color="danger" *ngIf="signupForm.get('email')!.touched && signupForm.get('email')!.invalid">
+      Enter a valid email.
+    </ion-text>
+
+    <ion-item>
+      <ion-label position="floating">IC Number</ion-label>
+      <ion-input formControlName="icNumber" type="text"></ion-input>
+    </ion-item>
+    <ion-text color="danger" *ngIf="signupForm.get('icNumber')!.touched && signupForm.get('icNumber')!.invalid">
+      IC Number must be 12 digits.
+    </ion-text>
+
+    <ion-item>
+      <ion-label position="floating">Phone</ion-label>
+      <ion-input formControlName="phone" type="tel"></ion-input>
+    </ion-item>
+    <ion-text color="danger" *ngIf="signupForm.get('phone')!.touched && signupForm.get('phone')!.invalid">
+      Enter a valid phone number.
+    </ion-text>
+
+    <ion-item>
+      <ion-label position="floating">Address</ion-label>
+      <ion-input formControlName="address" type="text"></ion-input>
+    </ion-item>
+    <ion-text color="danger" *ngIf="signupForm.get('address')!.touched && signupForm.get('address')!.invalid">
+      Address is required.
+    </ion-text>
+
+    <ion-item>
+      <ion-label position="floating">Role</ion-label>
+      <ion-select formControlName="role">
+        <ion-select-option value="admin">Admin</ion-select-option>
+        <ion-select-option value="deliveryman">Deliveryman</ion-select-option>
+      </ion-select>
+    </ion-item>
+    <ion-text color="danger" *ngIf="signupForm.get('role')!.touched && signupForm.get('role')!.invalid">
+      Role is required.
+    </ion-text>
+
+    <ion-item>
+      <ion-label position="floating">Secret Key</ion-label>
+      <ion-input formControlName="secretKey" type="password"></ion-input>
+    </ion-item>
+    <ion-text color="danger" *ngIf="signupForm.get('secretKey')!.touched && signupForm.get('secretKey')!.invalid">
+      Enter a valid secret key.
+    </ion-text>
+
+    <ion-item>
+      <ion-label position="floating">Password</ion-label>
+      <ion-input formControlName="password" type="password"></ion-input>
+    </ion-item>
+    <ion-text color="danger" *ngIf="signupForm.get('password')!.touched && signupForm.get('password')!.invalid">
+      Password must be at least 8 characters.
+    </ion-text>
+
+    <ion-item>
+      <ion-label position="floating">Confirm Password</ion-label>
+      <ion-input formControlName="confirmPassword" type="password"></ion-input>
+    </ion-item>
+    <ion-text color="danger" *ngIf="signupForm.get('confirmPassword')!.touched && signupForm.get('confirmPassword')!.invalid">
+      Passwords must match.
+    </ion-text>
+
+    <ion-button expand="full" type="submit" [disabled]="signupForm.invalid">Sign Up</ion-button>
+  </form>
 </ion-content>
