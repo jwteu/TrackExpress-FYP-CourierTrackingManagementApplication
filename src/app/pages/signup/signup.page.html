@@ -13,7 +13,7 @@
       <ion-label position="floating">Name</ion-label>
       <ion-input formControlName="name" type="text"></ion-input>
     </ion-item>
-    <ion-text color="danger" *ngIf="signupForm.get('name')!.touched && signupForm.get('name')!.invalid">
+    <ion-text color="danger" *ngIf="signupForm.get('name')?.touched && signupForm.get('name')?.invalid">
       Name is required.
     </ion-text>
 
@@ -21,7 +21,7 @@
       <ion-label position="floating">Email</ion-label>
       <ion-input formControlName="email" type="email"></ion-input>
     </ion-item>
-    <ion-text color="danger" *ngIf="signupForm.get('email')!.touched && signupForm.get('email')!.invalid">
+    <ion-text color="danger" *ngIf="signupForm.get('email')?.touched && signupForm.get('email')?.invalid">
       Enter a valid email.
     </ion-text>
 
@@ -29,7 +29,7 @@
       <ion-label position="floating">IC Number</ion-label>
       <ion-input formControlName="icNumber" type="text"></ion-input>
     </ion-item>
-    <ion-text color="danger" *ngIf="signupForm.get('icNumber')!.touched && signupForm.get('icNumber')!.invalid">
+    <ion-text color="danger" *ngIf="signupForm.get('icNumber')?.touched && signupForm.get('icNumber')?.invalid">
       IC Number must be 12 digits.
     </ion-text>
 
@@ -37,7 +37,7 @@
       <ion-label position="floating">Phone</ion-label>
       <ion-input formControlName="phone" type="tel"></ion-input>
     </ion-item>
-    <ion-text color="danger" *ngIf="signupForm.get('phone')!.touched && signupForm.get('phone')!.invalid">
+    <ion-text color="danger" *ngIf="signupForm.get('phone')?.touched && signupForm.get('phone')?.invalid">
       Enter a valid phone number.
     </ion-text>
 
@@ -45,7 +45,7 @@
       <ion-label position="floating">Address</ion-label>
       <ion-input formControlName="address" type="text"></ion-input>
     </ion-item>
-    <ion-text color="danger" *ngIf="signupForm.get('address')!.touched && signupForm.get('address')!.invalid">
+    <ion-text color="danger" *ngIf="signupForm.get('address')?.touched && signupForm.get('address')?.invalid">
       Address is required.
     </ion-text>
 
@@ -56,7 +56,7 @@
         <ion-select-option value="deliveryman">Deliveryman</ion-select-option>
       </ion-select>
     </ion-item>
-    <ion-text color="danger" *ngIf="signupForm.get('role')!.touched && signupForm.get('role')!.invalid">
+    <ion-text color="danger" *ngIf="signupForm.get('role')?.touched && signupForm.get('role')?.invalid">
       Role is required.
     </ion-text>
 
@@ -64,7 +64,7 @@
       <ion-label position="floating">Secret Key</ion-label>
       <ion-input formControlName="secretKey" type="password"></ion-input>
     </ion-item>
-    <ion-text color="danger" *ngIf="signupForm.get('secretKey')!.touched && signupForm.get('secretKey')!.invalid">
+    <ion-text color="danger" *ngIf="signupForm.get('secretKey')?.touched && signupForm.get('secretKey')?.invalid">
       Enter a valid secret key.
     </ion-text>
 
@@ -72,7 +72,7 @@
       <ion-label position="floating">Password</ion-label>
       <ion-input formControlName="password" type="password"></ion-input>
     </ion-item>
-    <ion-text color="danger" *ngIf="signupForm.get('password')!.touched && signupForm.get('password')!.invalid">
+    <ion-text color="danger" *ngIf="signupForm.get('password')?.touched && signupForm.get('password')?.invalid">
       Password must be at least 8 characters.
     </ion-text>
 
@@ -80,7 +80,7 @@
       <ion-label position="floating">Confirm Password</ion-label>
       <ion-input formControlName="confirmPassword" type="password"></ion-input>
     </ion-item>
-    <ion-text color="danger" *ngIf="signupForm.get('confirmPassword')!.touched && signupForm.get('confirmPassword')!.invalid">
+    <ion-text color="danger" *ngIf="signupForm.get('confirmPassword')?.touched && signupForm.get('confirmPassword')?.invalid">
       Passwords must match.
     </ion-text>
 

@@ -1,21 +1,29 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { IonicModule, NavController } from '@ionic/angular';
+import { AngularFireAuth } from '@angular/fire/compat/auth';
+import { AngularFirestore } from '@angular/fire/compat/firestore';
+import { NavController, IonicModule } from '@ionic/angular';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { RouterLinkWithHref } from '@angular/router';
+import { RouterModule } from '@angular/router';
 
 @Component({
   selector: 'app-signup',
   templateUrl: './signup.page.html',
   styleUrls: ['./signup.page.scss'],
   standalone: true,
-  imports: [IonicModule, CommonModule, FormsModule, ReactiveFormsModule, RouterLinkWithHref]
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, IonicModule, RouterModule],
+  schemas: [CUSTOM_ELEMENTS_SCHEMA]
 })
 export class SignupPage implements OnInit {
   signupForm!: FormGroup;
 
-  constructor(private fb: FormBuilder, private navCtrl: NavController) { }
+  constructor(
+    private fb: FormBuilder,
+    private afAuth: AngularFireAuth,
+    private firestore: AngularFirestore,
+    private navCtrl: NavController
+  ) {}
 
   ngOnInit() {
     this.signupForm = this.fb.group({
@@ -36,18 +44,39 @@ export class SignupPage implements OnInit {
       ? null : { mismatch: true };
   }
 
-  onSubmit() {
+  async onSubmit() {
     if (this.signupForm.valid) {
-      const role = this.signupForm.get('role')!.value;
-      const secretKey = this.signupForm.get('secretKey')!.value;
+      const { name, email, icNumber, phone, address, role, secretKey, password } = this.signupForm.value;
 
-      if ((role === 'admin' && secretKey === 'admin8133') || (role === 'deliveryman' && secretKey === 'delivery2237')) {
-        // Handle successful signup
-        console.log('Signup successful', this.signupForm.value);
-        this.navCtrl.navigateForward('/home');
-      } else {
-        // Handle invalid secret key
+      // Validate secret key
+      if ((role === 'admin' && secretKey !== 'admin8133') || 
+          (role === 'deliveryman' && secretKey !== 'delivery2237')) {
         console.error('Invalid secret key');
+        return;
+      }
+
+      try {
+        // Create user with Firebase Authentication
+        const userCredential = await this.afAuth.createUserWithEmailAndPassword(email, password);
+        const uid = userCredential.user?.uid;
+
+        // Save additional user data to Firestore
+        if (uid) {
+          await this.firestore.collection('users').doc(uid).set({
+            name,
+            email,
+            icNumber,
+            phone,
+            address,
+            role,
+            uid
+          });
+
+          console.log('Signup successful');
+          this.navCtrl.navigateForward('/login');
+        }
+      } catch (error) {
+        console.error('Signup error:', error);
       }
     }
   }
