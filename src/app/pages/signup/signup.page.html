@@ -1,9 +1,6 @@
 <ion-header [translucent]="true">
   <ion-toolbar>
-    <ion-title>Sign Up</ion-title>
-    <ion-buttons slot="start">
-      <ion-back-button [routerLink]="['/login']"></ion-back-button>
-    </ion-buttons>
+    <ion-title>Signup</ion-title>
   </ion-toolbar>
 </ion-header>
 
@@ -23,6 +20,9 @@
     </ion-item>
     <ion-text color="danger" *ngIf="signupForm.get('email')?.touched && signupForm.get('email')?.invalid">
       Enter a valid email.
+    </ion-text>
+    <ion-text color="danger" *ngIf="emailError">
+      {{ emailError }}
     </ion-text>
 
     <ion-item>
@@ -73,7 +73,7 @@
       <ion-input formControlName="password" type="password"></ion-input>
     </ion-item>
     <ion-text color="danger" *ngIf="signupForm.get('password')?.touched && signupForm.get('password')?.invalid">
-      Password must be at least 8 characters.
+      Password is required and must be at least 8 characters.
     </ion-text>
 
     <ion-item>
@@ -81,9 +81,12 @@
       <ion-input formControlName="confirmPassword" type="password"></ion-input>
     </ion-item>
     <ion-text color="danger" *ngIf="signupForm.get('confirmPassword')?.touched && signupForm.get('confirmPassword')?.invalid">
-      Passwords must match.
+      Confirm Password is required.
+    </ion-text>
+    <ion-text color="danger" *ngIf="signupForm.errors?.['mismatch']">
+      Passwords do not match.
     </ion-text>
 
-    <ion-button expand="full" type="submit" [disabled]="signupForm.invalid">Sign Up</ion-button>
+    <ion-button expand="full" type="submit" [disabled]="signupForm.invalid">Signup</ion-button>
   </form>
 </ion-content>

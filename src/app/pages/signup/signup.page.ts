@@ -17,6 +17,7 @@ import { RouterModule } from '@angular/router';
 })
 export class SignupPage implements OnInit {
   signupForm!: FormGroup;
+  emailError: string = '';
 
   constructor(
     private fb: FormBuilder,
@@ -37,6 +38,11 @@ export class SignupPage implements OnInit {
       password: ['', [Validators.required, Validators.minLength(8)]],
       confirmPassword: ['', Validators.required]
     }, { validator: this.passwordMatchValidator });
+
+    // Reset email error when email value changes
+    this.signupForm.get('email')?.valueChanges.subscribe(() => {
+      this.emailError = '';
+    });
   }
 
   passwordMatchValidator(form: FormGroup) {
@@ -64,7 +70,7 @@ export class SignupPage implements OnInit {
         if (uid) {
           await this.firestore.collection('users').doc(uid).set({
             name,
-            email,
+            email, // Store the email in its original case
             icNumber,
             phone,
             address,
@@ -75,9 +81,19 @@ export class SignupPage implements OnInit {
           console.log('Signup successful');
           this.navCtrl.navigateForward('/login');
         }
-      } catch (error) {
-        console.error('Signup error:', error);
+      } catch (error: any) {
+        if (this.isFirebaseAuthError(error) && error.code === 'auth/email-already-in-use') {
+          console.error('Email already used');
+          // Set the error message
+          this.emailError = 'Email already used. Please use a different email.';
+        } else {
+          console.error('Signup error:', error);
+        }
       }
     }
+  }
+
+  private isFirebaseAuthError(error: any): error is { code: string } {
+    return typeof error === 'object' && error !== null && 'code' in error;
   }
 }

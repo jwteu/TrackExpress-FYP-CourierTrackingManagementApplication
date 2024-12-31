@@ -1,29 +1,26 @@
 <ion-content [fullscreen]="true">
+  <ion-title class="title">TrackXpress</ion-title>
+  <ion-icon name="chevron-back" class="back" [routerLink]="['/landing']"></ion-icon>
 
-      <ion-title class="title">TrackXpress</ion-title>
-
-      <ion-icon name="chevron-back" class="back" [routerLink]="['/landing']"></ion-icon>
-
-   <form>
-      <div class="form">
-        <p class="description">Login Now</p>
-        <div class = "form-group">
+  <form [formGroup]="loginForm" (ngSubmit)="onLogin()">
+    <div class="form">
+      <p class="description">Login Now</p>
+      <div class="form-group">
         <ion-item class="input">
-            <ion-input>
-            </ion-input>
-            <ion-icon name="person-outline"></ion-icon>
+          <ion-input formControlName="email" type="email" placeholder="Email"></ion-input>
+          <ion-icon name="person-outline"></ion-icon>
         </ion-item>
         <ion-item class="input">
-            <ion-input>
-            </ion-input>
-            <ion-icon name="lock-closed-outline"></ion-icon>
+          <ion-input formControlName="password" type="password" placeholder="Password"></ion-input>
+          <ion-icon name="lock-closed-outline"></ion-icon>
         </ion-item>
+        <ion-text  class="error" color="danger" *ngIf="errorMessage">{{ errorMessage }}</ion-text>
         <div class="text">
           <a [routerLink]="['/reset-password']">Forget password?</a>
         </div>
-        <ion-button class="button" expand="block" [routerLink]="['/home']">Login</ion-button>
+        <ion-button class="button" expand="block" type="submit" [disabled]="loginForm.invalid">Login</ion-button>
         <p class="text2">No account? <a [routerLink]="['/signup']">Signup here</a></p>
       </div>
-      </div>
-   </form>
+    </div>
+  </form>
 </ion-content>
