@@ -31,6 +31,15 @@ export class LoginPage implements OnInit {
       email: ['', [Validators.required, Validators.email]],
       password: ['', [Validators.required, Validators.minLength(8)]]
     });
+
+    // Reset error message when email or password value changes
+    this.loginForm.get('email')?.valueChanges.subscribe(() => {
+      this.errorMessage = '';
+    });
+
+    this.loginForm.get('password')?.valueChanges.subscribe(() => {
+      this.errorMessage = '';
+    });
   }
 
   async onLogin() {
