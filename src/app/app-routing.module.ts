@@ -27,6 +27,14 @@ const routes: Routes = [
     path: 'landing',
     loadChildren: () => import('./pages/landing/landing.module').then( m => m.LandingPageModule)
   },
+  {
+    path: 'admin-home',
+    loadChildren: () => import('./adminPage/admin-home/admin-home.module').then( m => m.AdminHomePageModule)
+  },
+  {
+    path: 'deliveryman-home',
+    loadChildren: () => import('./deliverymanPage/deliveryman-home/deliveryman-home.module').then( m => m.DeliverymanHomePageModule)
+  },
 ];
 
 @NgModule({

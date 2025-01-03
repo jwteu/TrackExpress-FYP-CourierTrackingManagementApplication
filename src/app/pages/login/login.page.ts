@@ -29,7 +29,8 @@ export class LoginPage implements OnInit {
   ngOnInit() {
     this.loginForm = this.fb.group({
       email: ['', [Validators.required, Validators.email]],
-      password: ['', [Validators.required, Validators.minLength(8)]]
+      password: ['', [Validators.required, Validators.minLength(8)]],
+      role: ['Admin']
     });
 
     // Reset error message when email or password value changes
@@ -44,7 +45,7 @@ export class LoginPage implements OnInit {
 
   async onLogin() {
     if (this.loginForm.valid) {
-      const { email, password } = this.loginForm.value;
+      const { email, password, role } = this.loginForm.value;
 
       try {
         // Retrieve the user document from Firestore
@@ -55,17 +56,31 @@ export class LoginPage implements OnInit {
         }
 
         const userDoc = userSnapshot.docs[0];
-        const userData = userDoc.data() as { email: string };
+        const userData = userDoc.data() as { email: string, role: string };
+
+        console.log('Retrieved user data:', userData);
 
         // Check if the email matches in a case-sensitive manner
         if (userData.email !== email) {
+          console.error('Email case mismatch:', userData.email, email);
           throw new Error('Email case mismatch');
+        }
+
+        // Add the role check here
+        if (userData.role !== role) {
+          console.error('Role mismatch:', userData.role, role);
+          throw new Error('Role mismatch');
         }
 
         // Sign in with Firebase Authentication
         await this.afAuth.signInWithEmailAndPassword(email, password);
         console.log('Login successful');
-        this.navCtrl.navigateForward('/home');
+        
+        if (role === 'admin') {
+          this.navCtrl.navigateForward('/admin-home');
+        } else {
+          this.navCtrl.navigateForward('/deliveryman-home');
+        }
       } catch (error) {
         console.error('Login error:', error);
         this.errorMessage = 'Your email or password is invalid';
