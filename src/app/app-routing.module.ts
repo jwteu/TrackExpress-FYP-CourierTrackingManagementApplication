@@ -35,6 +35,14 @@ const routes: Routes = [
     path: 'deliveryman-home',
     loadChildren: () => import('./deliverymanPage/deliveryman-home/deliveryman-home.module').then( m => m.DeliverymanHomePageModule)
   },
+  {
+    path: 'manage-parcel',
+    loadChildren: () => import('./adminPage/manage-parcel/manage-parcel.module').then( m => m.ManageParcelPageModule)
+  },
+  {
+    path: 'add-parcel',
+    loadChildren: () => import('./adminPage/add-parcel/add-parcel.module').then( m => m.AddParcelPageModule)
+  },
 ];
 
 @NgModule({

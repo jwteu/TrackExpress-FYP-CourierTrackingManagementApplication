@@ -1,0 +1,74 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-button (click)="goBack()">
+        <ion-icon name="arrow-back-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+    <ion-title>Add Parcel</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <form [formGroup]="parcelForm" (ngSubmit)="submit()">
+    <ion-item>
+      <ion-label position="floating">Sender Name</ion-label>
+      <ion-input formControlName="senderName"></ion-input>
+    </ion-item>
+    <ion-note *ngIf="parcelForm.get('senderName')!.hasError('pattern') && parcelForm.get('senderName')!.touched" color="danger">
+      Name should contain only alphabets.
+    </ion-note>
+    <ion-item>
+      <ion-label position="floating">Sender Contact</ion-label>
+      <ion-input formControlName="senderContact" type="tel"></ion-input>
+    </ion-item>
+    <ion-note *ngIf="parcelForm.get('senderContact')!.hasError('pattern') && parcelForm.get('senderContact')!.touched" color="danger">
+      Contact should contain only numbers.
+    </ion-note>
+    <ion-item>
+      <ion-label position="floating">Sender Email</ion-label>
+      <ion-input formControlName="senderEmail" type="email"></ion-input>
+    </ion-item>
+    <ion-note *ngIf="parcelForm.get('senderEmail')!.hasError('email') && parcelForm.get('senderEmail')!.touched" color="danger">
+      Please enter a valid email.
+    </ion-note>
+    <ion-item>
+      <ion-label position="floating">Sender Address</ion-label>
+      <ion-textarea formControlName="senderAddress"></ion-textarea>
+    </ion-item>
+    <ion-item>
+      <ion-label position="floating">Receiver Name</ion-label>
+      <ion-input formControlName="receiverName"></ion-input>
+    </ion-item>
+    <ion-note *ngIf="parcelForm.get('receiverName')!.hasError('pattern') && parcelForm.get('receiverName')!.touched" color="danger">
+      Name should contain only alphabets.
+    </ion-note>
+    <ion-item>
+      <ion-label position="floating">Receiver Contact</ion-label>
+      <ion-input formControlName="receiverContact" type="tel"></ion-input>
+    </ion-item>
+    <ion-note *ngIf="parcelForm.get('receiverContact')!.hasError('pattern') && parcelForm.get('receiverContact')!.touched" color="danger">
+      Contact should contain only numbers.
+    </ion-note>
+    <ion-item>
+      <ion-label position="floating">Receiver Email</ion-label>
+      <ion-input formControlName="receiverEmail" type="email"></ion-input>
+    </ion-item>
+    <ion-note *ngIf="parcelForm.get('receiverEmail')!.hasError('email') && parcelForm.get('receiverEmail')!.touched" color="danger">
+      Please enter a valid email.
+    </ion-note>
+    <ion-item>
+      <ion-label position="floating">Receiver Address</ion-label>
+      <ion-textarea formControlName="receiverAddress"></ion-textarea>
+    </ion-item>
+    <ion-item>
+      <ion-label position="floating">Pickup Location</ion-label>
+      <ion-input formControlName="pickupLocation"></ion-input>
+    </ion-item>
+    <ion-item>
+      <ion-label position="floating">Date</ion-label>
+      <ion-input formControlName="date" type="date"></ion-input>
+    </ion-item>
+    <ion-button expand="block" type="submit" [disabled]="parcelForm.invalid">Submit</ion-button>
+  </form>
+</ion-content>
