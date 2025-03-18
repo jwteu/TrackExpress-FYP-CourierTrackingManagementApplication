@@ -21,7 +21,6 @@ export class SignupPage implements OnInit {
   signupForm!: FormGroup;
   emailError: string = '';
   staffIdError: string = '';
-  secretKeyError: string = '';
   nameError: string = '';
 
   constructor(
@@ -40,7 +39,6 @@ export class SignupPage implements OnInit {
       address: ['', Validators.required],
       role: ['', Validators.required],
       staffId: ['', Validators.required],
-      secretKey: ['', Validators.required],
       password: ['', [Validators.required, Validators.minLength(8)]],
       confirmPassword: ['', Validators.required]
     }, { validator: this.passwordMatchValidator });
@@ -55,11 +53,6 @@ export class SignupPage implements OnInit {
       this.staffIdError = '';
     });
 
-    // Reset secret key error when secret key value changes
-    this.signupForm.get('secretKey')?.valueChanges.subscribe(() => {
-      this.secretKeyError = '';
-    });
-
     // Reset name error when name value changes
     this.signupForm.get('name')?.valueChanges.subscribe(() => {
       this.nameError = '';
@@ -71,41 +64,33 @@ export class SignupPage implements OnInit {
       ? null : { mismatch: true };
   }
 
-  private async validateStaffId(staffId: string): Promise<boolean> {
-    const staffDoc = await this.firestore.collection('staff', ref => ref.where('staffId', '==', staffId)).get().toPromise();
+  private async validateStaffId(staffId: string, role: string): Promise<boolean> {
+    const staffDoc = await this.firestore.collection('staff', ref => ref.where('staffId', '==', staffId).where('role', '==', role)).get().toPromise();
     return staffDoc ? !staffDoc.empty : false;
   }
 
-  private async validateStaffName(staffId: string, name: string): Promise<boolean> {
-    const staffDoc = await this.firestore.collection('staff', ref => ref.where('staffId', '==', staffId).where('name', '==', name)).get().toPromise();
+  private async validateStaffName(staffId: string, name: string, role: string): Promise<boolean> {
+    const staffDoc = await this.firestore.collection('staff', ref => ref.where('staffId', '==', staffId).where('name', '==', name).where('role', '==', role)).get().toPromise();
     return staffDoc ? !staffDoc.empty : false;
   }
 
   async onSubmit() {
     if (this.signupForm.valid) {
-      const { name, email, icNumber, phone, address, role, staffId, secretKey, password } = this.signupForm.value;
+      const { name, email, icNumber, phone, address, role, staffId, password } = this.signupForm.value;
 
       // Validate staff ID
-      const isValidStaffId = await this.validateStaffId(staffId);
+      const isValidStaffId = await this.validateStaffId(staffId, role);
       if (!isValidStaffId) {
-        console.error('Invalid staff ID');
-        this.staffIdError = 'Invalid staff ID. Please use a valid staff ID.';
+        console.error('Invalid staff ID or role');
+        this.staffIdError = 'Invalid staff ID or role. Please use a valid staff ID and role.';
         return;
       }
 
       // Validate staff name
-      const isValidStaffName = await this.validateStaffName(staffId, name);
+      const isValidStaffName = await this.validateStaffName(staffId, name, role);
       if (!isValidStaffName) {
-        console.error('Invalid staff name');
-        this.nameError = 'Please enter the name that matches the IC.';
-        return;
-      }
-
-      // Validate secret key
-      if ((role === 'admin' && secretKey !== 'admin8133') || 
-          (role === 'deliveryman' && secretKey !== 'delivery2237')) {
-        console.error('Invalid secret key');
-        this.secretKeyError = 'Invalid secret key. Please use a valid secret key.';
+        console.error('Invalid staff name or role');
+        this.nameError = 'Please enter the name that matches the IC and role.';
         return;
       }
 

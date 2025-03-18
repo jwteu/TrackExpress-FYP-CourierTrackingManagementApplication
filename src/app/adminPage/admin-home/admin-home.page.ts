@@ -3,6 +3,7 @@ import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IonicModule } from '@ionic/angular';
+import { AngularFireAuth } from '@angular/fire/compat/auth';
 
 @Component({
   selector: 'app-admin-home',
@@ -13,10 +14,46 @@ import { IonicModule } from '@ionic/angular';
   schemas: [CUSTOM_ELEMENTS_SCHEMA]
 })
 export class AdminHomePage implements OnInit {
-
-  constructor(private router: Router) { }
+  userName: string = '';
+  userRole: string = '';
+  
+  constructor(
+    private router: Router,
+    private afAuth: AngularFireAuth
+  ) { }
 
   ngOnInit() {
+    this.checkUserSession();
+  }
+
+  checkUserSession() {
+    // Get user session from localStorage
+    const sessionData = localStorage.getItem('userSession');
+    
+    if (!sessionData) {
+      // No session found, redirect to login
+      this.router.navigate(['/login']);
+      return;
+    }
+    
+    try {
+      const userSession = JSON.parse(sessionData);
+      
+      // Validate session data
+      if (!userSession.uid || !userSession.role || userSession.role !== 'admin') {
+        // Invalid session or not an admin, redirect to login
+        this.logout();
+        return;
+      }
+      
+      // Session is valid, set user information
+      this.userName = userSession.name || '';
+      this.userRole = userSession.role;
+      
+    } catch (error) {
+      console.error('Error parsing user session:', error);
+      this.logout();
+    }
   }
 
   navigateTo(page: string) {
@@ -24,7 +61,16 @@ export class AdminHomePage implements OnInit {
   }
 
   logout() {
-    // Add your logout logic here (e.g., clearing tokens, etc.)
-    this.router.navigate(['/login']);
+    // Clear user session
+    localStorage.removeItem('userSession');
+    
+    // Sign out from Firebase Auth
+    this.afAuth.signOut().then(() => {
+      console.log('User signed out');
+      this.router.navigate(['/login']);
+    }).catch(error => {
+      console.error('Sign out error:', error);
+      this.router.navigate(['/login']);
+    });
   }
 }

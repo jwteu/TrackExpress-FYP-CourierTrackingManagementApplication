@@ -1,5 +1,7 @@
 import { NgModule } from '@angular/core';
 import { PreloadAllModules, RouterModule, Routes } from '@angular/router';
+import { AuthGuard } from './guards/auth.guard';
+import { RoleGuard } from './guards/role.guard';
 
 const routes: Routes = [
   {
@@ -29,11 +31,16 @@ const routes: Routes = [
   },
   {
     path: 'admin-home',
-    loadChildren: () => import('./adminPage/admin-home/admin-home.module').then( m => m.AdminHomePageModule)
+    loadChildren: () => import('./adminPage/admin-home/admin-home.module').then(m => m.AdminHomePageModule),
+    canActivate: [AuthGuard, RoleGuard],
+    data: { role: 'admin' }
   },
+  // For deliveryman routes:
   {
     path: 'deliveryman-home',
-    loadChildren: () => import('./deliverymanPage/deliveryman-home/deliveryman-home.module').then( m => m.DeliverymanHomePageModule)
+    loadChildren: () => import('./deliverymanPage/deliveryman-home/deliveryman-home.module').then(m => m.DeliverymanHomePageModule),
+    canActivate: [AuthGuard, RoleGuard],
+    data: { role: 'deliveryman' }
   },
   {
     path: 'manage-parcel',
@@ -43,6 +50,12 @@ const routes: Routes = [
     path: 'add-parcel',
     loadChildren: () => import('./adminPage/add-parcel/add-parcel.module').then( m => m.AddParcelPageModule)
   },
+  // Update this route to match the correct path
+  {
+    path: 'profile',
+    loadChildren: () => import('./adminPage/profile/profile.module').then(m => m.ProfilePageModule),
+    canActivate: [AuthGuard] // Only authenticated users can access the profile
+  }
 ];
 
 @NgModule({

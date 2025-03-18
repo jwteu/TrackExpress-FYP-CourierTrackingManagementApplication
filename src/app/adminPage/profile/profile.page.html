@@ -1,0 +1,106 @@
+<ion-content [fullscreen]="true">
+  <ion-header>
+    <ion-toolbar>
+      <ion-buttons slot="start">
+        <ion-button (click)="goBack()">
+          <ion-icon name="arrow-back-outline"></ion-icon>
+        </ion-button>
+      </ion-buttons>
+      <ion-title class="title">User Profile</ion-title>
+    </ion-toolbar>
+  </ion-header>
+
+  <div class="container" *ngIf="!isLoading">
+    <form [formGroup]="profileForm" (ngSubmit)="saveProfile()">
+      <!-- Read-only information section -->
+      <ion-card class="profile-card read-only-card">
+        <ion-card-header>
+          <ion-card-title>Personal Information</ion-card-title>
+          <ion-card-subtitle>This information cannot be changed</ion-card-subtitle>
+        </ion-card-header>
+        <ion-card-content>
+          <ion-item class="profile-item">
+            <ion-label position="stacked">Name</ion-label>
+            <ion-input formControlName="name" class="readonly-field"></ion-input>
+          </ion-item>
+
+          <ion-item class="profile-item">
+            <ion-label position="stacked">IC Number</ion-label>
+            <ion-input formControlName="icNumber" class="readonly-field"></ion-input>
+          </ion-item>
+
+          <ion-item class="profile-item">
+            <ion-label position="stacked">Role</ion-label>
+            <ion-input formControlName="role" class="readonly-field"></ion-input>
+          </ion-item>
+
+          <ion-item class="profile-item">
+            <ion-label position="stacked">Staff ID</ion-label>
+            <ion-input formControlName="staffId" class="readonly-field"></ion-input>
+          </ion-item>
+        </ion-card-content>
+      </ion-card>
+
+      <!-- Editable information section -->
+      <ion-card class="profile-card editable-card">
+        <ion-card-header>
+          <ion-card-title>
+            Contact Information
+            <ion-button fill="clear" size="small" (click)="toggleEditMode()" *ngIf="!isEditMode" class="edit-button">
+              <ion-icon name="create-outline"></ion-icon>
+              Edit
+            </ion-button>
+          </ion-card-title>
+          <ion-card-subtitle>This information can be updated</ion-card-subtitle>
+        </ion-card-header>
+        <ion-card-content>
+          <ion-item class="profile-item">
+            <ion-label position="stacked">Email</ion-label>
+            <ion-input formControlName="email" type="email" [class.editable-field]="isEditMode"></ion-input>
+          </ion-item>
+          <ion-text color="danger" *ngIf="profileForm.get('email')?.touched && profileForm.get('email')?.invalid && isEditMode">
+            Enter a valid email.
+          </ion-text>
+
+          <ion-item class="profile-item">
+            <ion-label position="stacked">Phone</ion-label>
+            <ion-input formControlName="phone" type="tel" [class.editable-field]="isEditMode"></ion-input>
+          </ion-item>
+          <ion-text color="danger" *ngIf="profileForm.get('phone')?.touched && profileForm.get('phone')?.invalid && isEditMode">
+            Enter a valid phone number.
+          </ion-text>
+
+          <ion-item class="profile-item">
+            <ion-label position="stacked">Address</ion-label>
+            <ion-textarea formControlName="address" rows="3" [class.editable-field]="isEditMode"></ion-textarea>
+          </ion-item>
+          <ion-text color="danger" *ngIf="profileForm.get('address')?.touched && profileForm.get('address')?.invalid && isEditMode">
+            Address is required.
+          </ion-text>
+        </ion-card-content>
+      </ion-card>
+
+      <ion-text color="success" *ngIf="updateSuccess">
+        <p class="success-message">Profile updated successfully!</p>
+      </ion-text>
+      
+      <ion-text color="danger" *ngIf="updateError">
+        <p class="error-message">{{ updateError }}</p>
+      </ion-text>
+
+      <div class="button-container" *ngIf="isEditMode">
+        <ion-button expand="block" class="cancel-button" type="button" (click)="toggleEditMode()">
+          Cancel
+        </ion-button>
+        <ion-button expand="block" class="save-button" type="submit" [disabled]="profileForm.invalid">
+          Save Changes
+        </ion-button>
+      </div>
+    </form>
+  </div>
+
+  <div *ngIf="isLoading" class="loading-container">
+    <ion-spinner name="crescent"></ion-spinner>
+    <p>Loading profile data...</p>
+  </div>
+</ion-content>

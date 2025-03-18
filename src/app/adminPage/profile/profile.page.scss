@@ -1,0 +1,115 @@
+.title {
+    font-size: 20px;
+    font-weight: bold;
+    text-align: center;
+    color: #333;
+  }
+  
+  .container {
+    padding: 16px;
+  }
+  
+  .profile-card {
+    margin-bottom: 20px;
+    border-radius: 8px;
+    
+    ion-card-header {
+      background-color: #f8f8f8;
+      
+      ion-card-title {
+        font-size: 18px;
+        font-weight: bold;
+        color: #333;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      
+      ion-card-subtitle {
+        font-size: 14px;
+        color: #666;
+      }
+    }
+  }
+  
+  .read-only-card {
+    border-left: 4px solid #ccc;
+  }
+  
+  .editable-card {
+    border-left: 4px solid rgb(240, 209, 0);
+  }
+  
+  .profile-item {
+    margin-bottom: 10px;
+    --background: transparent;
+    
+    ion-label {
+      font-weight: 500;
+      color: #555;
+    }
+  }
+  
+  .readonly-field {
+    --background: #eaeaea;
+    opacity: 0.8;
+  }
+  
+  .editable-field {
+    --background: rgba(240, 209, 0, 0.05);
+    border-bottom: 1px solid rgb(240, 209, 0);
+  }
+  
+  .edit-button {
+    --color: rgb(240, 209, 0);
+    font-weight: bold;
+  }
+  
+  .button-container {
+    display: flex;
+    margin-top: 20px;
+    gap: 10px;
+  }
+  
+  .cancel-button {
+    flex: 1;
+    --background: #ccc;
+    color: #333;
+  }
+  
+  .save-button {
+    flex: 2;
+    --background: rgb(240, 209, 0);
+    font-weight: bold;
+  }
+  
+  .save-button:active, .cancel-button:active {
+    --background: white;
+    color: rgb(240, 209, 0);
+  }
+  
+  .loading-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+  }
+  
+  .success-message {
+    color: #2dd36f;
+    text-align: center;
+    margin: 10px 0;
+    padding: 10px;
+    background-color: rgba(45, 211, 111, 0.1);
+    border-radius: 4px;
+  }
+  
+  .error-message {
+    color: #eb445a;
+    text-align: center;
+    margin: 10px 0;
+    padding: 10px;
+    background-color: rgba(235, 68, 90, 0.1);
+    border-radius: 4px;
+  }

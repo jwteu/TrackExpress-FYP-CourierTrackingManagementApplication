@@ -56,7 +56,7 @@ export class LoginPage implements OnInit {
         }
 
         const userDoc = userSnapshot.docs[0];
-        const userData = userDoc.data() as { email: string, role: string };
+        const userData = userDoc.data() as { email: string, role: string, name: string, uid: string, staffId: string };
 
         console.log('Retrieved user data:', userData);
 
@@ -69,12 +69,25 @@ export class LoginPage implements OnInit {
         // Add the role check here
         if (userData.role !== role) {
           console.error('Role mismatch:', userData.role, role);
-          throw new Error('Role mismatch');
+          this.errorMessage = 'Selected role does not match your account.';
+          return;
         }
 
         // Sign in with Firebase Authentication
         await this.afAuth.signInWithEmailAndPassword(email, password);
         console.log('Login successful');
+        
+        // Store user session data in localStorage
+        const sessionData = {
+          uid: userData.uid,
+          email: userData.email,
+          name: userData.name,
+          role: userData.role,
+          staffId: userData.staffId,
+          loggedInAt: new Date().toISOString()
+        };
+        
+        localStorage.setItem('userSession', JSON.stringify(sessionData));
         
         if (role === 'admin') {
           this.navCtrl.navigateForward('/admin-home');

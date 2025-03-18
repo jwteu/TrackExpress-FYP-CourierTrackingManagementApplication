@@ -1,13 +1,22 @@
-<!-- src/app/adminPage/admin-home/admin-home.page.html -->
 <ion-content [fullscreen]="true">
   <ion-header>
     <ion-title class="title">Admin Home Page</ion-title>
   </ion-header>
 
   <div class="container">
-    <ion-button class="back" (click)="logout()">
-      <ion-icon name="log-out-outline"></ion-icon>
-    </ion-button>
+    <div class="welcome-message">
+      <h2>Hi, {{ userName }}</h2>
+    </div>
+    
+    <div class="action-buttons">
+      <ion-button class="back" (click)="logout()">
+        <ion-icon name="log-out-outline"></ion-icon>
+      </ion-button>
+      <ion-button class="profile-btn" (click)="navigateTo('profile')">
+        <ion-icon name="person-circle-outline"></ion-icon>
+      </ion-button>
+    </div>
+
     <ion-button expand="block" class="button" (click)="navigateTo('manage-parcel')">Manage Parcel Information</ion-button>
     <ion-button expand="block" class="button" (click)="navigateTo('tracking-parcel')">Tracking Parcel</ion-button>
   </div>
