@@ -5,6 +5,7 @@ import { IonicModule } from '@ionic/angular';
 import { Location } from '@angular/common';
 import { Router } from '@angular/router';
 import { AngularFirestore } from '@angular/fire/compat/firestore';
+import { HomePage } from 'src/app/home/home.page';
 
 @Component({
   selector: 'app-manage-parcel',
@@ -49,6 +50,6 @@ export class ManageParcelPage implements OnInit {
   }
 
   goBack() {
-    this.location.back();
+    this.router.navigate(['/admin-home']);
   }
 }
