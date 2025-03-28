@@ -1,0 +1,40 @@
+ion-content {
+    --padding-top: 16px;
+    --padding-bottom: 16px;
+  }
+  
+  ion-item {
+    --padding-start: 0;
+    margin-bottom: 8px;
+  }
+  
+  ion-note {
+    padding-left: 16px;
+    margin-bottom: 8px;
+  }
+  
+  ion-button[type="submit"] {
+    margin-top: 16px;
+  }
+  
+  // Custom styling for location input with inline button
+  .location-item {
+    --inner-padding-end: 0;
+  }
+  
+  .input-with-button {
+    display: flex;
+    align-items: center;
+    width: 100%;
+  }
+  
+  .location-input {
+    flex-grow: 1;
+  }
+  
+  .location-button {
+    margin: 0;
+    height: 100%;
+    --padding-start: 4px;
+    --padding-end: 4px;
+  }

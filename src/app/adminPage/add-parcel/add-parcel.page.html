@@ -61,14 +61,23 @@
       <ion-label position="floating">Receiver Address</ion-label>
       <ion-textarea formControlName="receiverAddress"></ion-textarea>
     </ion-item>
-    <ion-item>
-      <ion-label position="floating">Pickup Location</ion-label>
-      <ion-input formControlName="pickupLocation"></ion-input>
-    </ion-item>
+    
+    <!-- Location section with inline auto-detect button -->
+<ion-item class="location-item">
+  <ion-label position="floating">Pickup Location</ion-label>
+  <div class="input-with-button">
+    <ion-input formControlName="pickupLocation" class="location-input"></ion-input>
+    <ion-button fill="clear" size="small" (click)="getDeviceLocation()" [disabled]="isGettingLocation" class="location-button">
+      <ion-icon name="location" [color]="isGettingLocation ? 'medium' : 'primary'"></ion-icon>
+    </ion-button>
+  </div>
+</ion-item>
+    
     <ion-item>
       <ion-label position="floating">Date</ion-label>
       <ion-input formControlName="date" type="date"></ion-input>
     </ion-item>
-    <ion-button expand="block" type="submit" [disabled]="parcelForm.invalid">Submit</ion-button>
+    
+    <ion-button expand="block" type="submit" [disabled]="parcelForm.invalid || isGettingLocation" class="ion-margin">Submit</ion-button>
   </form>
 </ion-content>

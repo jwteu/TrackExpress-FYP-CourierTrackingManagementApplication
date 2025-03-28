@@ -19,6 +19,8 @@ import { Location } from '@angular/common';
 })
 export class AddParcelPage implements OnInit {
   parcelForm: FormGroup;
+  isGettingLocation = false;
+  currentLocation: string = '';
 
   constructor(
     private fb: FormBuilder,
@@ -43,7 +45,157 @@ export class AddParcelPage implements OnInit {
   }
 
   ngOnInit() {
-    // No initialization needed
+    // Initialize with current date
+    const today = new Date().toISOString().split('T')[0];
+    this.parcelForm.patchValue({
+      date: today
+    });
+  }
+  
+  async getDeviceLocation() {
+    if (!navigator.geolocation) {
+      const toast = await this.toastCtrl.create({
+        message: 'Geolocation is not supported by your browser',
+        duration: 3000,
+        position: 'bottom',
+        color: 'danger'
+      });
+      await toast.present();
+      return;
+    }
+    
+    this.isGettingLocation = true;
+    const loading = await this.loadingCtrl.create({
+      message: 'Getting your location...',
+      spinner: 'circles'
+    });
+    await loading.present();
+  
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const { latitude, longitude, accuracy } = position.coords;
+          console.log(`Location detected: ${latitude}, ${longitude} (accuracy: ${accuracy}m)`);
+          
+          // Use reverse geocoding to get a detailed address from coordinates
+          // Using OpenStreetMap's Nominatim API with more parameters
+          const response = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?` +
+            `format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`
+          );
+          
+          if (!response.ok) {
+            throw new Error('Failed to get address from coordinates');
+          }
+          
+          const data = await response.json();
+          console.log('Location data:', data);
+          
+          // Format the address with more details
+          let address = '';
+          
+          if (data.address) {
+            // More detailed address formatting
+            const addressComponents = [];
+            
+            // Building information
+            if (data.address.house_number) addressComponents.push(data.address.house_number);
+            if (data.address.building) addressComponents.push(data.address.building);
+            
+            // Street information
+            if (data.address.road || data.address.street) {
+              addressComponents.push(data.address.road || data.address.street);
+            }
+            
+            // Neighborhood information
+            if (data.address.neighbourhood) addressComponents.push(data.address.neighbourhood);
+            if (data.address.suburb) addressComponents.push(data.address.suburb);
+            
+            // City/town information
+            if (data.address.city) addressComponents.push(data.address.city);
+            else if (data.address.town) addressComponents.push(data.address.town);
+            else if (data.address.village) addressComponents.push(data.address.village);
+            
+            // Region information
+            if (data.address.county) addressComponents.push(data.address.county);
+            if (data.address.state || data.address.province) {
+              addressComponents.push(data.address.state || data.address.province);
+            }
+            
+            // Postal code
+            if (data.address.postcode) addressComponents.push(data.address.postcode);
+            
+            // Country
+            if (data.address.country) addressComponents.push(data.address.country);
+            
+            address = addressComponents.join(', ');
+            
+            // Add any additional information if not already included
+            if (data.display_name && !address) {
+              address = data.display_name;
+            }
+          } else {
+            // Fallback to display_name or coordinates
+            address = data.display_name || `Latitude: ${latitude}, Longitude: ${longitude}`;
+          }
+          
+          this.currentLocation = address;
+          this.parcelForm.patchValue({
+            pickupLocation: address
+          });
+          
+          loading.dismiss();
+          this.isGettingLocation = false;
+          
+          const toast = await this.toastCtrl.create({
+            message: 'Location detected successfully!',
+            duration: 2000,
+            position: 'bottom',
+            color: 'success'
+          });
+          await toast.present();
+        } catch (error) {
+          console.error('Error getting address:', error);
+          loading.dismiss();
+          this.isGettingLocation = false;
+          
+          const toast = await this.toastCtrl.create({
+            message: 'Failed to get address. Please enter manually.',
+            duration: 3000,
+            position: 'bottom',
+            color: 'danger'
+          });
+          await toast.present();
+        }
+      },
+      async (error) => {
+        console.error('Geolocation error:', error);
+        loading.dismiss();
+        this.isGettingLocation = false;
+        
+        let errorMessage = 'Failed to get your location.';
+        if (error.code === 1) {
+          errorMessage = 'Location permission denied. Please enable location services.';
+        } else if (error.code === 2) {
+          errorMessage = 'Location unavailable. Please try again.';
+        } else if (error.code === 3) {
+          errorMessage = 'Location request timed out. Please try again.';
+        }
+        
+        const toast = await this.toastCtrl.create({
+          message: errorMessage,
+          duration: 3000,
+          position: 'bottom',
+          color: 'danger'
+        });
+        await toast.present();
+      },
+      {
+        enableHighAccuracy: true, // Request the most accurate position available
+        timeout: 15000,          // Allow more time (15 seconds) to get a good position
+        maximumAge: 0            // Don't use cached position data
+      }
+    );
   }
 
   async submit() {
@@ -120,7 +272,7 @@ export class AddParcelPage implements OnInit {
         const senderParams = {
           service_id: 'service_o0nwz8b',
           template_id: 'template_5e1px4b',
-          user_id: 'ghZzg_nWOdHQY6Krj',
+          user_id: 'ghZzg_nWOdHQY6Krj', 
           template_params: {
             tracking_id: parcelData.trackingId,
             date: new Date(parcelData.date).toLocaleDateString(),
@@ -128,6 +280,7 @@ export class AddParcelPage implements OnInit {
             // EmailJS requires an email address to send to
             to_email: parcelData.senderEmail,
             // Include some standard email fields that EmailJS might need
+            to_name: parcelData.senderName || 'Customer',  // Added to_name field
             from_name: 'TrackExpress',
             reply_to: 'noreply@trackexpress.com'
           }
@@ -167,6 +320,8 @@ export class AddParcelPage implements OnInit {
             // EmailJS requires an email address to send to
             to_email: parcelData.receiverEmail,
             // Include some standard email fields that EmailJS might need
+            to_name: parcelData.receiverName || 'Customer',  // Added to_name field
+            sender_name: parcelData.senderName || 'Sender',  // Added sender_name field
             from_name: 'TrackExpress',
             reply_to: 'noreply@trackexpress.com'
           }
