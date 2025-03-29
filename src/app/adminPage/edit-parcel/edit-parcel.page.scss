@@ -1,0 +1,88 @@
+/* Yellow theme for edit-parcel page */
+ion-content {
+    --padding: 16px;
+  }
+  
+  ion-item {
+    --padding-start: 0;
+    margin-bottom: 8px;
+    --border-color: #FFE066;
+    --highlight-color-valid: #F6BE00;
+  }
+  
+  ion-text[color="danger"] {
+    font-size: 12px;
+    margin-left: 16px;
+    display: block;
+    margin-top: -4px;
+    margin-bottom: 8px;
+  }
+  
+  /* Yellow-themed toolbar */
+  ion-toolbar {
+    --background: #FFDE59;
+    --color: #333;
+  }
+  
+  /* Yellow-themed button */
+  ion-button {
+    margin-top: 24px;
+    margin-bottom: 24px;
+    --background: #FFDE59;
+    --background-activated: #F6BE00;
+    --background-focused: #F6BE00;
+    --background-hover: #FFE066;
+    --color: #333;
+  }
+  
+  ion-card {
+    margin-bottom: 16px;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  }
+  
+  ion-card-header {
+    background-color: #FFDE59;
+  }
+  
+  ion-card-subtitle {
+    text-transform: uppercase;
+    font-weight: bold;
+    color: #333;
+  }
+  
+  ion-card-title {
+    font-weight: bold;
+    margin-top: 4px;
+    color: #333;
+  }
+  
+  /* Barcode container styling */
+  .barcode-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    margin: 16px auto;
+    background-color: white;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+    width: 90%;
+    max-width: 350px;
+  }
+  
+  .barcode-image {
+    width: 100%;
+    max-width: 300px;
+    height: auto;
+    display: block;
+  }
+  
+  .tracking-id {
+    font-size: 18px;
+    font-weight: bold;
+    margin-top: 10px;
+    text-align: center;
+    width: 100%;
+  }

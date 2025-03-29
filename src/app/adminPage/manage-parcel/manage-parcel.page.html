@@ -15,7 +15,7 @@
   </div>
 
   <ion-list>
-    <ion-item *ngFor="let parcel of parcels" class="parcel-item" button detail="true" (click)="viewParcelDetail(parcel.id)">
+    <ion-item *ngFor="let parcel of parcels" class="parcel-item" button (click)="viewParcelDetail(parcel.id)" detail="false">
       <ion-thumbnail slot="start" class="barcode-thumbnail">
         <img [src]="parcel.barcode" alt="Barcode">
       </ion-thumbnail>

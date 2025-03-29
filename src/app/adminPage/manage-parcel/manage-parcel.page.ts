@@ -46,11 +46,10 @@ export class ManageParcelPage implements OnInit {
     this.router.navigate(['/parcel-detail', id]);
   }
 
-  editParcel(id: string) {
-    // This would be implemented with a form to edit the parcel
-    // For now, we'll just navigate to the detail page
-    this.router.navigate(['/parcel-detail', id]);
-  }
+  // Update the editParcel method:
+editParcel(id: string) {
+  this.router.navigate(['/edit-parcel', id]);
+}
 
   async deleteParcel(id: string) {
     const alert = await this.alertController.create({

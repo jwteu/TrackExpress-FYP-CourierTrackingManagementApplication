@@ -1,0 +1,119 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-button (click)="goBack()">
+        <ion-icon name="arrow-back-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+    <ion-title>Edit Parcel</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <!-- Loading state -->
+  <div *ngIf="loading" class="ion-text-center ion-padding">
+    <ion-spinner name="circles"></ion-spinner>
+    <p>Loading parcel details...</p>
+  </div>
+
+  <!-- Error state -->
+  <ion-card *ngIf="loadingError">
+    <ion-card-header>
+      <ion-card-title color="danger">Error</ion-card-title>
+    </ion-card-header>
+    <ion-card-content>
+      <p>Failed to load parcel details. The parcel may have been removed or you don't have permission to view it.</p>
+      <ion-button expand="block" (click)="goBack()">Go Back</ion-button>
+    </ion-card-content>
+  </ion-card>
+
+  <!-- Edit form -->
+  <form [formGroup]="parcelForm" *ngIf="!loading && !loadingError" (ngSubmit)="saveChanges()">
+    <!-- Sender Information Section -->
+    <ion-card>
+      <ion-card-header>
+        <ion-card-subtitle>Sender Information</ion-card-subtitle>
+      </ion-card-header>
+      <ion-card-content>
+        <ion-item>
+          <ion-label position="stacked">Name <ion-text color="danger">*</ion-text></ion-label>
+          <ion-input formControlName="senderName" type="text" required></ion-input>
+        </ion-item>
+        <ion-text color="danger" *ngIf="parcelForm.get('senderName')?.touched && parcelForm.get('senderName')?.invalid">
+          Name is required.
+        </ion-text>
+
+        <ion-item>
+          <ion-label position="stacked">Contact <ion-text color="danger">*</ion-text></ion-label>
+          <ion-input formControlName="senderContact" type="tel" required></ion-input>
+        </ion-item>
+        <ion-text color="danger" *ngIf="parcelForm.get('senderContact')?.touched && parcelForm.get('senderContact')?.invalid">
+          Contact is required.
+        </ion-text>
+
+        <ion-item>
+          <ion-label position="stacked">Email <ion-text color="danger">*</ion-text></ion-label>
+          <ion-input formControlName="senderEmail" type="email" required></ion-input>
+        </ion-item>
+        <ion-text color="danger" *ngIf="parcelForm.get('senderEmail')?.touched && parcelForm.get('senderEmail')?.invalid">
+          Valid email is required.
+        </ion-text>
+
+        <ion-item>
+          <ion-label position="stacked">Address <ion-text color="danger">*</ion-text></ion-label>
+          <ion-textarea formControlName="senderAddress" rows="3" required></ion-textarea>
+        </ion-item>
+        <ion-text color="danger" *ngIf="parcelForm.get('senderAddress')?.touched && parcelForm.get('senderAddress')?.invalid">
+          Address is required.
+        </ion-text>
+      </ion-card-content>
+    </ion-card>
+
+    <!-- Receiver Information Section -->
+    <ion-card>
+      <ion-card-header>
+        <ion-card-subtitle>Receiver Information</ion-card-subtitle>
+      </ion-card-header>
+      <ion-card-content>
+        <ion-item>
+          <ion-label position="stacked">Name <ion-text color="danger">*</ion-text></ion-label>
+          <ion-input formControlName="receiverName" type="text" required></ion-input>
+        </ion-item>
+        <ion-text color="danger" *ngIf="parcelForm.get('receiverName')?.touched && parcelForm.get('receiverName')?.invalid">
+          Name is required.
+        </ion-text>
+
+        <ion-item>
+          <ion-label position="stacked">Contact <ion-text color="danger">*</ion-text></ion-label>
+          <ion-input formControlName="receiverContact" type="tel" required></ion-input>
+        </ion-item>
+        <ion-text color="danger" *ngIf="parcelForm.get('receiverContact')?.touched && parcelForm.get('receiverContact')?.invalid">
+          Contact is required.
+        </ion-text>
+
+        <ion-item>
+          <ion-label position="stacked">Email <ion-text color="danger">*</ion-text></ion-label>
+          <ion-input formControlName="receiverEmail" type="email" required></ion-input>
+        </ion-item>
+        <ion-text color="danger" *ngIf="parcelForm.get('receiverEmail')?.touched && parcelForm.get('receiverEmail')?.invalid">
+          Valid email is required.
+        </ion-text>
+
+        <ion-item>
+          <ion-label position="stacked">Address <ion-text color="danger">*</ion-text></ion-label>
+          <ion-textarea formControlName="receiverAddress" rows="3" required></ion-textarea>
+        </ion-item>
+        <ion-text color="danger" *ngIf="parcelForm.get('receiverAddress')?.touched && parcelForm.get('receiverAddress')?.invalid">
+          Address is required.
+        </ion-text>
+      </ion-card-content>
+    </ion-card>
+
+    <!-- Save Button -->
+    <ion-button expand="block" type="submit" [disabled]="!parcelForm.valid || saving">
+      <ion-icon name="save-outline" slot="start"></ion-icon>
+      Save Changes
+      <ion-spinner name="dots" *ngIf="saving" slot="end"></ion-spinner>
+    </ion-button>
+  </form>
+</ion-content>

@@ -60,7 +60,13 @@ const routes: Routes = [
 {
   path: 'parcel-detail/:id',
   loadChildren: () => import('./adminPage/parcel-detail/parcel-detail.module').then(m => m.ParcelDetailPageModule)
+},
+  // Replace the edit-parcel route with:
+{
+  path: 'edit-parcel/:id',
+  loadChildren: () => import('./adminPage/edit-parcel/edit-parcel.module').then( m => m.EditParcelPageModule)
 }
+
 
 ];
 

@@ -94,48 +94,60 @@ export class ParcelDetailPage implements OnInit {
     
     // Format date properly
     const formattedDate = new Date(this.parcel.date).toLocaleDateString();
-  
-    // Create a professional looking print layout
+
+    // Create a professional looking print layout optimized for a single page
     return `
       <!DOCTYPE html>
       <html>
       <head>
         <title>Parcel Details - ${this.parcel.trackingId}</title>
         <style>
+          @page {
+            size: A4;
+            margin: 0.5cm;
+          }
           body {
             font-family: Arial, sans-serif;
             margin: 0;
-            padding: 20px;
-            line-height: 1.5;
+            padding: 10px;
+            line-height: 1.3;
+            font-size: 11pt;
           }
           .container {
-            max-width: 800px;
+            max-width: 100%;
             margin: 0 auto;
             border: 1px solid #ccc;
-            padding: 20px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            padding: 10px;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
           }
           .header {
             text-align: center;
-            margin-bottom: 30px;
-            border-bottom: 2px solid #333;
-            padding-bottom: 10px;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 5px;
+          }
+          .header h2 {
+            margin: 5px 0;
+          }
+          .header h3 {
+            margin: 5px 0;
           }
           .section {
-            margin-bottom: 20px;
-            padding-bottom: 15px;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
             border-bottom: 1px dashed #ccc;
           }
           .section h3 {
-            margin-bottom: 10px;
+            margin: 5px 0;
             color: #333;
+            font-size: 12pt;
           }
           .row {
             display: flex;
-            margin-bottom: 10px;
+            margin-bottom: 5px;
           }
           .label {
-            width: 150px;
+            width: 140px;
             font-weight: bold;
           }
           .value {
@@ -143,26 +155,33 @@ export class ParcelDetailPage implements OnInit {
           }
           .barcode {
             text-align: center;
-            margin: 30px 0;
-            padding: 20px;
+            margin: 10px 0;
+            padding: 10px;
             background-color: white;
             border: 1px solid #ddd;
           }
           .barcode img {
-            width: 80%;
-            max-width: 400px;
+            width: 70%;
+            max-width: 300px;
             height: auto;
           }
           .barcode p {
-            font-size: 20px;
+            font-size: 14pt;
             font-weight: bold;
-            margin-top: 10px;
+            margin: 5px 0 0 0;
           }
           .footer {
             text-align: center;
-            margin-top: 30px;
-            font-size: 12px;
+            margin-top: 10px;
+            font-size: 9pt;
             color: #666;
+          }
+          .columns {
+            display: flex;
+            gap: 20px;
+          }
+          .column {
+            flex: 1;
           }
           @media print {
             .no-print {
@@ -195,43 +214,49 @@ export class ParcelDetailPage implements OnInit {
             <p>${this.parcel.trackingId}</p>
           </div>
           
-          <div class="section">
-            <h3>Sender Information</h3>
-            <div class="row">
-              <div class="label">Name:</div>
-              <div class="value">${this.parcel.senderName}</div>
+          <div class="columns">
+            <div class="column">
+              <div class="section">
+                <h3>Sender Information</h3>
+                <div class="row">
+                  <div class="label">Name:</div>
+                  <div class="value">${this.parcel.senderName}</div>
+                </div>
+                <div class="row">
+                  <div class="label">Contact:</div>
+                  <div class="value">${this.parcel.senderContact}</div>
+                </div>
+                <div class="row">
+                  <div class="label">Email:</div>
+                  <div class="value">${this.parcel.senderEmail}</div>
+                </div>
+                <div class="row">
+                  <div class="label">Address:</div>
+                  <div class="value">${this.parcel.senderAddress}</div>
+                </div>
+              </div>
             </div>
-            <div class="row">
-              <div class="label">Contact:</div>
-              <div class="value">${this.parcel.senderContact}</div>
-            </div>
-            <div class="row">
-              <div class="label">Email:</div>
-              <div class="value">${this.parcel.senderEmail}</div>
-            </div>
-            <div class="row">
-              <div class="label">Address:</div>
-              <div class="value">${this.parcel.senderAddress}</div>
-            </div>
-          </div>
-          
-          <div class="section">
-            <h3>Receiver Information</h3>
-            <div class="row">
-              <div class="label">Name:</div>
-              <div class="value">${this.parcel.receiverName}</div>
-            </div>
-            <div class="row">
-              <div class="label">Contact:</div>
-              <div class="value">${this.parcel.receiverContact}</div>
-            </div>
-            <div class="row">
-              <div class="label">Email:</div>
-              <div class="value">${this.parcel.receiverEmail}</div>
-            </div>
-            <div class="row">
-              <div class="label">Address:</div>
-              <div class="value">${this.parcel.receiverAddress}</div>
+            
+            <div class="column">
+              <div class="section">
+                <h3>Receiver Information</h3>
+                <div class="row">
+                  <div class="label">Name:</div>
+                  <div class="value">${this.parcel.receiverName}</div>
+                </div>
+                <div class="row">
+                  <div class="label">Contact:</div>
+                  <div class="value">${this.parcel.receiverContact}</div>
+                </div>
+                <div class="row">
+                  <div class="label">Email:</div>
+                  <div class="value">${this.parcel.receiverEmail}</div>
+                </div>
+                <div class="row">
+                  <div class="label">Address:</div>
+                  <div class="value">${this.parcel.receiverAddress}</div>
+                </div>
+              </div>
             </div>
           </div>
           
