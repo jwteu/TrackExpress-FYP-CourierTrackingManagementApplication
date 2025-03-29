@@ -1,6 +1,31 @@
 /* src/app/adminPage/manage-parcel/manage-parcel.page.scss */
 .button-group {
-    display: flex;
-    justify-content: space-around;
-    margin: 20px 0;
-  }
+  display: flex;
+  justify-content: space-around;
+  margin: 20px 0;
+}
+
+.parcel-item {
+  cursor: pointer;
+  margin-bottom: 8px;
+  border-radius: 8px;
+  --background: #f8f9fa;
+  --border-color: #dee2e6;
+  --border-width: 1px;
+  --border-style: solid;
+}
+
+.parcel-item:hover {
+  --background: #f1f3f5;
+}
+
+.barcode-thumbnail {
+  --size: 80px;
+  margin-right: 10px;
+  border: 1px solid #e0e0e0;
+}
+
+.action-buttons {
+  display: flex;
+  align-items: center;
+}

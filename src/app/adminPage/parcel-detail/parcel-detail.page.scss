@@ -1,0 +1,46 @@
+.barcode-container {
+    padding: 16px;
+    margin: 16px 0;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+  }
+  
+  .barcode-image {
+    max-width: 300px;
+    margin: 0 auto;
+  }
+  
+  ion-card {
+    margin-bottom: 16px;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  }
+  
+  ion-card-header {
+    background-color: #f8f9fa;
+  }
+  
+  ion-card-subtitle {
+    text-transform: uppercase;
+    font-weight: bold;
+    color: #666;
+  }
+  
+  ion-card-title {
+    font-weight: bold;
+    margin-top: 4px;
+  }
+  
+  ion-item {
+    --padding-start: 0;
+  }
+  
+  ion-icon {
+    color: var(--ion-color-primary);
+    font-size: 24px;
+  }
+  
+  .parcel-details {
+    max-width: 800px;
+    margin: 0 auto;
+  }

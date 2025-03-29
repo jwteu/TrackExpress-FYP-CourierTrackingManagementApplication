@@ -55,7 +55,13 @@ const routes: Routes = [
     path: 'profile',
     loadChildren: () => import('./adminPage/profile/profile.module').then(m => m.ProfilePageModule),
     canActivate: [AuthGuard] // Only authenticated users can access the profile
-  }
+  },
+  // Update the parcel-detail route to accept a parameter
+{
+  path: 'parcel-detail/:id',
+  loadChildren: () => import('./adminPage/parcel-detail/parcel-detail.module').then(m => m.ParcelDetailPageModule)
+}
+
 ];
 
 @NgModule({

@@ -1,0 +1,149 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-button (click)="goBack()">
+        <ion-icon name="arrow-back-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+    <ion-title>Parcel Details</ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="printParcel()" *ngIf="!loading && !loadingError">
+        <ion-icon name="print-outline" slot="icon-only"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <!-- Loading state -->
+  <div *ngIf="loading" class="ion-text-center ion-padding">
+    <ion-spinner name="circles"></ion-spinner>
+    <p>Loading parcel details...</p>
+  </div>
+
+  <!-- Error state -->
+  <ion-card *ngIf="loadingError">
+    <ion-card-header>
+      <ion-card-title color="danger">Error</ion-card-title>
+    </ion-card-header>
+    <ion-card-content>
+      <p>Failed to load parcel details. The parcel may have been removed or you don't have permission to view it.</p>
+      <ion-button expand="block" (click)="goBack()">Go Back</ion-button>
+    </ion-card-content>
+  </ion-card>
+
+  <!-- Parcel details -->
+  <div *ngIf="!loading && !loadingError && parcel" class="parcel-details">
+    <!-- Tracking section -->
+    <ion-card>
+      <ion-card-header>
+        <ion-card-subtitle>Tracking Information</ion-card-subtitle>
+        <ion-card-title>{{ parcel.trackingId }}</ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <div class="barcode-container ion-text-center">
+          <img [src]="parcel.barcode" alt="Barcode" class="barcode-image">
+          <p>{{ parcel.trackingId }}</p>
+        </div>
+        
+        <ion-item lines="none">
+          <ion-icon name="calendar-outline" slot="start"></ion-icon>
+          <ion-label>
+            <h3>Date</h3>
+            <p>{{ parcel.date | date:'medium' }}</p>
+          </ion-label>
+        </ion-item>
+      </ion-card-content>
+    </ion-card>
+
+    <!-- Sender section -->
+    <ion-card>
+      <ion-card-header>
+        <ion-card-subtitle>Sender Information</ion-card-subtitle>
+        <ion-card-title>{{ parcel.senderName }}</ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <ion-list>
+          <ion-item>
+            <ion-icon name="call-outline" slot="start"></ion-icon>
+            <ion-label>
+              <h3>Contact</h3>
+              <p>{{ parcel.senderContact }}</p>
+            </ion-label>
+          </ion-item>
+          <ion-item>
+            <ion-icon name="mail-outline" slot="start"></ion-icon>
+            <ion-label>
+              <h3>Email</h3>
+              <p>{{ parcel.senderEmail }}</p>
+            </ion-label>
+          </ion-item>
+          <ion-item>
+            <ion-icon name="location-outline" slot="start"></ion-icon>
+            <ion-label>
+              <h3>Address</h3>
+              <p>{{ parcel.senderAddress }}</p>
+            </ion-label>
+          </ion-item>
+        </ion-list>
+      </ion-card-content>
+    </ion-card>
+
+    <!-- Receiver section -->
+    <ion-card>
+      <ion-card-header>
+        <ion-card-subtitle>Receiver Information</ion-card-subtitle>
+        <ion-card-title>{{ parcel.receiverName }}</ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <ion-list>
+          <ion-item>
+            <ion-icon name="call-outline" slot="start"></ion-icon>
+            <ion-label>
+              <h3>Contact</h3>
+              <p>{{ parcel.receiverContact }}</p>
+            </ion-label>
+          </ion-item>
+          <ion-item>
+            <ion-icon name="mail-outline" slot="start"></ion-icon>
+            <ion-label>
+              <h3>Email</h3>
+              <p>{{ parcel.receiverEmail }}</p>
+            </ion-label>
+          </ion-item>
+          <ion-item>
+            <ion-icon name="location-outline" slot="start"></ion-icon>
+            <ion-label>
+              <h3>Address</h3>
+              <p>{{ parcel.receiverAddress }}</p>
+            </ion-label>
+          </ion-item>
+        </ion-list>
+      </ion-card-content>
+    </ion-card>
+
+    <!-- Pickup section -->
+    <ion-card>
+      <ion-card-header>
+        <ion-card-subtitle>Pickup Information</ion-card-subtitle>
+      </ion-card-header>
+      <ion-card-content>
+        <ion-item lines="none">
+          <ion-icon name="navigate-outline" slot="start"></ion-icon>
+          <ion-label>
+            <h3>Pickup Location</h3>
+            <p>{{ parcel.pickupLocation }}</p>
+          </ion-label>
+        </ion-item>
+      </ion-card-content>
+    </ion-card>
+
+    <!-- Print button -->
+    <div class="ion-padding">
+      <ion-button expand="block" (click)="printParcel()">
+        <ion-icon name="print-outline" slot="start"></ion-icon>
+        Print Parcel Details
+      </ion-button>
+    </div>
+  </div>
+</ion-content>
