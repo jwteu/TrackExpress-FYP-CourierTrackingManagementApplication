@@ -94,7 +94,7 @@ export class ParcelDetailPage implements OnInit {
     
     // Format date properly
     const formattedDate = new Date(this.parcel.date).toLocaleDateString();
-
+  
     // Create a professional looking print layout
     return `
       <!DOCTYPE html>
@@ -143,10 +143,20 @@ export class ParcelDetailPage implements OnInit {
           }
           .barcode {
             text-align: center;
-            margin: 20px 0;
+            margin: 30px 0;
+            padding: 20px;
+            background-color: white;
+            border: 1px solid #ddd;
           }
           .barcode img {
-            max-width: 300px;
+            width: 80%;
+            max-width: 400px;
+            height: auto;
+          }
+          .barcode p {
+            font-size: 20px;
+            font-weight: bold;
+            margin-top: 10px;
           }
           .footer {
             text-align: center;

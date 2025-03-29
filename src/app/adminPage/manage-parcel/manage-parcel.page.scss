@@ -1,4 +1,4 @@
-/* src/app/adminPage/manage-parcel/manage-parcel.page.scss */
+/* Yellow theme for manage-parcel page */
 .button-group {
   display: flex;
   justify-content: space-around;
@@ -9,23 +9,42 @@
   cursor: pointer;
   margin-bottom: 8px;
   border-radius: 8px;
-  --background: #f8f9fa;
-  --border-color: #dee2e6;
+  --background: #ffffff; // Very light yellow background
+  --border-color: #ffcc00;
   --border-width: 1px;
   --border-style: solid;
 }
 
 .parcel-item:hover {
-  --background: #f1f3f5;
+  --background: #FFF5CC; // Slightly darker yellow on hover
 }
 
 .barcode-thumbnail {
   --size: 80px;
   margin-right: 10px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid #FFE066;
 }
 
 .action-buttons {
   display: flex;
   align-items: center;
+}
+
+/* Yellow theme for ion components */
+ion-toolbar {
+  --background: #FFDE59;
+  --color: #333;
+}
+
+ion-button {
+  --background: #FFDE59;
+  --background-activated: #F6BE00;
+  --background-focused: #F6BE00;
+  --background-hover: #FFE066;
+  --color: #333;
+}
+
+/* Override for action buttons to keep them clear */
+.action-buttons ion-button {
+  --background: transparent;
 }

@@ -41,19 +41,20 @@
         <ion-card-title>{{ parcel.trackingId }}</ion-card-title>
       </ion-card-header>
       <ion-card-content>
-        <div class="barcode-container ion-text-center">
-          <img [src]="parcel.barcode" alt="Barcode" class="barcode-image">
-          <p>{{ parcel.trackingId }}</p>
-        </div>
-        
-        <ion-item lines="none">
-          <ion-icon name="calendar-outline" slot="start"></ion-icon>
-          <ion-label>
-            <h3>Date</h3>
-            <p>{{ parcel.date | date:'medium' }}</p>
-          </ion-label>
-        </ion-item>
-      </ion-card-content>
+  <!-- Improved barcode container with flexbox for perfect centering -->
+  <div class="barcode-container">
+    <img [src]="parcel.barcode" alt="Barcode" class="barcode-image">
+    <p class="tracking-id">{{ parcel.trackingId }}</p>
+  </div>
+  
+  <ion-item lines="none">
+    <ion-icon name="calendar-outline" slot="start"></ion-icon>
+    <ion-label>
+      <h3>Date</h3>
+      <p>{{ parcel.date | date:'medium' }}</p>
+    </ion-label>
+  </ion-item>
+</ion-card-content>
     </ion-card>
 
     <!-- Sender section -->

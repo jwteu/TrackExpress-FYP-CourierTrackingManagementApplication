@@ -205,29 +205,32 @@ export class AddParcelPage implements OnInit {
         message: 'Adding parcel and sending notifications...'
       });
       await loading.present();
-
+  
       try {
+        // Generate a shorter, more scannable tracking ID
         const trackingId = this.generateTrackingId();
-        const barcodeId = uuidv4();
-        const barcode = this.generateBarcode(barcodeId);
+        
+        // Use the tracking ID directly for the barcode
+        const barcode = this.generateBarcode(trackingId);
+        
         const parcelData = {
           ...this.parcelForm.value,
           trackingId,
           barcode,
           createdAt: new Date()
         };
-
+  
         // Log the form data
         console.log('Parcel data:', parcelData);
-
+  
         // Add to Firestore
         await this.firestore.collection('parcels').add(parcelData);
-
+  
         // Send email notifications
         await this.sendEmailNotifications(parcelData);
-
+  
         loading.dismiss();
-
+  
         // Show success message
         const toast = await this.toastCtrl.create({
           message: 'Parcel registered successfully! Email notifications have been sent.',
@@ -236,13 +239,13 @@ export class AddParcelPage implements OnInit {
           color: 'success'
         });
         await toast.present();
-
+  
         // Navigate back
         this.location.back();
       } catch (error) {
         loading.dismiss();
         console.error('Error in submit:', error);
-
+  
         // Show error toast with detailed message
         const toast = await this.toastCtrl.create({
           message: `An error occurred: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -357,12 +360,24 @@ export class AddParcelPage implements OnInit {
   }
 
   generateTrackingId(): string {
-    return 'TRK-' + Math.random().toString(36).substr(2, 9).toUpperCase();
+    // Create a shorter tracking ID (10 characters)
+    return 'TR' + Math.random().toString(36).substr(2, 8).toUpperCase();
   }
-
-  generateBarcode(barcodeId: string): string {
+  
+  generateBarcode(trackingId: string): string {
     const canvas = document.createElement('canvas');
-    JsBarcode(canvas, barcodeId, { format: 'CODE128' });
+    
+    // Use the tracking ID directly for the barcode
+    JsBarcode(canvas, trackingId, { 
+      format: 'CODE128',    // CODE128 is widely supported by most scanners
+      width: 2,             // Wider bars are easier to scan
+      height: 80,           // Taller barcode for better scanning
+      displayValue: true,   // Show the value below the barcode
+      fontSize: 14,         // Larger text size
+      margin: 10,           // Add margin around the barcode
+      background: '#ffffff' // White background for better contrast
+    });
+    
     return canvas.toDataURL('image/png');
   }
 

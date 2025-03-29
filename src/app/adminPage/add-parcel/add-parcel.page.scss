@@ -1,40 +1,60 @@
+/* Yellow theme for add-parcel page */
 ion-content {
-    --padding-top: 16px;
-    --padding-bottom: 16px;
-  }
-  
-  ion-item {
-    --padding-start: 0;
-    margin-bottom: 8px;
-  }
-  
-  ion-note {
-    padding-left: 16px;
-    margin-bottom: 8px;
-  }
-  
-  ion-button[type="submit"] {
-    margin-top: 16px;
-  }
-  
-  // Custom styling for location input with inline button
-  .location-item {
-    --inner-padding-end: 0;
-  }
-  
-  .input-with-button {
-    display: flex;
-    align-items: center;
-    width: 100%;
-  }
-  
-  .location-input {
-    flex-grow: 1;
-  }
-  
-  .location-button {
-    margin: 0;
-    height: 100%;
-    --padding-start: 4px;
-    --padding-end: 4px;
-  }
+  --padding-top: 16px;
+  --padding-bottom: 16px;
+}
+
+ion-item {
+  --padding-start: 0;
+  margin-bottom: 8px;
+  --border-color: #adadad; // Light yellow border
+  --highlight-color-valid: #F6BE00; // Amber/gold color for valid inputs
+}
+
+ion-note {
+  padding-left: 16px;
+  margin-bottom: 8px;
+}
+
+ion-button[type="submit"] {
+  margin-top: 16px;
+  --background: #FFDE59;
+  --background-activated: #F6BE00;
+  --background-focused: #F6BE00;
+  --background-hover: #FFE066;
+  --color: #333;
+}
+
+// Custom styling for location input with inline button
+.location-item {
+  --inner-padding-end: 0;
+}
+
+.input-with-button {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.location-input {
+  flex-grow: 1;
+}
+
+.location-button {
+  margin: 0;
+  height: 100%;
+  --padding-start: 4px;
+  --padding-end: 4px;
+  --background: transparent;
+}
+
+// Yellow theme for toolbar
+ion-toolbar {
+  --background: #FFDE59;
+  --color: #333;
+}
+
+// Yellow highlight for focused inputs
+ion-input:focus, ion-textarea:focus {
+  --highlight-color-focused: #F6BE00;
+}

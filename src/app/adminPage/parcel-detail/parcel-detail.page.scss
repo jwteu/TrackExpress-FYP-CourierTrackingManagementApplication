@@ -1,46 +1,93 @@
+// Improved barcode container styling for perfect symmetry and centering
 .barcode-container {
-    padding: 16px;
-    margin: 16px 0;
-    background-color: #f8f9fa;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    margin: 16px auto;
+    background-color: white;
     border-radius: 8px;
-  }
+    border: 1px solid #e0e0e0;
+    width: 90%; // Control width relative to parent
+    max-width: 350px; // Absolute max width
+}
   
-  .barcode-image {
+.barcode-image {
+    width: 100%; // Take full width of container
     max-width: 300px;
-    margin: 0 auto;
-  }
+    height: auto;
+    display: block;
+}
   
-  ion-card {
+.tracking-id {
+    font-size: 18px;
+    font-weight: bold;
+    margin-top: 10px;
+    text-align: center;
+    width: 100%;
+}
+  
+// Rest of the styling with yellow theme
+ion-card {
     margin-bottom: 16px;
     border-radius: 10px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  }
+}
   
-  ion-card-header {
-    background-color: #f8f9fa;
-  }
+ion-card-header {
+    background-color: #FFDE59; // Yellow header background
+}
   
-  ion-card-subtitle {
+ion-card-subtitle {
     text-transform: uppercase;
     font-weight: bold;
-    color: #666;
-  }
+    color: #333; // Darker text on yellow background for better contrast
+}
   
-  ion-card-title {
+ion-card-title {
     font-weight: bold;
     margin-top: 4px;
-  }
+    color: #333; // Darker text on yellow background for better contrast
+}
   
-  ion-item {
+ion-item {
     --padding-start: 0;
-  }
+}
   
-  ion-icon {
-    color: var(--ion-color-primary);
+ion-icon {
+    color: #000000; // Amber/gold color for icons
     font-size: 24px;
-  }
+}
   
-  .parcel-details {
+.parcel-details {
     max-width: 800px;
     margin: 0 auto;
-  }
+}
+  
+// Only center the barcode, not the entire card content
+.barcode-wrapper {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+}
+
+// Remove the centering from ion-card-content
+ion-card-content {
+    width: 100%;
+}
+
+// Yellow-themed toolbar
+ion-toolbar {
+    --background: #FFDE59;
+    --color: #333;
+}
+
+// Yellow-themed button
+ion-button {
+    --background: #fbfbfb;
+    --background-activated: #F6BE00;
+    --background-focused: #F6BE00;
+    --background-hover: #FFE066;
+    --color: #333;
+}
