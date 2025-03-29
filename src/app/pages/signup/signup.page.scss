@@ -1,0 +1,94 @@
+/* Yellow theme for signup page matching login page */
+
+ion-content {
+    --padding: 16px;
+  }
+  
+  form {
+    padding: 16px;
+  }
+  
+  ion-item {
+    --padding-start: 0;
+    margin-bottom: 8px;
+    --border-color: #FFE066;
+    --highlight-color-valid: #F6BE00;
+  }
+  
+  ion-text {
+    display: block;
+    padding-left: 16px;
+    margin-bottom: 12px;
+    font-size: 0.8rem;
+  }
+  
+  /* Yellow-themed button */
+  ion-button {
+    margin-top: 24px;
+    --background: #FFDE59;
+    --background-activated: #F6BE00;
+    --background-focused: #F6BE00;
+    --background-hover: #FFE066;
+    --color: #333;
+  }
+  
+  /* Yellow-themed toolbar */
+  ion-toolbar {
+    --background: #FFDE59;
+    --color: #333;
+  }
+  
+  ion-back-button {
+    --color: #333;
+  }
+  
+  ion-title {
+    color: #333;
+  }
+  
+  /* Yellow highlight for focused inputs */
+  ion-input:focus, ion-textarea:focus, ion-select:focus {
+    --highlight-color-focused: #F6BE00;
+  }
+  
+  /* Style for select options */
+  ion-select::part(icon) {
+    color: #F6BE00;
+  }
+  
+  /* Card-like form appearance */
+  form {
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    margin-top: 16px;
+  }
+  
+  /* Title section */
+  .title-section {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  
+  .title-section h1 {
+    color: #333;
+    font-size: 24px;
+    margin-bottom: 8px;
+  }
+  
+  .title-section p {
+    color: #666;
+    font-size: 14px;
+  }
+  
+  /* Login link at bottom */
+  .login-link {
+    text-align: center;
+    margin-top: 16px;
+  }
+  
+  .login-link a {
+    color: #F6BE00;
+    text-decoration: none;
+    font-weight: bold;
+  }

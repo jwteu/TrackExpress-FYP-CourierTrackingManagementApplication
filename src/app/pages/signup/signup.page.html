@@ -1,13 +1,18 @@
 <ion-header [translucent]="true">
   <ion-toolbar>
     <ion-buttons slot="start">
-      <ion-back-button defaultHref="/previous-page"></ion-back-button>
+      <ion-back-button defaultHref="/landing"></ion-back-button>
     </ion-buttons>
-    <ion-title>Signup</ion-title>
+    <ion-title>Sign Up</ion-title>
   </ion-toolbar>
 </ion-header>
 
-<ion-content [fullscreen]="true">
+<ion-content [fullscreen]="true" class="ion-padding">
+  <div class="title-section">
+    <h1>Create Your Account</h1>
+    <p>Please fill in your details to register</p>
+  </div>
+  
   <form [formGroup]="signupForm" (ngSubmit)="onSubmit()">
     <ion-item>
       <ion-label position="floating">Name</ion-label>
@@ -96,6 +101,13 @@
       Passwords do not match.
     </ion-text>
 
-    <ion-button expand="full" type="submit" [disabled]="signupForm.invalid">Signup</ion-button>
+    <ion-button expand="full" type="submit" [disabled]="signupForm.invalid">
+      <ion-icon name="person-add-outline" slot="start"></ion-icon>
+      Sign Up
+    </ion-button>
   </form>
+  
+  <div class="login-link">
+    <p>Already have an account? <a routerLink="/login">Login</a></p>
+  </div>
 </ion-content>
