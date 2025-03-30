@@ -1,0 +1,77 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/admin-home"></ion-back-button>
+    </ion-buttons>
+    <ion-title>Track Your Parcel</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <div class="tracking-container">
+    <h1 class="ion-text-center tracking-title">Track Your Parcel</h1>
+    <p class="ion-text-center">Enter your tracking ID to see the current status and location of your parcel</p>
+    
+    <div class="search-container">
+      <ion-item class="search-bar">
+        <ion-input 
+          placeholder="Enter Tracking ID" 
+          [(ngModel)]="trackingId"
+          (keyup.enter)="trackParcel()"
+        ></ion-input>
+        <ion-button slot="end" (click)="trackParcel()">
+          <ion-icon name="search-outline" slot="icon-only"></ion-icon>
+        </ion-button>
+      </ion-item>
+    </div>
+    
+    <!-- Loading state -->
+    <div *ngIf="loading" class="ion-text-center ion-padding">
+      <ion-spinner name="circles"></ion-spinner>
+      <p>Searching for your parcel...</p>
+    </div>
+    
+    <!-- Error state -->
+    <ion-card *ngIf="searchPerformed && !loading && !parcel">
+      <ion-card-header>
+        <ion-card-title color="danger">Parcel Not Found</ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <p>We couldn't find any parcel with the tracking ID: <strong>{{ trackingId }}</strong></p>
+        <p>Please verify the tracking ID and try again.</p>
+      </ion-card-content>
+    </ion-card>
+    
+    <!-- Parcel found state -->
+    <ion-card *ngIf="parcel && !loading">
+      <ion-card-header>
+        <ion-card-subtitle>Tracking Information</ion-card-subtitle>
+        <ion-card-title>{{ parcel.trackingId }}</ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <!-- Barcode display -->
+        <div class="barcode-container">
+          <img [src]="parcel.barcode" alt="Barcode" class="barcode-image">
+          <p class="tracking-id">{{ parcel.trackingId }}</p>
+        </div>
+        
+        <!-- Status timeline -->
+        <div class="status-timeline">
+          <h3>Current Status</h3>
+          <ion-item lines="none" class="status-item">
+            <ion-icon name="checkmark-circle" color="success" slot="start" *ngIf="parcel.status === 'Delivered'"></ion-icon>
+            <ion-icon name="time" color="warning" slot="start" *ngIf="parcel.status !== 'Delivered'"></ion-icon>
+            <ion-label>
+              <h2>{{ parcel.status || 'Processing' }}</h2>
+              <p>{{ parcel.date | date:'medium' }}</p>
+            </ion-label>
+          </ion-item>
+          
+          <ion-button expand="block" (click)="viewParcelDetails(parcel.id)">
+            View Full Details
+          </ion-button>
+        </div>
+      </ion-card-content>
+    </ion-card>
+  </div>
+</ion-content>

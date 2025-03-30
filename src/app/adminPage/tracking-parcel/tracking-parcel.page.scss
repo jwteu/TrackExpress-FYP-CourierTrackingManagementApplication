@@ -1,0 +1,158 @@
+// Follow the yellow theme established in other pages
+ion-toolbar {
+    --background: #FFDE59;
+    --color: #333;
+  }
+  
+  ion-button {
+    --background: #FFDE59;
+    --background-activated: #F6BE00;
+    --background-focused: #F6BE00;
+    --background-hover: #FFE066;
+    --color: #333;
+  }
+  
+  .tracking-container {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 20px 0;
+  }
+  
+  .tracking-title {
+    font-size: 28px;
+    font-weight: bold;
+    margin-bottom: 10px;
+    color: #333;
+  }
+  
+  .search-container {
+    margin: 30px 0;
+  }
+  
+  .search-bar {
+    --background: #ffffff;
+    --border-radius: 8px;
+    --box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  }
+  
+  // Barcode styling from parcel-detail page
+  .barcode-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    margin: 16px auto;
+    background-color: white;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+    width: 90%;
+    max-width: 350px;
+  }
+  
+  .barcode-image {
+    width: 100%;
+    max-width: 300px;
+    height: auto;
+    display: block;
+  }
+  
+  .tracking-id {
+    font-size: 18px;
+    font-weight: bold;
+    margin-top: 10px;
+    text-align: center;
+    width: 100%;
+  }
+  
+  // Status timeline styling
+  .status-timeline {
+    margin-top: 20px;
+    border-top: 1px solid #e0e0e0;
+    padding-top: 20px;
+  }
+  
+  .status-item {
+    --background: #f9f9f9;
+    border-radius: 8px;
+    margin-bottom: 15px;
+  }
+  
+  ion-card {
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  }
+  
+  ion-card-header {
+    background-color: #FFDE59;
+  }
+  
+  ion-card-subtitle {
+    text-transform: uppercase;
+    font-weight: bold;
+    color: #333;
+  }
+  
+  ion-card-title {
+    font-weight: bold;
+    margin-top: 4px;
+    color: #333;
+  }
+  
+  .delivery-progress {
+    margin-top: 20px;
+  }
+  
+  .timeline {
+    position: relative;
+    margin: 20px 0;
+    padding-left: 20px;
+    border-left: 2px solid #e0e0e0;
+  }
+  
+  .timeline-step {
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: 20px;
+    position: relative;
+  }
+  
+  .timeline-step:last-child {
+    margin-bottom: 0;
+  }
+  
+  .timeline-icon {
+    position: absolute;
+    left: -12px;
+    top: 0;
+    width: 24px;
+    height: 24px;
+    background-color: #fff;
+    border: 2px solid #e0e0e0;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+  }
+  
+  .timeline-icon.active {
+    border-color: #4caf50; /* Green for active steps */
+  }
+  
+  .timeline-content {
+    margin-left: 40px;
+  }
+  
+  .timeline-content h4 {
+    font-size: 16px;
+    font-weight: bold;
+    margin: 0;
+    color: #333;
+  }
+  
+  .timeline-content p {
+    font-size: 14px;
+    color: #666;
+    margin: 5px 0 0;
+  }

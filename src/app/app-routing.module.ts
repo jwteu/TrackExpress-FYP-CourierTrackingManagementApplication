@@ -65,7 +65,11 @@ const routes: Routes = [
 {
   path: 'edit-parcel/:id',
   loadChildren: () => import('./adminPage/edit-parcel/edit-parcel.module').then( m => m.EditParcelPageModule)
-}
+},  {
+    path: 'tracking-parcel',
+    loadChildren: () => import('./adminPage/tracking-parcel/tracking-parcel.module').then( m => m.TrackingParcelPageModule)
+  }
+
 
 
 ];
