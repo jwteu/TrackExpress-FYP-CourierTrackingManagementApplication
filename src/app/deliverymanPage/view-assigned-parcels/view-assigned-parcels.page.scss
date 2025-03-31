@@ -1,94 +1,306 @@
-// Skeleton loading styles
-.skeleton-item {
-    padding: 16px 12px;
-    border-radius: 12px;
-    background: var(--ion-color-light); // Use light background for contrast
-    margin-bottom: 12px;
-    border: 1px solid var(--ion-color-medium); // Subtle border for structure
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); // Add a slight shadow for depth
+:host {
+    --theme-color: hsl(48, 95%, 49%); // Brighter yellow similar to login page
+    --theme-color-light: rgba(255, 193, 7, 0.1);
+    --theme-color-medium: rgba(255, 193, 7, 0.5);
+    --border-radius: 8px;
+  }
   
-    .skeleton-checkbox {
-      width: 24px;
-      height: 24px;
-      border-radius: 4px;
-      background: var(--ion-color-warning); // Yellow theme
-      display: inline-block;
-      margin-right: 16px;
-      vertical-align: middle;
-    }
-  
-    .skeleton-content {
-      display: inline-block;
-      vertical-align: middle;
-      width: calc(100% - 48px);
-  
-      .skeleton-title {
-        height: 18px;
-        width: 70%;
-        background: var(--ion-color-warning); // Yellow theme
-        margin-bottom: 10px;
-        border-radius: 6px;
+  // Header styling
+  ion-header {
+    ion-toolbar {
+      --background: white; // White background for header
+      border-bottom: 1px solid var(--theme-color-light);
+      
+      ion-back-button {
+        --color: var(--theme-color); // Yellow back button
       }
+      
+      ion-title {
+        font-weight: 600;
+        font-size: 1.1rem;
+        color: var(--theme-color); // Yellow title
+      }
+      
+      ion-badge {
+        position: absolute;
+        top: 5px;
+        right: 5px;
+        font-size: 10px;
+        padding: 2px 4px;
+      }
+    }
+  }
   
-      .skeleton-text {
-        height: 14px;
-        width: 85%;
-        background: var(--ion-color-warning); // Yellow theme
-        margin-bottom: 8px;
-        border-radius: 6px;
+  // Content styling
+  ion-content {
+    --background: #f9f9f9;
+  }
   
-        &:last-child {
-          width: 50%;
-          margin-bottom: 0;
+  // Section titles and header
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  
+  .section-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #444; // Darker text for contrast
+    position: relative;
+    padding-left: 10px;
+    margin: 0;
+    
+    &:before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      height: 100%;
+      width: 3px;
+      background-color: var(--theme-color); // Yellow accent
+      border-radius: 3px;
+    }
+  }
+  
+  .selection-actions {
+    display: flex;
+    gap: 5px;
+    
+    ion-button {
+      --color: var(--theme-color); // Yellow text for buttons
+      --padding-start: 4px;
+      --padding-end: 8px;
+      height: 25px;
+      font-size: 11px;
+      margin: 0;
+      
+      ion-icon {
+        font-size: 14px;
+        margin-right: 2px;
+      }
+      
+      &[color="danger"] {
+        --color: var(--ion-color-danger); // Keep danger color for delete button
+      }
+    }
+  }
+  
+  // Add parcel container
+  .add-parcel-container {
+    background-color: white;
+    border-radius: var(--border-radius);
+    padding: 15px;
+    margin-bottom: 16px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+    border-top: 3px solid var(--theme-color); // Yellow accent on top
+    
+    .custom-input {
+      --background: var(--theme-color-light);
+      --border-radius: 6px;
+      --border-width: 0;
+      --padding-start: 12px;
+      margin-bottom: 12px;
+      
+      ion-icon {
+        color: var(--theme-color); // Yellow icon
+      }
+    }
+    
+    .add-button {
+      --background: var(--theme-color); // Yellow button
+      --color: white; // White text for better contrast
+      --border-radius: 6px;
+      --box-shadow: 0 2px 6px rgba(255, 193, 7, 0.3); // Yellow shadow
+      margin-top: 8px;
+      height: 42px;
+      font-weight: 600;
+      
+      ion-icon {
+        margin-right: 6px;
+      }
+    }
+  }
+  
+  // Empty state
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 30px 20px;
+    background-color: white;
+    border-radius: var(--border-radius);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+    border: 1px dashed var(--theme-color-medium); // Dashed yellow border
+    
+    ion-icon {
+      font-size: 36px;
+      color: var(--theme-color-medium); // Yellow icon
+      margin-bottom: 12px;
+    }
+    
+    p {
+      color: #666;
+      font-size: 0.9rem;
+      margin: 0;
+    }
+  }
+  
+  // Compact parcel list
+  .parcel-list {
+    background-color: white;
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+    
+    .parcel-item {
+      --padding-start: 8px;
+      --padding-end: 8px;
+      --padding-top: 10px;
+      --padding-bottom: 10px;
+      --inner-padding-end: 8px;
+      --border-color: #f0f0f0;
+      
+      &:nth-child(even) {
+        --background: rgba(255, 193, 7, 0.03); // Very light yellow for alternating items
+      }
+      
+      &.selected {
+        --background: rgba(255, 193, 7, 0.12); // More visible yellow highlight
+        
+        &::before {
+          content: '';
+          position: absolute;
+          left: 0;
+          top: 0;
+          height: 100%;
+          width: 3px;
+          background-color: var(--theme-color); // Yellow accent when selected
+        }
+        
+        // Make selected items more prominent
+        ion-label h2 {
+          color: #000; // Darker text for selected items
+          font-weight: 700;
         }
       }
+      
+      ion-checkbox {
+        --size: 18px;
+        --border-radius: 4px;
+        --border-color: var(--theme-color-medium);
+        --border-color-checked: var(--theme-color);
+        --background-checked: var(--theme-color); // Yellow checkbox
+        --checkmark-color: white;
+        margin-right: 8px;
+      }
+      
+      ion-label {
+        margin: 0;
+        
+        h2 {
+          font-size: 0.95rem;
+          font-weight: 600;
+          margin: 0 0 3px 0;
+          color: #333;
+        }
+        
+        .info-row {
+          display: flex;
+          align-items: center;
+          margin: 2px 0;
+          font-size: 0.8rem;
+          color: #666;
+          
+          ion-icon {
+            font-size: 14px;
+            margin-right: 5px;
+            color: var(--theme-color); // Yellow icons
+          }
+        }
+      }
+      
+      .item-actions {
+        display: flex;
+        align-items: center;
+        
+        ion-button {
+          --padding-top: 0;
+          --padding-bottom: 0;
+          --padding-start: 3px;
+          --padding-end: 3px;
+          height: 26px;
+          margin: 0 0 0 5px;
+          
+          &:not([color="danger"]) {
+            --color: var(--theme-color); // Yellow for non-danger buttons
+          }
+          
+          ion-icon {
+            font-size: 16px;
+          }
+        }
+      }
+      
+      // Add subtle transition
+      transition: background-color 0.2s ease;
     }
   }
   
-  // General layout improvements
-  ion-card {
-    margin: 16px;
-    border-radius: 12px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); // Add shadow for better visual hierarchy
+  // Floating action button
+  ion-fab {
+    ion-fab-button {
+      --background: var(--theme-color); // Yellow FAB
+      --color: white; // White icon for contrast
+      --box-shadow: 0 4px 10px rgba(255, 193, 7, 0.4); // Yellow shadow
+      height: 45px;
+      width: 45px;
+      margin-bottom: 10px;
+      margin-right: 10px;
+    }
   }
   
-  ion-card-header {
-    background: var(--ion-color-warning); // Yellow theme
-    color: var(--ion-color-dark); // Dark text for contrast
-    border-radius: 12px 12px 0 0;
-    padding: 16px;
+  // Additional login-like elements
+  .parcel-list {
+    .parcel-item {
+      // Add a subtle yellow hover effect
+      &:hover {
+        --background: rgba(255, 193, 7, 0.05);
+      }
+    }
   }
   
-  ion-card-title {
-    font-size: 1.2rem;
-    font-weight: bold;
+  // Add card-like styling similar to login page
+  .add-parcel-container, .parcel-list, .empty-state {
+    border-radius: 10px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    
+    &:hover {
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+    }
   }
   
-  ion-button {
-    --background: var(--ion-color-warning); // Yellow theme
-    --color: var(--ion-color-dark); // Dark text for contrast
-    border-radius: 8px;
-    font-weight: bold;
-  }
-  
-  ion-item {
-    border-radius: 8px;
-    margin-bottom: 8px;
-    --background: var(--ion-color-light); // Light background for better readability
-  }
-  
-  ion-checkbox {
-    --background: var(--ion-color-warning); // Yellow theme
-    --checkmark-color: var(--ion-color-dark); // Dark checkmark for contrast
-  }
-  
-  ion-label h2 {
-    font-size: 1rem;
-    font-weight: bold;
-    color: var(--ion-color-dark); // Dark text for readability
-  }
-  
-  ion-label p {
-    font-size: 0.9rem;
-    color: var(--ion-color-medium); // Subtle text for secondary information
+  // Add a count indicator when multiple items are selected
+  .selection-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--theme-color-light);
+    border-radius: 24px;
+    padding: 6px 12px;
+    margin-bottom: 12px;
+    
+    ion-icon {
+      color: var(--theme-color);
+      margin-right: 6px;
+      font-size: 18px;
+    }
+    
+    span {
+      font-weight: 600;
+      font-size: 14px;
+    }
   }

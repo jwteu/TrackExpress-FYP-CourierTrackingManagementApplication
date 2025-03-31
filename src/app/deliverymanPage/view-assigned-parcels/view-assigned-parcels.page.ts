@@ -9,6 +9,8 @@ import { AngularFireAuth } from '@angular/fire/compat/auth';
 import { firstValueFrom } from 'rxjs';
 import firebase from 'firebase/compat/app';
 import 'firebase/compat/firestore';
+import { Router } from '@angular/router';
+import { NavController } from '@ionic/angular';
 
 // Update interface to exactly match the database structure
 interface Parcel {
@@ -17,7 +19,7 @@ interface Parcel {
   name: string; // Changed from deliverymanName
   locationLat: number;
   locationLng: number;
-  addedDate: Date; // Changed from firebase.firestore.Timestamp to Date
+  addedDate: any; // Changed to any to handle different date formats
 }
 
 @Component({
@@ -42,7 +44,8 @@ export class ViewAssignedParcelsPage implements OnInit {
     private auth: AngularFireAuth,
     private toastCtrl: ToastController,
     private loadingCtrl: LoadingController,
-    private alertCtrl: AlertController
+    private alertCtrl: AlertController,
+    private navCtrl: NavController
   ) {
     this.addParcelForm = this.fb.group({
       trackingId: ['', [Validators.required]]
@@ -74,8 +77,67 @@ export class ViewAssignedParcelsPage implements OnInit {
       .valueChanges({ idField: 'id' })
       .subscribe(parcels => {
         console.log('Loaded parcels:', parcels);
+        
+        // Check the type of the date field in the first parcel using proper type casting
+        if (parcels.length > 0) {
+          const firstParcel = parcels[0] as any; // Use 'any' for debugging purposes
+          console.log('Date type:', typeof firstParcel.addedDate);
+          console.log('Date value:', firstParcel.addedDate);
+        }
+        
         this.parcels = parcels as Parcel[];
       });
+  }
+
+  formatDate(date: any): string {
+    if (!date) return 'N/A';
+    
+    try {
+      // First log what we received for debugging
+      console.log('Format date received:', date, 'Type:', typeof date);
+      
+      // Handle different types of date objects
+      let dateObj: Date;
+      
+      if (date instanceof Date) {
+        dateObj = date;
+      } else if (typeof date === 'string') {
+        dateObj = new Date(date);
+      } else if (typeof date === 'object') {
+        if (date.seconds !== undefined) {
+          // Handle Firestore timestamp object with seconds property
+          dateObj = new Date(date.seconds * 1000);
+        } else if (date.toDate && typeof date.toDate === 'function') {
+          // Handle Firestore Timestamp objects with toDate() method
+          dateObj = date.toDate();
+        } else if (date.getTime && typeof date.getTime === 'function') {
+          // Handle Date objects directly
+          dateObj = date;
+        } else {
+          // Last resort - try to parse as a Date
+          dateObj = new Date(date);
+        }
+      } else {
+        // If it's not an object, try to create a date from it anyway
+        dateObj = new Date(date);
+      }
+      
+      // Check if the date is valid
+      if (isNaN(dateObj.getTime())) {
+        console.warn('Invalid date:', date);
+        return 'Invalid date';
+      }
+      
+      // Format as YYYY-MM-DD
+      const year = dateObj.getFullYear();
+      const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const day = String(dateObj.getDate()).padStart(2, '0');
+      
+      return `${year}-${month}-${day}`;
+    } catch (e) {
+      console.error('Error formatting date:', e, 'Original value:', date);
+      return 'Error';
+    }
   }
 
   async addParcel() {
@@ -187,6 +249,62 @@ export class ViewAssignedParcelsPage implements OnInit {
     }
   }
 
+  // Check if a parcel is selected
+  isSelected(parcelId: string | undefined): boolean {
+    if (!parcelId) return false;
+    return this.selectedParcels.includes(parcelId);
+  }
+
+  // Select all parcels
+  selectAllParcels() {
+    this.selectedParcels = this.parcels
+      .filter(parcel => parcel.id !== undefined)
+      .map(parcel => parcel.id as string);
+  }
+
+  // Deselect all parcels
+  deselectAllParcels() {
+    this.selectedParcels = [];
+  }
+
+  // View parcel details
+  viewParcelDetails(parcel: Parcel) {
+    this.alertCtrl.create({
+      header: `Parcel: ${parcel.trackingId}`,
+      message: `
+        <p>Assigned to: ${parcel.name}</p>
+        <p>Added: ${this.formatDate(parcel.addedDate)}</p>
+        <p>Location: ${parcel.locationLat.toFixed(4)}°, ${parcel.locationLng.toFixed(4)}°</p>
+      `,
+      buttons: ['OK']
+    }).then(alert => alert.present());
+  }
+
+  // Remove a single parcel
+  async removeParcel(parcelId: string | undefined) {
+    if (!parcelId) return;
+    
+    const alert = await this.alertCtrl.create({
+      header: 'Confirm Removal',
+      message: 'Are you sure you want to remove this parcel?',
+      buttons: [
+        {
+          text: 'Cancel',
+          role: 'cancel'
+        },
+        {
+          text: 'Remove',
+          handler: () => {
+            this.selectedParcels = [parcelId];
+            this.removeSelectedParcels();
+          }
+        }
+      ]
+    });
+    
+    await alert.present();
+  }
+
   async removeSelectedParcels() {
     if (this.selectedParcels.length === 0) return;
     
@@ -255,5 +373,13 @@ export class ViewAssignedParcelsPage implements OnInit {
     });
     
     await alert.present();
+  }
+
+  goBack() {
+    this.navCtrl.navigateBack('/deliveryman-home');
+  }
+
+  isMultiSelectActive(): boolean {
+    return this.selectedParcels.length > 1;
   }
 }
