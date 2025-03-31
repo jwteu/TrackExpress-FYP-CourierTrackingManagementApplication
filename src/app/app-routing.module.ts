@@ -68,6 +68,10 @@ const routes: Routes = [
 },  {
     path: 'tracking-parcel',
     loadChildren: () => import('./adminPage/tracking-parcel/tracking-parcel.module').then( m => m.TrackingParcelPageModule)
+  },
+  {
+    path: 'view-assigned-parcels',
+    loadChildren: () => import('./deliverymanPage/view-assigned-parcels/view-assigned-parcels.module').then( m => m.ViewAssignedParcelsPageModule)
   }
 
 

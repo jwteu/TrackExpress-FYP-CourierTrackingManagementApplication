@@ -1,0 +1,56 @@
+<ion-header [translucent]="true">
+  <ion-toolbar>
+    <ion-title>My Assigned Parcels</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+  <!-- Add parcel form -->
+  <ion-card>
+    <ion-card-header>
+      <ion-card-title>Add Parcel</ion-card-title>
+    </ion-card-header>
+    <ion-card-content>
+      <form [formGroup]="addParcelForm" (ngSubmit)="addParcel()">
+        <ion-item>
+          <ion-label position="floating">Tracking ID</ion-label>
+          <ion-input formControlName="trackingId" type="text"></ion-input>
+        </ion-item>
+        <ion-note *ngIf="addParcelForm.get('trackingId')?.hasError('required') && addParcelForm.get('trackingId')?.touched" color="danger">
+          Tracking ID is required
+        </ion-note>
+        <ion-button expand="block" type="submit" [disabled]="addParcelForm.invalid || isLoading" class="ion-margin-top">
+          <ion-spinner *ngIf="isLoading"></ion-spinner>
+          <span *ngIf="!isLoading">Add Parcel</span>
+        </ion-button>
+      </form>
+    </ion-card-content>
+  </ion-card>
+
+  <!-- Parcel list -->
+  <ion-card>
+    <ion-card-header>
+      <ion-card-title>My Parcels</ion-card-title>
+      <ion-button *ngIf="selectedParcels.length > 0" fill="clear" color="danger" (click)="removeSelectedParcels()">
+        Remove Selected ({{selectedParcels.length}})
+      </ion-button>
+    </ion-card-header>
+    <ion-card-content>
+      <ion-list>
+        <ion-item *ngIf="parcels.length === 0">
+          <ion-label color="medium">No parcels assigned yet</ion-label>
+        </ion-item>
+        
+        <ion-item *ngFor="let parcel of parcels">
+          <ion-checkbox slot="start" (ionChange)="onParcelSelection($event, parcel.id)"></ion-checkbox>
+          <ion-label>
+            <h2>{{parcel.trackingId}}</h2>
+            <p>Added: {{parcel.addedDate | date:'medium'}}</p>
+            <p>Location: {{parcel.locationLat}}°, {{parcel.locationLng}}°</p>
+            <p>Assigned to: {{parcel.name}}</p>
+          </ion-label>
+        </ion-item>
+      </ion-list>
+    </ion-card-content>
+  </ion-card>
+</ion-content>

@@ -1,0 +1,94 @@
+// Skeleton loading styles
+.skeleton-item {
+    padding: 16px 12px;
+    border-radius: 12px;
+    background: var(--ion-color-light); // Use light background for contrast
+    margin-bottom: 12px;
+    border: 1px solid var(--ion-color-medium); // Subtle border for structure
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); // Add a slight shadow for depth
+  
+    .skeleton-checkbox {
+      width: 24px;
+      height: 24px;
+      border-radius: 4px;
+      background: var(--ion-color-warning); // Yellow theme
+      display: inline-block;
+      margin-right: 16px;
+      vertical-align: middle;
+    }
+  
+    .skeleton-content {
+      display: inline-block;
+      vertical-align: middle;
+      width: calc(100% - 48px);
+  
+      .skeleton-title {
+        height: 18px;
+        width: 70%;
+        background: var(--ion-color-warning); // Yellow theme
+        margin-bottom: 10px;
+        border-radius: 6px;
+      }
+  
+      .skeleton-text {
+        height: 14px;
+        width: 85%;
+        background: var(--ion-color-warning); // Yellow theme
+        margin-bottom: 8px;
+        border-radius: 6px;
+  
+        &:last-child {
+          width: 50%;
+          margin-bottom: 0;
+        }
+      }
+    }
+  }
+  
+  // General layout improvements
+  ion-card {
+    margin: 16px;
+    border-radius: 12px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); // Add shadow for better visual hierarchy
+  }
+  
+  ion-card-header {
+    background: var(--ion-color-warning); // Yellow theme
+    color: var(--ion-color-dark); // Dark text for contrast
+    border-radius: 12px 12px 0 0;
+    padding: 16px;
+  }
+  
+  ion-card-title {
+    font-size: 1.2rem;
+    font-weight: bold;
+  }
+  
+  ion-button {
+    --background: var(--ion-color-warning); // Yellow theme
+    --color: var(--ion-color-dark); // Dark text for contrast
+    border-radius: 8px;
+    font-weight: bold;
+  }
+  
+  ion-item {
+    border-radius: 8px;
+    margin-bottom: 8px;
+    --background: var(--ion-color-light); // Light background for better readability
+  }
+  
+  ion-checkbox {
+    --background: var(--ion-color-warning); // Yellow theme
+    --checkmark-color: var(--ion-color-dark); // Dark checkmark for contrast
+  }
+  
+  ion-label h2 {
+    font-size: 1rem;
+    font-weight: bold;
+    color: var(--ion-color-dark); // Dark text for readability
+  }
+  
+  ion-label p {
+    font-size: 0.9rem;
+    color: var(--ion-color-medium); // Subtle text for secondary information
+  }
