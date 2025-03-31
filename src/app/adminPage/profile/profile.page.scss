@@ -1,115 +1,212 @@
-.title {
-    font-size: 20px;
+/* Modern profile page styling */
+.profile-content {
+  --background: #f7f7f7;
+}
+
+.profile-toolbar {
+  --background: rgb(240, 209, 0);
+  --color: white;
+  padding-top: 20px;
+  padding-bottom: 20px;
+
+  ion-title {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    
+  }
+}
+
+.back-button {
+  margin-left: 8px;
+  --color: white;
+  font-size: 24px;
+}
+
+.profile-container {
+  padding: 16px;
+}
+
+.profile-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
+.avatar-container {
+  margin-bottom: 15px;
+}
+
+.avatar {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background-color: rgb(240, 209, 0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  span {
+    font-size: 42px;
+    color: white;
     font-weight: bold;
-    text-align: center;
+  }
+}
+
+.user-name {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0;
+  color: #333;
+}
+
+.user-role {
+  font-size: 16px;
+  color: #666;
+  margin: 5px 0 0;
+  text-transform: capitalize;
+  background-color: rgba(240, 209, 0, 0.2);
+  padding: 4px 15px;
+  border-radius: 16px;
+}
+
+.info-section {
+  margin-bottom: 25px;
+  position: relative;
+}
+
+.section-header {
+  margin-bottom: 12px;
+  padding: 0 5px;
+  
+  h3 {
+    font-size: 18px;
+    font-weight: 600;
     color: #333;
+    margin: 0;
+    display: inline-block;
   }
   
-  .container {
-    padding: 16px;
-  }
-  
-  .profile-card {
-    margin-bottom: 20px;
-    border-radius: 8px;
-    
-    ion-card-header {
-      background-color: #f8f8f8;
-      
-      ion-card-title {
-        font-size: 18px;
-        font-weight: bold;
-        color: #333;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-      }
-      
-      ion-card-subtitle {
-        font-size: 14px;
-        color: #666;
-      }
-    }
-  }
-  
-  .read-only-card {
-    border-left: 4px solid #ccc;
-  }
-  
-  .editable-card {
-    border-left: 4px solid rgb(240, 209, 0);
-  }
-  
-  .profile-item {
-    margin-bottom: 10px;
-    --background: transparent;
-    
-    ion-label {
-      font-weight: 500;
-      color: #555;
-    }
-  }
-  
-  .readonly-field {
-    --background: #eaeaea;
-    opacity: 0.8;
-  }
-  
-  .editable-field {
-    --background: rgba(240, 209, 0, 0.05);
-    border-bottom: 1px solid rgb(240, 209, 0);
+  .section-subtitle {
+    font-size: 13px;
+    color: #777;
+    margin: 4px 0 0;
   }
   
   .edit-button {
+    position: absolute;
+    top: 0;
+    right: 0;
     --color: rgb(240, 209, 0);
-    font-weight: bold;
+    font-weight: 500;
+    font-size: 14px;
+    
+    ion-icon {
+      margin-right: 4px;
+    }
+  }
+}
+
+.info-card {
+  background-color: white;
+  border-radius: 12px;
+  padding: 15px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.info-item {
+  margin-bottom: 18px;
+  position: relative;
+  
+  &:last-child {
+    margin-bottom: 0;
   }
   
-  .button-container {
-    display: flex;
-    margin-top: 20px;
-    gap: 10px;
+  ion-label {
+    display: block;
+    font-size: 14px;
+    color: #777;
+    margin-bottom: 6px;
+    font-weight: 500;
   }
   
-  .cancel-button {
-    flex: 1;
-    --background: #ccc;
-    color: #333;
+  ion-input, ion-textarea {
+    --padding-start: 0;
+    border-bottom: 1px solid #eaeaea;
+    --padding-bottom: 8px;
+    font-size: 16px;
+    --color: #333;
   }
+}
+
+.readonly-field {
+  opacity: 0.8;
+  pointer-events: none;
+}
+
+.editable-field {
+  --background: rgba(240, 209, 0, 0.05);
+  border-bottom: 2px solid rgb(240, 209, 0) !important;
+}
+
+.button-container {
+  display: flex;
+  margin-top: 24px;
+  gap: 12px;
+}
+
+.cancel-button {
+  flex: 1;
+  --background: #e2e2e2;
+  --color: #555;
+  --border-radius: 10px;
+  height: 48px;
+  font-weight: 500;
+}
+
+.save-button {
+  flex: 2;
+  --background: rgb(240, 209, 0);
+  --border-radius: 10px;
+  height: 48px;
+  font-weight: 600;
+}
+
+.cancel-button:hover {
+  --background: #d5d5d5;
+}
+
+.save-button:hover {
+  --background: rgb(255, 223, 0);
+}
+
+.error-message {
+  color: #eb445a;
+  text-align: center;
+  margin: 16px 0;
+  padding: 12px;
+  background-color: rgba(235, 68, 90, 0.1);
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
   
-  .save-button {
-    flex: 2;
-    --background: rgb(240, 209, 0);
-    font-weight: bold;
-  }
-  
-  .save-button:active, .cancel-button:active {
-    --background: white;
+  ion-spinner {
+    width: 48px;
+    height: 48px;
     color: rgb(240, 209, 0);
+    margin-bottom: 16px;
   }
   
-  .loading-container {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    height: 100%;
+  p {
+    color: #777;
+    font-size: 16px;
   }
-  
-  .success-message {
-    color: #2dd36f;
-    text-align: center;
-    margin: 10px 0;
-    padding: 10px;
-    background-color: rgba(45, 211, 111, 0.1);
-    border-radius: 4px;
-  }
-  
-  .error-message {
-    color: #eb445a;
-    text-align: center;
-    margin: 10px 0;
-    padding: 10px;
-    background-color: rgba(235, 68, 90, 0.1);
-    border-radius: 4px;
-  }
+}
