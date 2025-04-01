@@ -4,12 +4,6 @@
       <ion-back-button defaultHref="/deliveryman-home" icon="arrow-back-outline"></ion-back-button>
     </ion-buttons>
     <ion-title>My Parcels</ion-title>
-    <ion-buttons slot="end" *ngIf="selectedParcels.length > 0">
-      <ion-button color="danger" (click)="removeSelectedParcels()">
-        <ion-icon name="trash-outline"></ion-icon>
-        <ion-badge color="danger">{{selectedParcels.length}}</ion-badge>
-      </ion-button>
-    </ion-buttons>
   </ion-toolbar>
 </ion-header>
 
@@ -36,13 +30,16 @@
     <div class="section-header">
       <h2 class="section-title">My Assigned Parcels</h2>
       <div class="selection-actions" *ngIf="parcels.length > 0">
+        <!-- Show "Select All" when not all parcels are selected -->
         <ion-button fill="clear" size="small" (click)="selectAllParcels()" *ngIf="parcels.length !== selectedParcels.length">
           <ion-icon name="checkbox-outline" slot="start"></ion-icon>
           All
         </ion-button>
-        <ion-button fill="clear" size="small" color="danger" (click)="removeSelectedParcels()" *ngIf="selectedParcels.length > 0">
-          <ion-icon name="trash-outline" slot="start"></ion-icon>
-          {{selectedParcels.length}}
+        
+        <!-- Show "Unselect All" when any parcels are selected -->
+        <ion-button fill="clear" size="small" (click)="deselectAllParcels()" *ngIf="selectedParcels.length > 0">
+          <ion-icon name="close-circle-outline" slot="start"></ion-icon>
+          Unselect
         </ion-button>
       </div>
     </div>
@@ -53,7 +50,7 @@
       <p>No parcels assigned yet</p>
     </div>
     
-    <!-- Compact parcel list -->
+    <!-- Compact parcel list with destination address added -->
     <div class="parcel-list">
       <ion-item *ngFor="let parcel of parcels" 
                 class="parcel-item" 
@@ -66,17 +63,25 @@
         
         <ion-label>
           <h2>{{parcel.trackingId}}</h2>
+          
+          <!-- Show the destination address prominently -->
+          <div class="destination-address">
+            <ion-icon name="location" color="warning"></ion-icon>
+            <span class="address-text">{{parcel.receiverAddress || 'No destination address found'}}</span>
+          </div>
+          
           <p class="info-row">
             <ion-icon name="calendar-outline"></ion-icon>
             <span>{{formatDate(parcel.addedDate)}}</span>
           </p>
+          
           <p class="info-row">
-            <ion-icon name="location-outline"></ion-icon>
+            <ion-icon name="navigate-outline"></ion-icon>
             <span>{{parcel.locationLat | number:'1.4-4'}}°, {{parcel.locationLng | number:'1.4-4'}}°</span>
           </p>
         </ion-label>
         
-        <!-- Update the item actions section -->
+        <!-- Keep the individual delete icon on each item, but only show when not in multi-select mode -->
         <div class="item-actions" slot="end" *ngIf="selectedParcels.length === 0">
           <ion-button fill="clear" size="small" (click)="viewParcelDetails(parcel)">
             <ion-icon name="eye-outline" slot="icon-only"></ion-icon>
@@ -89,10 +94,11 @@
     </div>
   </div>
 
-  <!-- Floating action button for batch deletion -->
+  <!-- Only show floating action button for batch deletion when items are selected -->
   <ion-fab vertical="bottom" horizontal="end" slot="fixed" *ngIf="selectedParcels.length > 0">
     <ion-fab-button color="danger" (click)="removeSelectedParcels()">
       <ion-icon name="trash"></ion-icon>
+      <span class="fab-badge" *ngIf="selectedParcels.length > 1">{{selectedParcels.length}}</span>
     </ion-fab-button>
   </ion-fab>
 </ion-content>

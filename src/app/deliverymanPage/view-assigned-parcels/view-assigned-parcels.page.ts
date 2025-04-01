@@ -12,14 +12,15 @@ import 'firebase/compat/firestore';
 import { Router } from '@angular/router';
 import { NavController } from '@ionic/angular';
 
-// Update interface to exactly match the database structure
+// Update interface to include receiver address
 interface Parcel {
-  id?: string; // Added by valueChanges({idField: 'id'})
+  id?: string;
   trackingId: string;
-  name: string; // Changed from deliverymanName
+  name: string;
   locationLat: number;
   locationLng: number;
-  addedDate: any; // Changed to any to handle different date formats
+  addedDate: any;
+  receiverAddress?: string; // Added receiver address field
 }
 
 @Component({
@@ -71,21 +72,65 @@ export class ViewAssignedParcelsPage implements OnInit {
   loadParcels() {
     if (!this.currentUserName) return;
 
+    this.isLoading = true;
+    console.log('Starting to load parcels for:', this.currentUserName);
+
     // Query by name since deliverymanId is not in the database structure
     this.firestore.collection('assigned_parcels', ref =>
       ref.where('name', '==', this.currentUserName))
       .valueChanges({ idField: 'id' })
-      .subscribe(parcels => {
-        console.log('Loaded parcels:', parcels);
+      .subscribe(async assignedParcels => {
+        console.log('Loaded assigned parcels:', assignedParcels);
         
-        // Check the type of the date field in the first parcel using proper type casting
-        if (parcels.length > 0) {
-          const firstParcel = parcels[0] as any; // Use 'any' for debugging purposes
-          console.log('Date type:', typeof firstParcel.addedDate);
-          console.log('Date value:', firstParcel.addedDate);
+        // Create an array to store parcels with receiver address
+        const parcelsWithAddresses = [];
+        
+        // For each assigned parcel, fetch the full parcel data to get receiver address
+        for (const assignedParcel of assignedParcels as Parcel[]) {
+          try {
+            const trackingId = assignedParcel.trackingId;
+            console.log(`Fetching receiver address for trackingId: ${trackingId}`);
+            
+            // Query the main parcels collection to get receiver address
+            const parcelQuery = this.firestore.collection('parcels', ref =>
+              ref.where('trackingId', '==', trackingId)).get();
+            const parcelQuerySnapshot = await firstValueFrom(parcelQuery);
+            
+            if (!parcelQuerySnapshot.empty) {
+              const parcelData = parcelQuerySnapshot.docs[0].data() as any;
+              console.log('Found parcel data:', parcelData);
+              
+              // Debugging: Log all keys in parcelData
+              console.log('Keys in parcelData:', Object.keys(parcelData));
+              
+              // Debugging: Log the value of receiverAddress
+              console.log('Value of receiverAddress:', parcelData.receiverAddress);
+              
+              // Add receiver address to the assigned parcel data
+              parcelsWithAddresses.push({
+                ...assignedParcel,
+                receiverAddress: parcelData.receiverAddress || 'No destination address found'
+              });
+            } else {
+              console.log('No matching parcel found in main collection for:', trackingId);
+              // If no matching parcel found, use the original assigned parcel
+              parcelsWithAddresses.push({
+                ...assignedParcel,
+                receiverAddress: 'No destination address found'
+              });
+            }
+          } catch (error) {
+            console.error('Error fetching parcel details:', error);
+            parcelsWithAddresses.push({
+              ...assignedParcel,
+              receiverAddress: 'Error fetching address'
+            });
+          }
         }
         
-        this.parcels = parcels as Parcel[];
+        console.log('Final parcels with addresses:', parcelsWithAddresses);
+        this.parcels = parcelsWithAddresses;
+        this.isLoading = false;
       });
   }
 
@@ -207,6 +252,26 @@ export class ViewAssignedParcelsPage implements OnInit {
 
       this.addParcelForm.reset();
       this.showToast('Parcel added successfully');
+
+      // Send email notification to receiver
+      try {
+        // Fetch parcel data to get receiver information
+        const parcelDoc = await firstValueFrom(this.firestore.collection('parcels').doc(parcelDocId).get());
+        if (parcelDoc.exists) {
+          const parcelData = parcelDoc.data() as any;
+          if (parcelData) {
+            await this.sendEmailNotifications(parcelData, location.coords.latitude, location.coords.longitude);
+          } else {
+            console.warn('Parcel data is undefined, cannot send email notification.');
+          }
+        } else {
+          console.warn('Parcel document not found, cannot send email notification.');
+        }
+      } catch (emailError) {
+        console.error('Error sending email notification:', emailError);
+        this.showToast('Parcel added successfully, but failed to send email notification.');
+      }
+
     } catch (error) {
       console.error('Error adding parcel:', error);
       this.showToast('Failed to add parcel. Please try again.');
@@ -274,13 +339,14 @@ export class ViewAssignedParcelsPage implements OnInit {
       message: `
         <p>Assigned to: ${parcel.name}</p>
         <p>Added: ${this.formatDate(parcel.addedDate)}</p>
+        <p>Destination: ${parcel.receiverAddress || 'No address available'}</p>
         <p>Location: ${parcel.locationLat.toFixed(4)}°, ${parcel.locationLng.toFixed(4)}°</p>
       `,
       buttons: ['OK']
     }).then(alert => alert.present());
   }
 
-  // Remove a single parcel
+  // Remove a single parcel (direct delete without using selectedParcels)
   async removeParcel(parcelId: string | undefined) {
     if (!parcelId) return;
     
@@ -294,9 +360,47 @@ export class ViewAssignedParcelsPage implements OnInit {
         },
         {
           text: 'Remove',
-          handler: () => {
-            this.selectedParcels = [parcelId];
-            this.removeSelectedParcels();
+          handler: async () => {
+            try {
+              const loading = await this.loadingCtrl.create({
+                message: 'Removing parcel...'
+              });
+              await loading.present();
+              
+              // Get tracking ID of the parcel
+              const docRef = this.firestore.collection('assigned_parcels').doc(parcelId).get();
+              const doc = await firstValueFrom(docRef);
+              
+              if (doc.exists) {
+                const data = doc.data() as {trackingId?: string};
+                if (data?.trackingId) {
+                  // Delete from assigned_parcels collection
+                  await this.firestore.collection('assigned_parcels').doc(parcelId).delete();
+                  
+                  // Update status in main parcels collection
+                  const parcelRef = this.firestore.collection('parcels', ref => 
+                    ref.where('trackingId', '==', data.trackingId)).get();
+                  const parcelSnapshot = await firstValueFrom(parcelRef);
+                  
+                  if (!parcelSnapshot.empty) {
+                    const parcelDocId = parcelSnapshot.docs[0].id;
+                    await this.firestore.collection('parcels').doc(parcelDocId).update({
+                      status: 'Pending',
+                      deliverymanId: null,
+                      deliverymanName: null
+                    });
+                  }
+                  
+                  this.showToast('Parcel removed successfully');
+                }
+              }
+              
+              await loading.dismiss();
+            } catch (error) {
+              console.error('Error removing parcel:', error);
+              this.showToast('Failed to remove parcel. Please try again.');
+              await this.loadingCtrl.dismiss();
+            }
           }
         }
       ]
@@ -381,5 +485,74 @@ export class ViewAssignedParcelsPage implements OnInit {
 
   isMultiSelectActive(): boolean {
     return this.selectedParcels.length > 1;
+  }
+
+  async sendEmailNotifications(parcelData: any, latitude: number, longitude: number) {
+    try {
+      // Convert GeoPoint to location name using OpenStreetMap Nominatim API
+      let deliverymanLocation = 'Location not available';
+      try {
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?` +
+          `format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`
+        );
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log('Location data:', data);
+          
+          if (data.display_name) {
+            deliverymanLocation = data.display_name;
+          }
+        } else {
+          console.error('Failed to get address from coordinates');
+        }
+      } catch (geocoderError) {
+        console.error('Geocoder error:', geocoderError);
+      }
+
+      // Only send receiver email, skip sender email
+      try {
+        const receiverParams = {
+          service_id: 'service_o0nwz8b',
+          template_id: 'template_1yqzf6m',
+          user_id: 'ghZzg_nWOdHQY6Krj',
+          template_params: {
+            tracking_id: parcelData.trackingId,
+            date: new Date(parcelData.date).toLocaleDateString(),
+            to_name: parcelData.receiverName || 'Customer',
+            location_info: deliverymanLocation, // Current location
+            to_email: parcelData.receiverEmail,
+            from_name: 'TrackExpress',
+            reply_to: 'noreply@trackexpress.com'
+          }
+        };
+
+        console.log('Attempting to send receiver email with params:', JSON.stringify(receiverParams));
+        
+        const receiverResponse = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(receiverParams)
+        });
+        
+        const receiverResult = await receiverResponse.text();
+        console.log('Receiver email result:', receiverResult);
+        
+        if (!receiverResponse.ok) {
+          throw new Error(`Failed to send receiver email: ${receiverResult}`);
+        }
+      } catch (receiverError) {
+        console.error('Receiver email failed:', receiverError);
+        throw receiverError;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Email sending failed:', error);
+      throw error;
+    }
   }
 }

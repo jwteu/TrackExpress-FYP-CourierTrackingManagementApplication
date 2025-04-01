@@ -319,12 +319,9 @@ export class AddParcelPage implements OnInit {
           template_params: {
             tracking_id: parcelData.trackingId,
             date: new Date(parcelData.date).toLocaleDateString(),
-            pickup_location: parcelData.pickupLocation,
-            // EmailJS requires an email address to send to
-            to_email: parcelData.receiverEmail,
-            // Include some standard email fields that EmailJS might need
-            to_name: parcelData.receiverName || 'Customer',  // Added to_name field
-            sender_name: parcelData.senderName || 'Sender',  // Added sender_name field
+            to_name: parcelData.receiverName || 'Customer',
+            location_info: parcelData.pickupLocation, // Pickup location
+            to_email: parcelData.receiverEmail, // ADD THIS LINE - it was missing!
             from_name: 'TrackExpress',
             reply_to: 'noreply@trackexpress.com'
           }

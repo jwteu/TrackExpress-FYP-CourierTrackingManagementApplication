@@ -154,14 +154,28 @@
     border-radius: var(--border-radius);
     overflow: hidden;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+    display: flex;
+    flex-direction: column;
+    gap: 8px; // Add gap between items
+    padding: 8px; // Add padding inside list container
     
     .parcel-item {
       --padding-start: 8px;
       --padding-end: 8px;
-      --padding-top: 10px;
-      --padding-bottom: 10px;
+      --padding-top: 12px; // Increased padding
+      --padding-bottom: 12px; // Increased padding
       --inner-padding-end: 8px;
-      --border-color: #f0f0f0;
+      --border-color: #e0e0e0; // Darker border color for better visibility
+      border: 1px solid #e0e0e0; // Add border to all sides
+      border-radius: 8px; // Add rounded corners
+      overflow: hidden; // Keep content within rounded corners
+      margin: 0; // Remove margin as we're using gap
+      position: relative;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      
+      &:last-child {
+        border-bottom: none; // Remove border from last item
+      }
       
       &:nth-child(even) {
         --background: rgba(255, 193, 7, 0.03); // Very light yellow for alternating items
@@ -169,6 +183,8 @@
       
       &.selected {
         --background: rgba(255, 193, 7, 0.12); // More visible yellow highlight
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); // Add shadow to selected items
+        z-index: 1; // Bring selected items to front
         
         &::before {
           content: '';
@@ -199,18 +215,18 @@
       
       ion-label {
         margin: 0;
+        white-space: normal !important;
         
         h2 {
-          font-size: 0.95rem;
-          font-weight: 600;
-          margin: 0 0 3px 0;
-          color: #333;
+          font-size: 1rem !important;
+          font-weight: 700 !important;
+          margin-bottom: 5px !important;
         }
         
         .info-row {
           display: flex;
           align-items: center;
-          margin: 2px 0;
+          margin: 4px 0 !important;
           font-size: 0.8rem;
           color: #666;
           
@@ -259,7 +275,49 @@
       width: 45px;
       margin-bottom: 10px;
       margin-right: 10px;
+      transition: all 0.2s ease;
+      
+      &[color="danger"] {
+        --background: var(--ion-color-danger);
+      }
+      
+      // Add a subtle pulse animation when items are selected
+      @keyframes pulse {
+        0% {
+          transform: scale(1);
+          box-shadow: 0 2px 10px rgba(var(--ion-color-danger-rgb), 0.4);
+        }
+        50% {
+          transform: scale(1.05);
+          box-shadow: 0 2px 15px rgba(var(--ion-color-danger-rgb), 0.6);
+        }
+        100% {
+          transform: scale(1);
+          box-shadow: 0 2px 10px rgba(var(--ion-color-danger-rgb), 0.4);
+        }
+      }
+      
+      animation: pulse 2s infinite ease-in-out;
     }
+  }
+  
+  // Style for the badge on the FAB button
+  .fab-badge {
+    position: absolute;
+    top: 0;
+    right: 0;
+    background-color: white;
+    color: var(--ion-color-danger);
+    border-radius: 50%;
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: bold;
+    transform: translate(30%, -30%);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
   }
   
   // Additional login-like elements
@@ -302,5 +360,167 @@
     span {
       font-weight: 600;
       font-size: 14px;
+    }
+  }
+  
+  // Scanner related styles
+  .input-with-button {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    margin-bottom: 12px;
+    
+    .custom-input {
+      flex: 1;
+    }
+    
+    .scan-button {
+      --background: var(--theme-color);
+      --color: white;
+      --border-radius: 6px;
+      --padding-start: 8px;
+      --padding-end: 8px;
+      height: 42px;
+      margin: 0;
+      margin-bottom: 1px;
+      
+      ion-icon {
+        font-size: 20px;
+      }
+    }
+  }
+  
+  // Scanner UI when active
+  .scanner-active {
+    --background: transparent;
+    background: transparent;
+    
+    // Hide all content when scanner is active
+    .add-parcel-container,
+    .parcels-container,
+    ion-fab {
+      display: none;
+    }
+  }
+  
+  // Apply to the body tag when scanning
+  :host-context(body.scanner-active) {
+    ion-content {
+      --background: transparent;
+      background: transparent;
+    }
+    
+    ion-header {
+      display: none;
+    }
+  }
+  
+  .scanner-ui {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    
+    .scanner-overlay {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background-color: rgba(0, 0, 0, 0.4);
+      
+      .scanner-target {
+        width: 70vw;
+        height: 70vw;
+        max-width: 300px;
+        max-height: 300px;
+        border: 2px solid var(--theme-color);
+        border-radius: 10px;
+        box-shadow: 0 0 0 4000px rgba(0, 0, 0, 0.7);
+        position: relative;
+        
+        &:before {
+          content: '';
+          position: absolute;
+          top: 50%;
+          left: 0;
+          right: 0;
+          height: 2px;
+          background-color: rgba(255, 193, 7, 0.5);
+          animation: scan-animation 2s linear infinite;
+        }
+      }
+    }
+    
+    .close-scanner {
+      position: absolute;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      --background: rgba(255, 255, 255, 0.2);
+      --color: white;
+      --border-radius: 20px;
+      
+      ion-icon {
+        margin-right: 8px;
+      }
+    }
+  }
+  
+  @keyframes scan-animation {
+    0% {
+      top: 0;
+    }
+    50% {
+      top: 100%;
+    }
+    100% {
+      top: 0;
+    }
+  }
+  
+  // Add global styles for scanner-active class (add to global.scss or styles.scss)
+  // You might need to add this to your global stylesheet if the above doesn't work
+  body.scanner-active {
+    background: transparent !important;
+    --background: transparent !important;
+    
+    ion-app,
+    ion-content,
+    .ion-page {
+      background: transparent !important;
+      --background: transparent !important;
+    }
+  }
+  
+  // Make the destination address stand out
+  .destination-address {
+    display: flex;
+    align-items: flex-start;
+    margin: 8px 0;
+    padding: 6px;
+    background-color: #FFEED4; // Light orange/yellow background
+    border-radius: 6px;
+    border-left: 3px solid var(--theme-color);
+    
+    ion-icon {
+      font-size: 16px;
+      margin-right: 8px;
+      color: #FF9800;
+      flex-shrink: 0;
+    }
+    
+    .address-text {
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: #333;
+      white-space: normal; // Allow text wrapping
+      line-height: 1.3;
     }
   }
