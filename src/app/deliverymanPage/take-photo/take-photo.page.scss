@@ -1,0 +1,208 @@
+:host {
+    --theme-color: hsl(48, 95%, 49%); // Brighter yellow similar to login page
+  }
+  
+  ion-header ion-toolbar {
+    --background: var(--theme-color);
+    --color: #000;
+  }
+  
+  .photo-container {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 20px 0;
+  
+    h2 {
+      font-size: 24px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+  
+    p {
+      color: #666;
+      margin-bottom: 24px;
+    }
+  }
+  
+  // Parcels section
+  .parcels-section {
+    margin-bottom: 24px;
+    
+    h3 {
+      font-size: 18px;
+      font-weight: 500;
+      margin-bottom: 16px;
+      color: #333;
+    }
+  }
+  
+  .loading-state, .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 30px;
+    background-color: #f9f9f9;
+    border-radius: 8px;
+    
+    ion-icon, ion-spinner {
+      font-size: 32px;
+      color: #999;
+      margin-bottom: 16px;
+    }
+    
+    p {
+      color: #777;
+      margin: 0;
+    }
+  }
+  
+  .parcel-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .parcel-card {
+    margin: 0;
+    padding: 0;
+    border-radius: 10px;
+    border: 1px solid #eee;
+    transition: all 0.2s ease;
+    position: relative;
+    overflow: hidden;
+    
+    &.selected {
+      border-color: var(--theme-color);
+      box-shadow: 0 4px 12px rgba(255, 193, 7, 0.2);
+      
+      &:after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        height: 100%;
+        width: 4px;
+        background-color: var(--theme-color);
+      }
+      
+      ion-card-title {
+        color: var(--theme-color);
+      }
+    }
+    
+    ion-card-header {
+      padding: 12px 16px;
+      
+      ion-card-title {
+        font-size: 18px;
+        font-weight: bold;
+      }
+      
+      ion-card-subtitle {
+        font-size: 14px;
+        color: #666;
+      }
+    }
+    
+    ion-card-content {
+      padding: 0 16px 16px;
+      
+      .address, .date {
+        display: flex;
+        align-items: center;
+        margin-bottom: 8px;
+        
+        ion-icon {
+          margin-right: 8px;
+          font-size: 16px;
+          color: #888;
+        }
+        
+        span {
+          font-size: 14px;
+          color: #555;
+        }
+      }
+      
+      .address {
+        margin-bottom: 8px;
+      }
+    }
+    
+    .selection-indicator {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      
+      ion-icon {
+        font-size: 24px;
+        color: var(--theme-color);
+      }
+    }
+  }
+  
+  // Camera section styles
+  .camera-section {
+    animation: fadeIn 0.3s ease;
+  }
+  
+  .camera-container {
+    margin-bottom: 24px;
+    border-radius: 12px;
+    overflow: hidden;
+    background-color: #f5f5f5;
+    border: 1px solid #eee;
+  }
+  
+  .photo-preview {
+    width: 100%;
+    max-height: 300px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+    background-color: #000;
+  
+    img {
+      width: 100%;
+      object-fit: contain;
+    }
+  }
+  
+  .camera-placeholder {
+    height: 200px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background-color: #f0f0f0;
+    color: #999;
+    
+    ion-icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+    }
+  }
+  
+  ion-button {
+    --background: var(--theme-color);
+    --color: #000;
+    
+    &.submit-button {
+      margin-top: 16px;
+      --background: #4a8bfc;
+      --color: white;
+      height: 48px;
+    }
+  
+    &[disabled] {
+      --background: #ccc;
+      --color: #666;
+    }
+  }
+  
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
