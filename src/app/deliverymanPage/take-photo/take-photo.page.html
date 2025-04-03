@@ -1,91 +1,162 @@
-<ion-header>
+<ion-header class="ion-no-border">
   <ion-toolbar>
     <ion-buttons slot="start">
       <ion-back-button defaultHref="/deliveryman-home"></ion-back-button>
     </ion-buttons>
-    <ion-title>Parcel Photo Verification</ion-title>
+    <ion-title>Delivery Verification</ion-title>
   </ion-toolbar>
 </ion-header>
 
 <ion-content class="ion-padding">
-  <div class="photo-container">
-    <h2>Upload Delivery Confirmation</h2>
-    <p>Take a photo of the delivered parcel to update its status</p>
+  <div class="main-container">
+    <!-- Header section with illustration -->
+    <div class="header-section">
+      <div class="header-icon">
+        <ion-icon name="camera"></ion-icon>
+      </div>
+      <h1>Verify Delivery</h1>
+      <p>Take a photo as proof of successful delivery</p>
+    </div>
+    
+    <!-- Parcel selection section -->
+    <div class="card parcels-card">
+      <div class="card-header">
+        <h2>
+          <ion-icon name="cube-outline"></ion-icon>
+          {{ selectedParcel ? 'Selected Parcel' : 'Choose a Parcel' }}
+        </h2>
+      </div>
 
-    <!-- Assigned parcels list -->
-    <div class="parcels-section">
-      <h3>Select a parcel</h3>
-      
-      <!-- Loading state -->
-      <div class="loading-state" *ngIf="isLoadingParcels">
-        <ion-spinner name="dots"></ion-spinner>
-        <p>Loading your assigned parcels...</p>
-      </div>
-      
-      <!-- Empty state -->
-      <div class="empty-state" *ngIf="!isLoadingParcels && assignedParcels.length === 0">
-        <ion-icon name="cube-outline"></ion-icon>
-        <p>No parcels pending photo verification</p>
-      </div>
-      
-      <!-- Parcels list -->
-      <div class="parcel-list" *ngIf="assignedParcels.length > 0">
-        <ion-card 
-          *ngFor="let parcel of assignedParcels" 
-          class="parcel-card" 
-          [class.selected]="selectedParcel?.id === parcel.id"
-          (click)="selectParcel(parcel)">
-          
-          <ion-card-header>
-            <ion-card-title>{{ parcel.trackingId }}</ion-card-title>
-            <ion-card-subtitle *ngIf="parcel.receiverName">For: {{ parcel.receiverName }}</ion-card-subtitle>
-          </ion-card-header>
-          
-          <ion-card-content>
-            <div class="address">
-              <ion-icon name="location-outline"></ion-icon>
-              <span>{{ parcel.receiverAddress }}</span>
-            </div>
-            <div class="date">
-              <ion-icon name="calendar-outline"></ion-icon>
-              <span>{{ formatDate(parcel.addedDate) }}</span>
-            </div>
-          </ion-card-content>
-          
-          <div class="selection-indicator" *ngIf="selectedParcel?.id === parcel.id">
-            <ion-icon name="checkmark-circle"></ion-icon>
+      <!-- Selected parcel summary -->
+      <div class="selected-parcel-summary" *ngIf="selectedParcel" (click)="selectParcel(selectedParcel)">
+        <div class="tracking-id">{{ selectedParcel.trackingId }}</div>
+        <div class="parcel-details">
+          <div class="detail-item">
+            <ion-icon name="person-outline"></ion-icon>
+            <span>{{ selectedParcel.receiverName || 'No recipient name' }}</span>
           </div>
-        </ion-card>
+          <div class="detail-item">
+            <ion-icon name="location-outline"></ion-icon>
+            <span>{{ selectedParcel.receiverAddress }}</span>
+          </div>
+        </div>
+        <div class="status-badge" [ngClass]="getStatusClass(selectedParcel.status)">
+          {{ selectedParcel.status || 'Pending' }}
+        </div>
+        <div class="click-to-change">
+          <ion-icon name="refresh-circle-outline"></ion-icon>
+          <span>Click to change selection</span>
+        </div>
+      </div>
+
+      <!-- Parcel list when no parcel is selected -->
+      <div class="parcel-selection" *ngIf="!selectedParcel">
+        <!-- Loading state -->
+        <div class="loading-state" *ngIf="isLoadingParcels">
+          <ion-spinner name="bubbles"></ion-spinner>
+          <p>Loading your parcels...</p>
+        </div>
+        
+        <!-- Empty state -->
+        <div class="empty-state" *ngIf="!isLoadingParcels && assignedParcels.length === 0">
+          <ion-icon name="alert-circle-outline"></ion-icon>
+          <p>No parcels pending verification</p>
+          <small>All your assigned parcels have been verified</small>
+        </div>
+        
+        <!-- Parcel list -->
+        <div class="parcel-list" *ngIf="assignedParcels.length > 0">
+          <div class="parcel-item" 
+               *ngFor="let parcel of assignedParcels"
+               (click)="selectParcel(parcel)">
+            <div class="parcel-content">
+              <div class="parcel-header">
+                <div class="tracking-id">{{ parcel.trackingId }}</div>
+                <div class="status-badge" [ngClass]="getStatusClass(parcel.status)">
+                  {{ parcel.status || 'Pending' }}
+                </div>
+              </div>
+              
+              <div class="parcel-body">
+                <div class="detail-item">
+                  <ion-icon name="person-outline"></ion-icon>
+                  <span>{{ parcel.receiverName || 'No recipient name' }}</span>
+                </div>
+                <div class="detail-item">
+                  <ion-icon name="location-outline"></ion-icon>
+                  <span>{{ parcel.receiverAddress }}</span>
+                </div>
+                <div class="detail-item">
+                  <ion-icon name="calendar-outline"></ion-icon>
+                  <span>{{ formatDate(parcel.addedDate) }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- Camera section -->
-    <div class="camera-section" *ngIf="selectedParcel">
+    <!-- Camera section - only show when a parcel is selected -->
+    <div class="card camera-card" *ngIf="selectedParcel">
+      <div class="card-header">
+        <h2>
+          <ion-icon name="camera-outline"></ion-icon>
+          Delivery Photo
+        </h2>
+      </div>
+
       <div class="camera-container">
+        <!-- Photo preview with overlay controls -->
         <div class="photo-preview" *ngIf="capturedImage">
           <img [src]="capturedImage" alt="Captured image">
+          <div class="preview-overlay">
+            <ion-button class="retake-button" (click)="capturedImage = null">
+              <ion-icon name="refresh-outline" slot="start"></ion-icon>
+              Retake
+            </ion-button>
+          </div>
         </div>
+        
+        <!-- Camera placeholder with photo options -->
         <div class="camera-placeholder" *ngIf="!capturedImage">
-          <ion-icon name="camera"></ion-icon>
-          <p>No photo taken yet</p>
+          <div class="placeholder-content">
+            <div class="camera-decoration">
+              <div class="camera-frame">
+                <div class="camera-lens"></div>
+                <div class="camera-flash"></div>
+              </div>
+            </div>
+            <p>Add proof of delivery</p>
+            
+            <div class="photo-buttons">
+              <ion-button class="take-photo-button ripple-effect" (click)="takePicture()" [disabled]="isLoading">
+                <ion-icon name="camera-outline" slot="start"></ion-icon>
+                Take Photo
+              </ion-button>
+              
+              <ion-button class="gallery-button" (click)="uploadFromGallery()" [disabled]="isLoading">
+                <ion-icon name="images-outline" slot="start"></ion-icon>
+                From Gallery
+              </ion-button>
+            </div>
+          </div>
         </div>
-
-        <ion-button expand="block" (click)="takePicture()" [disabled]="isLoading || !selectedParcel">
-          <ion-icon name="camera-outline" slot="start"></ion-icon>
-          {{ capturedImage ? 'Retake Photo' : 'Take Photo' }}
-        </ion-button>
       </div>
-
-      <ion-button expand="block" 
-                  class="submit-button" 
-                  (click)="submit()" 
-                  [disabled]="!selectedParcel || !capturedImage || isLoading">
-        <ion-spinner *ngIf="isLoading" name="crescent"></ion-spinner>
-        <span *ngIf="!isLoading">
-          <ion-icon name="cloud-upload-outline" slot="start"></ion-icon>
-          Submit
-        </span>
-      </ion-button>
     </div>
+
+    <!-- Submit button - only show when photo is captured -->
+    <ion-button 
+      expand="block" 
+      class="submit-button" 
+      *ngIf="selectedParcel && capturedImage"
+      (click)="submit()" 
+      [disabled]="isLoading">
+      <ion-spinner *ngIf="isLoading" name="crescent"></ion-spinner>
+      <span *ngIf="!isLoading">
+        <ion-icon name="checkmark-circle-outline" slot="start"></ion-icon>
+        Confirm Delivery
+      </span>
+    </ion-button>
   </div>
 </ion-content>

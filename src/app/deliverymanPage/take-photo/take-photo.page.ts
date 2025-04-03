@@ -9,6 +9,8 @@ import { AngularFireStorage } from '@angular/fire/compat/storage';
 import { AngularFireAuth } from '@angular/fire/compat/auth';
 import { firstValueFrom } from 'rxjs';
 import { finalize } from 'rxjs/operators';
+import firebase from 'firebase/compat/app';
+import 'firebase/compat/firestore';
 
 interface Parcel {
   id?: string;
@@ -19,6 +21,7 @@ interface Parcel {
   addedDate: any;
   receiverAddress?: string;
   receiverName?: string;
+  status?: string;
 }
 
 @Component({
@@ -95,16 +98,14 @@ export class TakePhotoPage implements OnInit {
           if (!parcelQuerySnapshot.empty) {
             const parcelData = parcelQuerySnapshot.docs[0].data() as any;
             
-            // Only add parcels that don't already have a photo verification
-            if (parcelData.status !== 'Photo verification submitted' && 
-                parcelData.status !== 'Delivered' && 
-                !parcelData.photoURL) {
-              parcelsWithAddresses.push({
-                ...assignedParcel,
-                receiverAddress: parcelData.receiverAddress || 'No address available',
-                receiverName: parcelData.receiverName
-              });
-            }
+            // Include all parcels that are in transit or out for delivery
+            // We'll handle filtering in the UI if needed
+            parcelsWithAddresses.push({
+              ...assignedParcel,
+              receiverAddress: parcelData.receiverAddress || 'No address available',
+              receiverName: parcelData.receiverName,
+              status: assignedParcel.status || parcelData.status || 'Pending'
+            });
           }
         } catch (error) {
           console.error('Error fetching parcel details:', error);
@@ -120,8 +121,27 @@ export class TakePhotoPage implements OnInit {
     }
   }
 
+  // Update the selectParcel method to ensure proper UI state
   selectParcel(parcel: Parcel) {
-    this.selectedParcel = parcel;
+    // If the same parcel is clicked again, deselect it
+    if (this.selectedParcel && this.selectedParcel.id === parcel.id) {
+      this.selectedParcel = null;
+      this.capturedImage = null; // Reset the image when deselecting
+    } else {
+      // Select a different parcel
+      this.selectedParcel = parcel;
+      this.capturedImage = null; // Reset the image when switching parcels
+    }
+  }
+
+  getStatusClass(status: string | undefined): string {
+    if (!status) return 'pending';
+    
+    status = status.toLowerCase();
+    if (status.includes('transit')) return 'in-transit';
+    if (status.includes('out for delivery')) return 'out-for-delivery';
+    if (status.includes('delivered') || status.includes('photo')) return 'delivered';
+    return 'pending';
   }
 
   async takePicture() {
@@ -131,18 +151,108 @@ export class TakePhotoPage implements OnInit {
     }
     
     try {
+      // First show a helpful message for web users
+      if (!this.isPlatformNative()) {
+        await this.alertCtrl.create({
+          header: 'Camera Access',
+          message: 'Your browser will prompt to access the camera. Select "Allow" and then choose "Camera" from the options.',
+          buttons: ['Got it']
+        }).then(alert => alert.present());
+      }
+      
+      // Use different options based on platform
       const image = await Camera.getPhoto({
-        quality: 90,
+        quality: 80,
         allowEditing: false,
         resultType: CameraResultType.DataUrl,
-        source: CameraSource.Camera
+        source: CameraSource.Camera, // Always try to use Camera directly first
+        width: 1000,
+        height: 1000,
+        correctOrientation: true,
+        // These properties help on web
+        presentationStyle: 'popover',
+        webUseInput: false // Try to use media capture API instead of file input
       });
       
-      // Add null check here
       this.capturedImage = image.dataUrl || null;
+      
+      if (this.capturedImage) {
+        this.capturedImage = await this.resizeImage(this.capturedImage, 1200);
+      }
     } catch (error) {
       console.error('Error taking photo:', error);
-      this.showToast('Failed to take photo');
+      this.showToast('Could not access camera. Please try using the Gallery option instead.');
+    }
+  }
+
+  isPlatformNative(): boolean {
+    // Check for Cordova or Capacitor native runtime
+    return typeof (window as any).cordova !== 'undefined' || 
+           typeof (window as any).Capacitor !== 'undefined';
+  }
+
+  async resizeImage(dataUrl: string, maxWidth: number): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+        
+        // If image is already smaller, keep original
+        if (width <= maxWidth) {
+          resolve(dataUrl);
+          return;
+        }
+        
+        // Calculate new dimensions
+        const ratio = width / height;
+        width = maxWidth;
+        height = Math.round(width / ratio);
+        
+        // Create canvas and resize
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(dataUrl); // Fall back to original if context creation fails
+          return;
+        }
+        
+        // Draw resized image
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // Convert to DataURL with reduced quality
+        const resizedDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+        resolve(resizedDataUrl);
+      };
+      
+      img.onerror = () => reject(new Error('Failed to load image for resizing'));
+      img.src = dataUrl;
+    });
+  }
+
+  async uploadFromGallery() {
+    if (!this.selectedParcel) {
+      this.showToast('Please select a parcel first');
+      return;
+    }
+    
+    try {
+      const image = await Camera.getPhoto({
+        quality: 90,
+        allowEditing: true,
+        resultType: CameraResultType.DataUrl,
+        source: CameraSource.Photos,
+        width: 1200, // Limit image size for better upload performance
+        correctOrientation: true
+      });
+      
+      this.capturedImage = image.dataUrl || null;
+    } catch (error) {
+      console.error('Error selecting photo from gallery:', error);
+      this.showToast('Failed to select photo from gallery');
     }
   }
 
@@ -155,73 +265,86 @@ export class TakePhotoPage implements OnInit {
     try {
       this.isLoading = true;
       const loading = await this.loadingCtrl.create({
-        message: 'Uploading photo...'
+        message: 'Uploading verification photo...',
+        spinner: 'circles'
       });
       await loading.present();
 
-      // Check if parcel exists and is assigned to this delivery person
-      const parcelRef = this.firestore.collection('parcels', ref => 
-        ref.where('trackingId', '==', this.selectedParcel?.trackingId));
-      
-      const parcelSnapshot = await firstValueFrom(parcelRef.get());
-      
-      if (parcelSnapshot.empty) {
+      try {
+        // Optimize image
+        const optimizedImage = await this.resizeImage(this.capturedImage, 800); // Smaller size
+        
+        // Convert data URL to blob
+        const response = await fetch(optimizedImage);
+        const blob = await response.blob();
+        
+        const timestamp = new Date().getTime();
+        const trackingId = this.selectedParcel.trackingId;
+        const filePath = `parcel-photos/${trackingId}_${timestamp}.jpg`;
+        
+        // Create a reference
+        const fileRef = this.storage.ref(filePath);
+        
+        // Start with simpler metadata
+        const uploadTask = this.storage.upload(filePath, blob);
+        
+        // Wait for upload to complete
+        const result = await uploadTask;
+        console.log('Upload completed:', result);
+        
+        // Get download URL
+        const downloadURL = await firstValueFrom(fileRef.getDownloadURL());
+        console.log('Download URL:', downloadURL);
+        
+        // Continue with updating Firestore...
+        // Update parcel status in Firestore (simplified)
+        await this.updateParcelStatus(this.selectedParcel.trackingId, downloadURL);
+        
         await loading.dismiss();
-        this.showToast('Parcel not found');
-        this.isLoading = false;
-        return;
-      }
-
-      const parcelData = parcelSnapshot.docs[0].data() as any;
-      const parcelId = parcelSnapshot.docs[0].id;
-
-      // Check if parcel is assigned to the current user
-      if (parcelData.deliverymanId !== this.currentUserId) {
+        this.showSuccessAlert();
+        this.resetForm();
+        this.loadAssignedParcels();
+        
+      } catch (error) {
+        console.error('Upload or Firestore error:', error);
         await loading.dismiss();
-        this.showToast('This parcel is not assigned to you');
-        this.isLoading = false;
-        return;
+        this.showToast('Failed to process photo. Please try again.');
       }
-
-      // Upload photo to Firebase Storage
-      const timestamp = new Date().getTime();
-      const trackingId = this.selectedParcel.trackingId;
-      const filePath = `parcel-photos/${trackingId}_${timestamp}.jpg`;
-      const fileRef = this.storage.ref(filePath);
-      
-      // Convert data URL to blob
-      const response = await fetch(this.capturedImage);
-      const blob = await response.blob();
-      
-      // Create upload task
-      const task = this.storage.upload(filePath, blob);
-      
-      // Get notified when the upload completes
-      task.snapshotChanges().pipe(
-        finalize(async () => {
-          const downloadURL = await firstValueFrom(fileRef.getDownloadURL());
-          
-          // Update parcel status and add photo URL
-          await this.firestore.collection('parcels').doc(parcelId).update({
-            status: 'Photo verification submitted',
-            photoURL: downloadURL,
-            photoTimestamp: new Date()
-          });
-          
-          await loading.dismiss();
-          this.showSuccessAlert();
-          this.resetForm();
-          this.isLoading = false;
-          
-          // Reload assigned parcels
-          this.loadAssignedParcels();
-        })
-      ).subscribe();
     } catch (error) {
-      console.error('Error uploading photo:', error);
+      console.error('Error in submit process:', error);
       await this.loadingCtrl.dismiss();
-      this.showToast('Failed to upload photo');
+      this.showToast('Failed to process the request');
+    } finally {
       this.isLoading = false;
+    }
+  }
+
+  // Add this helper method to update Firestore
+  async updateParcelStatus(trackingId: string, photoURL: string) {
+    // First find the parcel
+    const parcelRef = this.firestore.collection('parcels')
+      .ref.where('trackingId', '==', trackingId);
+    
+    const parcelSnapshot = await parcelRef.get();
+    if (parcelSnapshot.empty) return;
+    
+    const parcelId = parcelSnapshot.docs[0].id;
+    
+    // Update main parcels collection
+    await this.firestore.collection('parcels').doc(parcelId).update({
+      status: 'Delivered',
+      photoURL: photoURL,
+      photoTimestamp: firebase.firestore.FieldValue.serverTimestamp(),
+      deliveryCompletedDate: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    
+    // Find and update assigned_parcels
+    if (this.selectedParcel?.id) {
+      await this.firestore.collection('assigned_parcels').doc(this.selectedParcel.id).update({
+        status: 'Delivered',
+        photoURL: photoURL,
+        deliveryCompletedDate: firebase.firestore.FieldValue.serverTimestamp()
+      });
     }
   }
 
@@ -234,16 +357,30 @@ export class TakePhotoPage implements OnInit {
     const toast = await this.toastCtrl.create({
       message: message,
       duration: 2000,
-      position: 'bottom'
+      position: 'bottom',
+      color: 'dark'
     });
     toast.present();
   }
 
+  // Enhance the success alert
   async showSuccessAlert() {
     const alert = await this.alertCtrl.create({
-      header: 'Success',
-      message: 'Photo uploaded successfully',
-      buttons: ['OK']
+      header: 'Delivery Verified',
+      cssClass: 'success-alert',
+      message: `
+        <div class="success-animation">
+          <ion-icon name="checkmark-circle-outline"></ion-icon>
+        </div>
+        <div class="success-message">
+          <h2>Photo verification uploaded!</h2>
+          <p>The parcel status has been updated to "Delivered" and the verification photo has been saved.</p>
+        </div>
+      `,
+      buttons: [{
+        text: 'Done',
+        cssClass: 'success-button'
+      }]
     });
     await alert.present();
   }

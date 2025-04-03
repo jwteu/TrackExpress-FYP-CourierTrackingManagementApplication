@@ -1,208 +1,653 @@
 :host {
-    --theme-color: hsl(48, 95%, 49%); // Brighter yellow similar to login page
-  }
-  
-  ion-header ion-toolbar {
+  --theme-color: hsl(48, 95%, 49%);
+  --theme-dark: #e6c000;
+  --theme-light: rgba(255, 217, 0, 0.08);
+  --card-bg: #ffffff;
+  --card-radius: 18px;
+  --text-dark: #333333;
+  --text-medium: #666666;
+  --text-light: #999999;
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+  --border-light: #f0f0f0;
+}
+
+// Modern header style
+ion-header {
+  background: transparent;
+
+  ion-toolbar {
     --background: var(--theme-color);
-    --color: #000;
-  }
-  
-  .photo-container {
-    max-width: 600px;
-    margin: 0 auto;
-    padding: 20px 0;
-  
-    h2 {
-      font-size: 24px;
-      font-weight: 600;
-      margin-bottom: 8px;
-    }
-  
-    p {
-      color: #666;
-      margin-bottom: 24px;
-    }
-  }
-  
-  // Parcels section
-  .parcels-section {
-    margin-bottom: 24px;
-    
-    h3 {
+    --color: var(--text-dark);
+    --border-width: 0;
+    --min-height: 56px;
+
+    ion-title {
+      font-weight: 700;
       font-size: 18px;
-      font-weight: 500;
-      margin-bottom: 16px;
-      color: #333;
+    }
+
+    ion-back-button {
+      --icon-font-size: 18px;
+      --color: var(--text-dark);
     }
   }
-  
-  .loading-state, .empty-state {
+}
+
+ion-content {
+  --background: #f9f9f9;
+}
+
+// Main container
+.main-container {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 16px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+// Header section with icon
+.header-section {
+  text-align: center;
+  margin-bottom: 10px;
+  animation: fadeInDown 0.5s ease forwards;
+
+  .header-icon {
+    width: 76px;
+    height: 76px;
+    border-radius: 50%;
+    background: var(--theme-light);
+    margin: 0 auto 16px;
     display: flex;
-    flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 30px;
-    background-color: #f9f9f9;
-    border-radius: 8px;
-    
-    ion-icon, ion-spinner {
-      font-size: 32px;
-      color: #999;
-      margin-bottom: 16px;
-    }
-    
-    p {
-      color: #777;
-      margin: 0;
+    box-shadow: 0 8px 16px rgba(255, 217, 0, 0.15);
+
+    ion-icon {
+      font-size: 40px;
+      color: var(--theme-dark);
     }
   }
-  
-  .parcel-list {
+
+  h1 {
+    font-size: 26px;
+    font-weight: 700;
+    margin: 0 0 8px;
+    color: var(--text-dark);
+  }
+
+  p {
+    font-size: 15px;
+    color: var(--text-medium);
+    max-width: 320px;
+    margin: 0 auto;
+    line-height: 1.4;
+  }
+}
+
+// Card component style - enhanced with subtle animation
+.card {
+  background: var(--card-bg);
+  border-radius: var(--card-radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  transition: all 0.3s ease;
+  animation: fadeInUp 0.5s ease forwards;
+
+  &.collapsed {
+    .parcel-selection {
+      display: none;
+    }
+  }
+
+  .card-header {
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--border-light);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    h2 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      color: var(--text-dark);
+
+      ion-icon {
+        margin-right: 8px;
+        color: var(--theme-color);
+        font-size: 20px;
+      }
+    }
+
+    .change-button {
+      --color: var(--theme-color);
+      font-size: 13px;
+      font-weight: 600;
+      --padding-start: 8px;
+      --padding-end: 8px;
+      height: 30px;
+    }
+  }
+}
+
+// Selected parcel summary with interactive feedback
+.selected-parcel-summary {
+  padding: 20px;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:active {
+    background-color: var(--theme-light);
+  }
+
+  .tracking-id {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-dark);
+    margin-bottom: 10px;
+  }
+
+  .parcel-details {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 8px;
+    margin-bottom: 16px;
   }
-  
-  .parcel-card {
-    margin: 0;
-    padding: 0;
+
+  .detail-item {
+    display: flex;
+    align-items: flex-start;
+    font-size: 14px;
+    color: var(--text-medium);
+
+    ion-icon {
+      font-size: 16px;
+      margin-right: 10px;
+      color: var(--theme-color);
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+  }
+
+  .status-badge {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+  }
+
+  .click-to-change {
+    display: flex;
+    align-items: center;
+    color: var(--text-light);
+    font-size: 13px;
+    margin-top: 4px;
+
+    ion-icon {
+      margin-right: 6px;
+      font-size: 16px;
+    }
+  }
+}
+
+// Parcel selection list with improved scrolling
+.parcel-selection {
+  max-height: 350px;
+  overflow-y: auto;
+  padding: 10px;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: #f1f1f1;
     border-radius: 10px;
-    border: 1px solid #eee;
-    transition: all 0.2s ease;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #ddd;
+    border-radius: 10px;
+  }
+}
+
+// Loading and empty states with better spacing
+.loading-state,
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 16px;
+
+  ion-spinner {
+    color: var(--theme-color);
+    height: 40px;
+    width: 40px;
+    margin-bottom: 20px;
+    opacity: 0.8;
+  }
+
+  ion-icon {
+    color: var(--text-light);
+    font-size: 44px;
+    margin-bottom: 16px;
+    opacity: 0.8;
+  }
+
+  p {
+    color: var(--text-medium);
+    font-size: 16px;
+    font-weight: 500;
+    margin: 0 0 6px;
+    text-align: center;
+  }
+
+  small {
+    color: var(--text-light);
+    font-size: 13px;
+  }
+}
+
+// Parcel items with hover effects
+.parcel-item {
+  background: #fff;
+  border-radius: 12px;
+  margin-bottom: 12px;
+  padding: 16px;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid rgba(0, 0, 0, 0.03);
+  animation: fadeInUp 0.4s ease forwards;
+  animation-delay: calc(0.05s * var(--animation-order, 0));
+  opacity: 0;
+
+  &:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.05);
+  }
+
+  &:active {
+    background-color: var(--theme-light);
+  }
+
+  @for $i from 1 through 10 {
+    &:nth-child(#{$i}) {
+      --animation-order: #{$i};
+    }
+  }
+
+  .parcel-content {
+    flex: 1;
+  }
+
+  .parcel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+
+    .tracking-id {
+      font-weight: 700;
+      font-size: 15px;
+      color: var(--text-dark);
+    }
+  }
+
+  .parcel-body {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .detail-item {
+    display: flex;
+    align-items: flex-start;
+    font-size: 13px;
+    color: var(--text-medium);
+
+    ion-icon {
+      font-size: 14px;
+      margin-right: 6px;
+      color: var(--theme-color);
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+  }
+
+  .select-indicator {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    display: flex;
+    align-items: center;
+
+    ion-icon {
+      color: var(--theme-color);
+      font-size: 24px;
+    }
+  }
+
+  .select-prompt {
+    opacity: 0.4;
+
+    ion-icon {
+      color: #999;
+      font-size: 20px;
+    }
+  }
+
+  &.selected {
+    animation: selectParcel 0.3s forwards;
+  }
+
+  &:not(.selected):hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.05);
+  }
+}
+
+// Show the hint on hover for better UX
+.parcel-item.selected:hover .toggle-hint {
+  display: inline; // Show on hover
+}
+
+// Status badge styling
+.status-badge {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 4px 8px;
+  border-radius: 12px;
+  line-height: 1;
+
+  &.in-transit {
+    background-color: #e3f2fd;
+    color: #1976d2;
+  }
+
+  &.out-for-delivery {
+    background-color: #e8f5e9;
+    color: #388e3c;
+  }
+
+  &.delivered {
+    background-color: #e8f5e9;
+    color: #388e3c;
+  }
+
+  &.pending {
+    background-color: #fff8e1;
+    color: #ff8f00;
+  }
+}
+
+// Camera card styling
+.camera-card {
+  animation: fadeInUp 0.5s ease forwards;
+  animation-delay: 0.1s;
+
+  .camera-container {
+    width: 100%;
     position: relative;
-    overflow: hidden;
-    
-    &.selected {
-      border-color: var(--theme-color);
-      box-shadow: 0 4px 12px rgba(255, 193, 7, 0.2);
-      
-      &:after {
-        content: '';
+  }
+
+  .photo-preview {
+    width: 100%;
+    position: relative;
+
+    img {
+      width: 100%;
+      display: block;
+      border-radius: 0;
+    }
+
+    .preview-overlay {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 16px;
+      background: linear-gradient(transparent, rgba(0, 0, 0, 0.7));
+      display: flex;
+      justify-content: flex-end;
+
+      .retake-button {
+        --background: rgba(255, 255, 255, 0.2);
+        --color: white;
+        --border-radius: 20px;
+        font-weight: 600;
+        font-size: 13px;
+      }
+    }
+  }
+
+  .camera-placeholder {
+    width: 100%;
+    background: linear-gradient(to bottom, #f5f5f5, #f9f9f9);
+    border-radius: 0 0 var(--card-radius) var(--card-radius);
+    padding: 30px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    .placeholder-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      max-width: 400px;
+    }
+
+    .camera-decoration {
+      margin-bottom: 24px;
+
+      .camera-frame {
+        width: 120px;
+        height: 90px;
+        background-color: #333;
+        border-radius: 12px;
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 
+          0 8px 16px rgba(0,0,0,0.2),
+          inset 0 2px 5px rgba(255,255,255,0.1);
+
+        &:before {
+          content: '';
+          position: absolute;
+          top: -10px;
+          left: 30px;
+          right: 30px;
+          height: 10px;
+          background-color: #333;
+          border-radius: 5px 5px 0 0;
+        }
+
+        .camera-lens {
+          width: 50px;
+          height: 50px;
+          background: radial-gradient(#222, #000);
+          border-radius: 50%;
+          box-shadow: 
+            0 0 0 5px rgba(255,255,255,0.1),
+            inset 0 0 10px rgba(0,0,0,0.5);
+          position: relative;
+
+          &:before {
+            content: '';
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            width: 10px;
+            height: 10px;
+            background-color: rgba(255,255,255,0.5);
+            border-radius: 50%;
+          }
+        }
+
+        .camera-flash {
+          position: absolute;
+          top: 15px;
+          right: 15px;
+          width: 10px;
+          height: 10px;
+          background-color: #ffdd00;
+          border-radius: 50%;
+          box-shadow: 0 0 5px 2px rgba(255,217,0,0.5);
+          animation: flash 4s infinite;
+        }
+      }
+    }
+
+    p {
+      color: #666;
+      font-size: 17px;
+      font-weight: 500;
+      margin-bottom: 28px;
+    }
+  }
+
+  @keyframes flash {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 1; }
+  }
+
+  .photo-buttons {
+    display: flex;
+    gap: 16px;
+    width: 100%;
+
+    ion-button {
+      flex: 1;
+      --border-radius: 30px;
+      height: 52px;
+      font-weight: 600;
+      font-size: 14px;
+      overflow: hidden;
+
+      ion-icon {
+        font-size: 20px;
+      }
+    }
+
+    .take-photo-button {
+      --background: var(--theme-color);
+      --color: var(--text-dark);
+      position: relative;
+
+      &:before {
+        content: "";
         position: absolute;
         top: 0;
         left: 0;
-        height: 100%;
-        width: 4px;
-        background-color: var(--theme-color);
+        right: 0;
+        bottom: 0;
+        background: radial-gradient(circle, transparent 1%, var(--theme-color) 1%) center/15000%;
       }
-      
-      ion-card-title {
-        color: var(--theme-color);
-      }
-    }
-    
-    ion-card-header {
-      padding: 12px 16px;
-      
-      ion-card-title {
-        font-size: 18px;
-        font-weight: bold;
-      }
-      
-      ion-card-subtitle {
-        font-size: 14px;
-        color: #666;
+
+      &:active:before {
+        background-size: 100%;
+        transition: background 0s;
       }
     }
-    
-    ion-card-content {
-      padding: 0 16px 16px;
-      
-      .address, .date {
-        display: flex;
-        align-items: center;
-        margin-bottom: 8px;
-        
-        ion-icon {
-          margin-right: 8px;
-          font-size: 16px;
-          color: #888;
-        }
-        
-        span {
-          font-size: 14px;
-          color: #555;
-        }
-      }
-      
-      .address {
-        margin-bottom: 8px;
-      }
-    }
-    
-    .selection-indicator {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      
-      ion-icon {
-        font-size: 24px;
-        color: var(--theme-color);
+
+    .gallery-button {
+      --background: #eeeeee;
+      --color: var(--text-dark);
+
+      &:hover {
+        --background: #e0e0e0;
       }
     }
   }
-  
-  // Camera section styles
-  .camera-section {
-    animation: fadeIn 0.3s ease;
+}
+
+// Submit button
+.submit-button {
+  --background: var(--theme-color);
+  --color: var(--text-dark);
+  --border-radius: 25px;
+  margin: 10px 0;
+  height: 50px;
+  font-weight: 700;
+  font-size: 16px;
+  --box-shadow: 0 4px 12px rgba(255, 217, 0, 0.3);
+  animation: pulseButton 2s infinite ease-in-out;
+
+  ion-icon {
+    margin-right: 8px;
+    font-size: 20px;
   }
-  
-  .camera-container {
-    margin-bottom: 24px;
-    border-radius: 12px;
-    overflow: hidden;
-    background-color: #f5f5f5;
-    border: 1px solid #eee;
+
+  &:hover {
+    --box-shadow: 0 6px 16px rgba(255, 217, 0, 0.4);
   }
-  
-  .photo-preview {
-    width: 100%;
-    max-height: 300px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    overflow: hidden;
-    background-color: #000;
-  
-    img {
-      width: 100%;
-      object-fit: contain;
-    }
+}
+
+// Add these keyframes at the end of your file
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
   }
-  
-  .camera-placeholder {
-    height: 200px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    background-color: #f0f0f0;
-    color: #999;
-    
-    ion-icon {
-      font-size: 48px;
-      margin-bottom: 12px;
-    }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
-  
-  ion-button {
-    --background: var(--theme-color);
-    --color: #000;
-    
-    &.submit-button {
-      margin-top: 16px;
-      --background: #4a8bfc;
-      --color: white;
-      height: 48px;
-    }
-  
-    &[disabled] {
-      --background: #ccc;
-      --color: #666;
-    }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
   }
-  
-  @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulseButton {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.03);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes selectParcel {
+  0% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+  100% {
+    transform: translateY(-3px);
+    background-color: var(--theme-light);
+    border-color: var(--theme-color);
+  }
+}
