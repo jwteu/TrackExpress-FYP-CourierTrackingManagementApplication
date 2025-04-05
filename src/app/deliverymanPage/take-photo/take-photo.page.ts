@@ -151,27 +151,15 @@ export class TakePhotoPage implements OnInit {
     }
     
     try {
-      // First show a helpful message for web users
-      if (!this.isPlatformNative()) {
-        await this.alertCtrl.create({
-          header: 'Camera Access',
-          message: 'Your browser will prompt to access the camera. Select "Allow" and then choose "Camera" from the options.',
-          buttons: ['Got it']
-        }).then(alert => alert.present());
-      }
+      // Use Photos source for more reliable behavior in PWA/browser environments
+      const source = this.isPlatformNative() ? CameraSource.Camera : CameraSource.Photos;
       
-      // Use different options based on platform
       const image = await Camera.getPhoto({
         quality: 80,
-        allowEditing: false,
+        allowEditing: true,
         resultType: CameraResultType.DataUrl,
-        source: CameraSource.Camera, // Always try to use Camera directly first
-        width: 1000,
-        height: 1000,
-        correctOrientation: true,
-        // These properties help on web
-        presentationStyle: 'popover',
-        webUseInput: false // Try to use media capture API instead of file input
+        source: source,
+        correctOrientation: true
       });
       
       this.capturedImage = image.dataUrl || null;
@@ -181,14 +169,12 @@ export class TakePhotoPage implements OnInit {
       }
     } catch (error) {
       console.error('Error taking photo:', error);
-      this.showToast('Could not access camera. Please try using the Gallery option instead.');
+      this.showToast('Could not access camera. You may need to grant camera permissions.');
     }
   }
 
   isPlatformNative(): boolean {
-    // Check for Cordova or Capacitor native runtime
-    return typeof (window as any).cordova !== 'undefined' || 
-           typeof (window as any).Capacitor !== 'undefined';
+    return (window as any).Capacitor?.isNativePlatform() || false;
   }
 
   async resizeImage(dataUrl: string, maxWidth: number): Promise<string> {
