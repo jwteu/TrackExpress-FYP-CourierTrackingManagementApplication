@@ -1,11 +1,10 @@
-import { Component, OnInit, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
-import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
+import { Component, OnInit, CUSTOM_ELEMENTS_SCHEMA, inject, Injector, runInInjectionContext } from '@angular/core';
+import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
-import { IonicModule, ToastController } from '@ionic/angular';
+import { IonicModule, NavController, ToastController } from '@ionic/angular';
 import { AngularFirestore } from '@angular/fire/compat/firestore';
-import { NavController } from '@ionic/angular';
+import { firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-profile',
@@ -23,12 +22,15 @@ export class ProfilePage implements OnInit {
   userData: any = {};
   isEditMode = false;
   
+  // Add injector for Firebase operations
+  private injector = inject(Injector);
+  
   constructor(
     private fb: FormBuilder,
     private router: Router,
     private firestore: AngularFirestore,
     private navCtrl: NavController,
-    private toastController: ToastController // Inject ToastController
+    private toastController: ToastController
   ) {}
 
   ngOnInit() {
@@ -48,7 +50,7 @@ export class ProfilePage implements OnInit {
     });
   }
 
-  loadUserData() {
+  async loadUserData() {
     this.isLoading = true;
     
     const sessionData = localStorage.getItem('userSession');
@@ -61,33 +63,32 @@ export class ProfilePage implements OnInit {
       const userSession = JSON.parse(sessionData);
       this.userData = userSession;
       
-      this.firestore.collection('users').doc(userSession.uid).get().subscribe(
-        (doc) => {
-          if (doc.exists) {
-            const userData = doc.data() as any;
-            this.profileForm.patchValue({
-              name: userData.name || '',
-              email: userData.email || '',
-              icNumber: userData.icNumber || '',
-              phone: userData.phone || '',
-              address: userData.address || '',
-              role: userData.role || '',
-              staffId: userData.staffId || ''
-            });
-            this.isLoading = false;
-          } else {
-            console.error('User document not found');
-            this.router.navigate(['/login']);
-          }
-        },
-        (error) => {
-          console.error('Error fetching user data:', error);
-          this.isLoading = false;
-        }
-      );
+      // Use runInInjectionContext for Firestore query
+      const userDoc = await runInInjectionContext(this.injector, () => {
+        return firstValueFrom(
+          this.firestore.collection('users').doc(userSession.uid).get()
+        );
+      });
+      
+      if (userDoc.exists) {
+        const userData = userDoc.data() as any;
+        this.profileForm.patchValue({
+          name: userData.name || '',
+          email: userData.email || '',
+          icNumber: userData.icNumber || '',
+          phone: userData.phone || '',
+          address: userData.address || '',
+          role: userData.role || '',
+          staffId: userData.staffId || ''
+        });
+      } else {
+        console.error('User document not found');
+        this.router.navigate(['/login']);
+      }
+      this.isLoading = false;
     } catch (error) {
-      console.error('Error parsing user session:', error);
-      this.router.navigate(['/login']);
+      console.error('Error fetching user data:', error);
+      this.isLoading = false;
     }
   }
 
@@ -103,71 +104,44 @@ export class ProfilePage implements OnInit {
   }
 
   async saveProfile() {
-    console.log('Save profile called');
-    console.log('Form valid:', this.profileForm.valid);
-    console.log('Form values:', this.profileForm.value);
-    
     if (this.profileForm.valid) {
       this.isLoading = true;
       this.updateSuccess = false;
       this.updateError = '';
 
-      // Only include the editable fields in the update data
       const updatedData = {
         phone: this.profileForm.get('phone')?.value,
         address: this.profileForm.get('address')?.value
       };
 
-      console.log('Updated Data:', updatedData);
-      console.log('User UID:', this.userData.uid);
-
       try {
-        // Update user document in Firestore
-        await this.firestore.collection('users').doc(this.userData.uid).update(updatedData);
-
-        // Update session data in localStorage
-        const sessionData = localStorage.getItem('userSession');
-        if (sessionData) {
-          const userSession = JSON.parse(sessionData);
-          const updatedSession = {
-            ...userSession,
-            ...updatedData
-          };
-          localStorage.setItem('userSession', JSON.stringify(updatedSession));
-        }
-
-        this.updateSuccess = true;
+        // Use runInInjectionContext for Firestore operation
+        await runInInjectionContext(this.injector, () => {
+          return this.firestore.collection('users').doc(this.userData.uid).update(updatedData);
+        });
+        
         this.isLoading = false;
+        this.updateSuccess = true;
         this.isEditMode = false;
-
-        // Disable editable fields
+        
+        // Show toast for successful update
+        const toast = await this.toastController.create({
+          message: 'Profile updated successfully',
+          duration: 2000,
+          color: 'success',
+          position: 'bottom'
+        });
+        await toast.present();
+        
+        // Update disabled fields
         this.profileForm.get('phone')?.disable();
         this.profileForm.get('address')?.disable();
-
-        // Notify the user of the successful update with a toast
-        // that automatically dismisses after 2 seconds
-        const toast = await this.toastController.create({
-          message: 'Profile updated successfully!',
-          duration: 3000, // Display for 3 seconds
-          position: 'bottom',
-          color: 'success',
-          buttons: [
-            {
-              icon: 'checkmark-circle-outline',
-              role: 'cancel'
-            }
-          ],
-          cssClass: 'success-toast'
-        });
-        toast.present();
-
       } catch (error: any) {
         console.error('Error updating profile:', error);
-        this.updateError = 'Failed to update profile. Please try again.';
         this.isLoading = false;
+        this.updateError = 'Failed to update profile. Please try again.';
       }
     } else {
-      console.error('Form is invalid:', this.profileForm.errors);
       this.updateError = 'Please correct the form errors before saving.';
     }
   }
@@ -176,7 +150,6 @@ export class ProfilePage implements OnInit {
     this.navCtrl.back();
   }
 
-  // Add a method to get user initials for the avatar
   getUserInitials(): string {
     const name = this.profileForm.get('name')?.value || '';
     if (!name) return '?';

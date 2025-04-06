@@ -1,4 +1,4 @@
-import { Component, CUSTOM_ELEMENTS_SCHEMA, OnInit } from '@angular/core';
+import { Component, CUSTOM_ELEMENTS_SCHEMA, OnInit, inject, Injector, runInInjectionContext } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { AngularFirestore } from '@angular/fire/compat/firestore';
 import { Router } from '@angular/router';
@@ -21,15 +21,17 @@ export class AddParcelPage implements OnInit {
   parcelForm: FormGroup;
   isGettingLocation = false;
   currentLocation: string = '';
-
-  constructor(
-    private fb: FormBuilder,
-    public firestore: AngularFirestore,
-    private router: Router,
-    private location: Location,
-    private loadingCtrl: LoadingController,
-    private toastCtrl: ToastController
-  ) {
+  
+  // Angular 19 injection pattern with Injector
+  private fb = inject(FormBuilder);
+  private firestore = inject(AngularFirestore);
+  private router = inject(Router);
+  private location = inject(Location);
+  private loadingCtrl = inject(LoadingController);
+  private toastCtrl = inject(ToastController);
+  private injector = inject(Injector); // Add this line
+  
+  constructor() {
     this.parcelForm = this.fb.group({
       senderName: ['', [Validators.required, Validators.pattern('^[a-zA-Z ]*$')]],
       senderContact: ['', [Validators.required, Validators.pattern('^[0-9]*$')]],
@@ -217,14 +219,27 @@ export class AddParcelPage implements OnInit {
           ...this.parcelForm.value,
           trackingId,
           barcode,
-          createdAt: new Date()
+          createdAt: new Date().toISOString() // Store as ISO string for better Firestore compatibility
         };
   
         // Log the form data
         console.log('Parcel data:', parcelData);
   
-        // Add to Firestore
-        await this.firestore.collection('parcels').add(parcelData);
+        // Add to Firestore with proper injection context
+        try {
+          // Use runInInjectionContext to ensure Firebase operations run in the correct context
+          const docRef = await runInInjectionContext(this.injector, async () => {
+            return await this.firestore.collection('parcels').add(parcelData);
+          });
+          console.log('Document written with ID: ', docRef.id);
+        } catch (firestoreError: unknown) {
+          console.error('Firestore write error:', firestoreError);
+          if (firestoreError instanceof Error) {
+            throw new Error(`Firestore write failed: ${firestoreError.message}`);
+          } else {
+            throw new Error(`Firestore write failed: ${JSON.stringify(firestoreError)}`);
+          }
+        }
   
         // Send email notifications
         await this.sendEmailNotifications(parcelData);

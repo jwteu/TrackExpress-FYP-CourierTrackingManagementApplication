@@ -1,22 +1,26 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject, Injector, runInInjectionContext } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IonicModule, ToastController, LoadingController } from '@ionic/angular';
 import { Router } from '@angular/router';
 import { AngularFirestore } from '@angular/fire/compat/firestore';
+import { firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-tracking-parcel',
   templateUrl: './tracking-parcel.page.html',
   styleUrls: ['./tracking-parcel.page.scss'],
   standalone: true,
-  imports: [CommonModule, FormsModule, IonicModule] // Ensure required modules are imported
+  imports: [CommonModule, FormsModule, IonicModule]
 })
 export class TrackingParcelPage implements OnInit {
-  trackingId: string = ''; // User-entered tracking ID
-  parcel: any = null; // Parcel data fetched from Firestore
-  loading: boolean = false; // Loading state
-  searchPerformed: boolean = false; // Whether a search has been performed
+  trackingId: string = '';
+  parcel: any = null;
+  loading: boolean = false;
+  searchPerformed: boolean = false;
+  
+  // Add injector for Firebase operations
+  private injector = inject(Injector);
 
   constructor(
     private firestore: AngularFirestore,
@@ -27,10 +31,8 @@ export class TrackingParcelPage implements OnInit {
 
   ngOnInit() {}
 
-  // Method to track a parcel by its tracking ID
   async trackParcel() {
     if (!this.trackingId || this.trackingId.trim() === '') {
-      // Show a warning if the tracking ID is empty
       const toast = await this.toastController.create({
         message: 'Please enter a tracking ID',
         duration: 2000,
@@ -45,38 +47,39 @@ export class TrackingParcelPage implements OnInit {
     this.loading = true;
     this.parcel = null;
 
-    // Show a loading spinner
     const loading = await this.loadingController.create({
       message: 'Searching for your parcel...',
       spinner: 'circles'
     });
     await loading.present();
 
-    // Query Firestore for the parcel with the given tracking ID
-    this.firestore.collection('parcels', ref =>
-      ref.where('trackingId', '==', this.trackingId.trim())
-    ).get().subscribe(snapshot => {
+    try {
+      // Use runInInjectionContext for Firestore operations
+      const snapshot = await runInInjectionContext(this.injector, () => {
+        return firstValueFrom(
+          this.firestore.collection('parcels', ref =>
+            ref.where('trackingId', '==', this.trackingId.trim())
+          ).get()
+        );
+      });
+
       loading.dismiss();
       this.loading = false;
 
       if (snapshot.empty) {
-        // No parcel found
         this.parcel = null;
       } else {
-        // Get the first matching parcel
         const doc = snapshot.docs[0];
-        this.parcel = { id: doc.id, ...(doc.data() as Record<string, any>) }; // Explicitly type doc.data() as an object
+        this.parcel = { id: doc.id, ...(doc.data() as Record<string, any>) };
       }
-    }, error => {
-      // Handle errors during the Firestore query
+    } catch (error) {
       loading.dismiss();
       this.loading = false;
       console.error('Error searching for parcel:', error);
       this.showErrorToast();
-    });
+    }
   }
 
-  // Show an error toast
   async showErrorToast() {
     const toast = await this.toastController.create({
       message: 'An error occurred while searching. Please try again.',
@@ -87,7 +90,6 @@ export class TrackingParcelPage implements OnInit {
     toast.present();
   }
 
-  // Navigate to the parcel detail page
   viewParcelDetails(parcelId: string) {
     this.router.navigate(['/parcel-detail', parcelId]);
   }

@@ -1,10 +1,11 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject, runInInjectionContext, Injector } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { AngularFireAuth } from '@angular/fire/compat/auth';
 import { AngularFirestore } from '@angular/fire/compat/firestore';
 import { IonicModule, NavController } from '@ionic/angular';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-reset-password',
@@ -17,6 +18,9 @@ export class ResetPasswordPage implements OnInit {
   resetPasswordForm!: FormGroup;
   errorMessage: string = '';
   successMessage: string = '';
+  
+  // Add injector property
+  private injector = inject(Injector);
 
   constructor(private fb: FormBuilder, private afAuth: AngularFireAuth, private firestore: AngularFirestore, private navCtrl: NavController) { }
 
@@ -36,8 +40,12 @@ export class ResetPasswordPage implements OnInit {
       const email = this.resetPasswordForm.get('email')!.value;
 
       try {
-        // Check if the email exists in the Firestore database
-        const userSnapshot = await this.firestore.collection('users', ref => ref.where('email', '==', email)).get().toPromise();
+        // Use runInInjectionContext for Firestore query
+        const userSnapshot = await runInInjectionContext(this.injector, () => {
+          return firstValueFrom(
+            this.firestore.collection('users', ref => ref.where('email', '==', email)).get()
+          );
+        });
         
         if (!userSnapshot || userSnapshot.empty) {
           throw new Error('Email not found');

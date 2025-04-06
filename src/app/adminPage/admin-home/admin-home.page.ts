@@ -1,9 +1,10 @@
-import { Component, OnInit, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
+import { Component, OnInit, CUSTOM_ELEMENTS_SCHEMA, inject, Injector, runInInjectionContext } from '@angular/core';
 import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IonicModule } from '@ionic/angular';
 import { AngularFireAuth } from '@angular/fire/compat/auth';
+import { firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-admin-home',
@@ -17,6 +18,9 @@ export class AdminHomePage implements OnInit {
   userName: string = '';
   userRole: string = '';
   
+  // Add injector for Firebase operations
+  private injector = inject(Injector);
+  
   constructor(
     private router: Router,
     private afAuth: AngularFireAuth
@@ -27,11 +31,9 @@ export class AdminHomePage implements OnInit {
   }
 
   checkUserSession() {
-    // Get user session from localStorage
     const sessionData = localStorage.getItem('userSession');
     
     if (!sessionData) {
-      // No session found, redirect to login
       this.router.navigate(['/login']);
       return;
     }
@@ -39,17 +41,13 @@ export class AdminHomePage implements OnInit {
     try {
       const userSession = JSON.parse(sessionData);
       
-      // Validate session data
       if (!userSession.uid || !userSession.role || userSession.role !== 'admin') {
-        // Invalid session or not an admin, redirect to login
         this.logout();
         return;
       }
       
-      // Session is valid, set user information
       this.userName = userSession.name || '';
       this.userRole = userSession.role;
-      
     } catch (error) {
       console.error('Error parsing user session:', error);
       this.logout();
@@ -60,17 +58,20 @@ export class AdminHomePage implements OnInit {
     this.router.navigate([page]);
   }
 
-  logout() {
-    // Clear user session
+  async logout() {
     localStorage.removeItem('userSession');
     
-    // Sign out from Firebase Auth
-    this.afAuth.signOut().then(() => {
+    try {
+      // Use runInInjectionContext for Firebase signOut
+      await runInInjectionContext(this.injector, () => {
+        return this.afAuth.signOut();
+      });
+      
       console.log('User signed out');
-      this.router.navigate(['/login']);
-    }).catch(error => {
+    } catch (error) {
       console.error('Sign out error:', error);
-      this.router.navigate(['/login']);
-    });
+    }
+    
+    this.router.navigate(['/login']);
   }
 }

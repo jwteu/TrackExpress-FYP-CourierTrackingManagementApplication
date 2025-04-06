@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, ElementRef, OnDestroy } from '@angular/core';
+import { Component, OnInit, ViewChild, ElementRef, OnDestroy, inject } from '@angular/core';
 import { IonicModule } from '@ionic/angular';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
@@ -12,6 +12,7 @@ import 'firebase/compat/firestore';
 import { Router } from '@angular/router';
 import { NavController } from '@ionic/angular';
 import * as Quagga from 'quagga';
+import { runInInjectionContext, Injector } from '@angular/core';
 
 // Update interface to include receiver address and status
 interface Parcel {
@@ -40,46 +41,54 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
   isSaving = false;
   currentUserId: string | null = null;
   currentUserName: string | null = null;
+  private authSubscription: any;
 
   // Scanner related properties
   isScannerActive = false;
-  @ViewChild('scannerElement') scannerElement!: ElementRef; // Fix the ViewChild error by adding !
+  @ViewChild('scannerElement') scannerElement!: ElementRef;
   @ViewChild('fileInput') fileInput!: ElementRef;
   @ViewChild('directFileInput') directFileInput!: ElementRef;
 
-  constructor(
-    private fb: FormBuilder,
-    private firestore: AngularFirestore,
-    private auth: AngularFireAuth,
-    private toastCtrl: ToastController,
-    private loadingCtrl: LoadingController,
-    private alertCtrl: AlertController,
-    private navCtrl: NavController
-  ) {
+  // Use inject() for all dependencies
+  private fb = inject(FormBuilder);
+  private firestore = inject(AngularFirestore);
+  private auth = inject(AngularFireAuth);
+  private toastCtrl = inject(ToastController);
+  private loadingCtrl = inject(LoadingController);
+  private alertCtrl = inject(AlertController);
+  private navCtrl = inject(NavController);
+  private injector = inject(Injector);
+
+  constructor() {
     this.addParcelForm = this.fb.group({
       trackingId: ['', [Validators.required]],
-      status: ['In Transit', [Validators.required]] // Default to "In Transit"
+      status: ['In Transit', [Validators.required]] 
     });
   }
 
   ngOnInit() {
-    // Get current user info
-    this.auth.authState.subscribe(user => {
+    this.authSubscription = this.auth.authState.subscribe(user => {
       if (user) {
         this.currentUserId = user.uid;
-        this.firestore.collection('users').doc(user.uid).get().subscribe(doc => {
-          if (doc.exists) {
-            const userData = doc.data() as { name?: string };
-            this.currentUserName = userData?.name || user.displayName || 'Unknown User';
-            this.loadParcels();
-          }
+        
+        runInInjectionContext(this.injector, () => {
+          this.firestore.collection('users').doc(user.uid).get().subscribe(doc => {
+            if (doc.exists) {
+              const userData = doc.data() as { name?: string };
+              this.currentUserName = userData?.name || user.displayName || 'Unknown User';
+              this.loadParcels();
+            }
+          });
         });
       }
     });
   }
 
   ngOnDestroy() {
-    // Clean up scanner when component is destroyed
+    // Properly unsubscribe to prevent memory leaks
+    if (this.authSubscription) {
+      this.authSubscription.unsubscribe();
+    }
     this.stopScanner();
   }
 
@@ -89,58 +98,52 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
     this.isLoading = true;
     console.log('Starting to load parcels for:', this.currentUserName);
 
-    // Query by name since deliverymanId is not in the database structure
-    this.firestore.collection('assigned_parcels', ref =>
-      ref.where('name', '==', this.currentUserName))
-      .valueChanges({ idField: 'id' })
-      .subscribe(async assignedParcels => {
-        console.log('Loaded assigned parcels:', assignedParcels);
-        
-        // Create an array to store parcels with receiver address
-        const parcelsWithAddresses = [];
-        
-        // For each assigned parcel, fetch the full parcel data to get receiver address
-        for (const assignedParcel of assignedParcels as Parcel[]) {
-          try {
-            const trackingId = assignedParcel.trackingId;
-            console.log(`Fetching receiver address for trackingId: ${trackingId}`);
-            
-            // Query the main parcels collection to get receiver address
-            const parcelQuery = this.firestore.collection('parcels', ref =>
-              ref.where('trackingId', '==', trackingId)).get();
-            const parcelQuerySnapshot = await firstValueFrom(parcelQuery);
-            
-            if (!parcelQuerySnapshot.empty) {
-              const parcelData = parcelQuerySnapshot.docs[0].data() as any;
-              console.log('Found parcel data:', parcelData);
-              
-              // Add receiver address to the assigned parcel data
-              parcelsWithAddresses.push({
-                ...assignedParcel,
-                receiverAddress: parcelData.receiverAddress || 'No destination address found',
-                status: assignedParcel.status || parcelData.status || 'Pending' // Use status from either source
+    // Wrap Firestore operations in `runInInjectionContext`
+    runInInjectionContext(this.injector, () => {
+      this.firestore.collection('assigned_parcels', ref =>
+        ref.where('name', '==', this.currentUserName))
+        .valueChanges({ idField: 'id' })
+        .subscribe(async assignedParcels => {
+          console.log('Loaded assigned parcels:', assignedParcels);
+
+          const parcelsWithAddresses = [];
+
+          for (const assignedParcel of assignedParcels as Parcel[]) {
+            try {
+              // Wrap nested Firestore operations in `runInInjectionContext`
+              await runInInjectionContext(this.injector, async () => {
+                const parcelQuery = this.firestore.collection('parcels', ref =>
+                  ref.where('trackingId', '==', assignedParcel.trackingId)).get();
+                const parcelQuerySnapshot = await firstValueFrom(parcelQuery);
+
+                if (!parcelQuerySnapshot.empty) {
+                  const parcelData = parcelQuerySnapshot.docs[0].data() as any;
+                  parcelsWithAddresses.push({
+                    ...assignedParcel,
+                    receiverAddress: parcelData.receiverAddress || 'No destination address found',
+                    status: assignedParcel.status || parcelData.status || 'Pending'
+                  });
+                } else {
+                  parcelsWithAddresses.push({
+                    ...assignedParcel,
+                    receiverAddress: 'No destination address found'
+                  });
+                }
               });
-            } else {
-              console.log('No matching parcel found in main collection for:', trackingId);
-              // If no matching parcel found, use the original assigned parcel
+            } catch (error) {
+              console.error('Error fetching parcel details:', error);
               parcelsWithAddresses.push({
                 ...assignedParcel,
-                receiverAddress: 'No destination address found'
+                receiverAddress: 'Error fetching address'
               });
             }
-          } catch (error) {
-            console.error('Error fetching parcel details:', error);
-            parcelsWithAddresses.push({
-              ...assignedParcel,
-              receiverAddress: 'Error fetching address'
-            });
           }
-        }
-        
-        console.log('Final parcels with addresses:', parcelsWithAddresses);
-        this.parcels = parcelsWithAddresses;
-        this.isLoading = false;
-      });
+
+          console.log('Final parcels with addresses:', parcelsWithAddresses);
+          this.parcels = parcelsWithAddresses;
+          this.isLoading = false;
+        });
+    });
   }
 
   formatDate(date: any): string {
@@ -198,93 +201,94 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
     if (this.addParcelForm.invalid || !this.currentUserName) return;
 
     const trackingId = this.addParcelForm.value.trackingId;
-    const status = this.addParcelForm.value.status || 'In Transit'; // Get selected status
+    const status = this.addParcelForm.value.status || 'In Transit';
 
     try {
       this.isLoading = true;
-      console.log(`Starting to add parcel with tracking ID: ${trackingId}, status: ${status}`);
-
-      // Check if parcel exists in the database
-      const parcelQuery = this.firestore.collection('parcels', ref =>
-        ref.where('trackingId', '==', trackingId)).get();
-      const parcelQuerySnapshot = await firstValueFrom(parcelQuery);
-
-      if (parcelQuerySnapshot.empty) {
-        this.showToast('Parcel with this tracking ID does not exist in the system');
-        this.isLoading = false;
-        return;
-      }
-
-      // Check if already assigned
-      const assignedQuery = this.firestore.collection('assigned_parcels', ref =>
-        ref.where('trackingId', '==', trackingId)).get();
-      const assignedQuerySnapshot = await firstValueFrom(assignedQuery);
-
-      if (!assignedQuerySnapshot.empty) {
-        this.showToast('This parcel is already assigned');
-        this.isLoading = false;
-        return;
-      }
-
-      // Get current location
-      const location = await this.getCurrentLocation();
-
-      if (!location) {
-        this.showToast('Unable to get current location. Please enable location services and try again.');
-        this.isLoading = false;
-        return;
-      }
-
-      const parcelDocId = parcelQuerySnapshot.docs[0].id;
-      console.log('Parcel doc ID:', parcelDocId);
-
-      // Create new assigned parcel with status
-      const newParcel = {
-        trackingId: trackingId,
-        name: this.currentUserName,
-        locationLat: location.coords.latitude,
-        locationLng: location.coords.longitude,
-        addedDate: new Date(),
-        status: status // Include the status
-      };
       
-      console.log('Attempting to add document with data:', newParcel);
+      // CRITICAL: Store external values that might be needed inside the injection context
+      const currentUserName = this.currentUserName;
+      const currentUserId = this.currentUserId;
+      
+      // Use a single runInInjectionContext that wraps ALL Firebase operations
+      await runInInjectionContext(this.injector, async () => {
+        console.log(`Starting to add parcel with tracking ID: ${trackingId}, status: ${status}`);
+        
+        // Check if parcel exists in the database
+        const parcelQuery = this.firestore.collection('parcels', ref =>
+          ref.where('trackingId', '==', trackingId)).get();
+        const parcelQuerySnapshot = await firstValueFrom(parcelQuery);
 
-      // Add to assigned_parcels collection
-      const docRef = await this.firestore.collection('assigned_parcels').add(newParcel);
-      console.log('Document successfully added with ID:', docRef.id);
-
-      // Update parcel status in main parcels collection
-      await this.firestore.collection('parcels').doc(parcelDocId).update({
-        status: status, // Use the selected status
-        deliverymanId: this.currentUserId,
-        deliverymanName: this.currentUserName
-      });
-
-      this.addParcelForm.reset({
-        status: 'In Transit' // Reset to default status
-      });
-      this.showToast('Parcel added successfully');
-
-      // Send email notification to receiver with the status included
-      try {
-        // Fetch parcel data to get receiver information
-        const parcelDoc = await firstValueFrom(this.firestore.collection('parcels').doc(parcelDocId).get());
-        if (parcelDoc.exists) {
-          const parcelData = parcelDoc.data() as any;
-          if (parcelData) {
-            await this.sendEmailNotifications(parcelData, location.coords.latitude, location.coords.longitude, status);
-          } else {
-            console.warn('Parcel data is undefined, cannot send email notification.');
-          }
-        } else {
-          console.warn('Parcel document not found, cannot send email notification.');
+        if (parcelQuerySnapshot.empty) {
+          this.showToast('Parcel with this tracking ID does not exist in the system');
+          return;
         }
-      } catch (emailError) {
-        console.error('Error sending email notification:', emailError);
-        this.showToast('Parcel added successfully, but failed to send email notification.');
-      }
 
+        // Check if already assigned
+        const assignedQuery = this.firestore.collection('assigned_parcels', ref =>
+          ref.where('trackingId', '==', trackingId)).get();
+        const assignedQuerySnapshot = await firstValueFrom(assignedQuery);
+
+        if (!assignedQuerySnapshot.empty) {
+          this.showToast('This parcel is already assigned');
+          return;
+        }
+
+        // Get current location - IMPORTANT: moved inside injection context
+        const location = await this.getCurrentLocation();
+
+        if (!location) {
+          this.showToast('Unable to get current location. Please enable location services and try again.');
+          return;
+        }
+
+        const parcelDocId = parcelQuerySnapshot.docs[0].id;
+        console.log('Parcel doc ID:', parcelDocId);
+
+        // Create new assigned parcel with status
+        const newParcel = {
+          trackingId: trackingId,
+          name: currentUserName,  // Use stored value
+          locationLat: location.coords.latitude,
+          locationLng: location.coords.longitude,
+          addedDate: new Date(),
+          status: status
+        };
+        
+        console.log('Attempting to add document with data:', newParcel);
+
+        // Add to assigned_parcels collection
+        const docRef = await this.firestore.collection('assigned_parcels').add(newParcel);
+        console.log('Document successfully added with ID:', docRef.id);
+
+        // Update parcel status in main parcels collection
+        await this.firestore.collection('parcels').doc(parcelDocId).update({
+          status: status,
+          deliverymanId: currentUserId,  // Use stored value
+          deliverymanName: currentUserName  // Use stored value
+        });
+
+        this.addParcelForm.reset({
+          status: 'In Transit'
+        });
+        this.showToast('Parcel added successfully');
+
+        // Send email notification to receiver - still within the injection context
+        try {
+          const parcelDoc = await firstValueFrom(this.firestore.collection('parcels').doc(parcelDocId).get());
+          if (parcelDoc.exists) {
+            const parcelData = parcelDoc.data() as any;
+            if (parcelData) {
+              await this.sendEmailNotifications(parcelData, location.coords.latitude, location.coords.longitude, status);
+            }
+          }
+        } catch (emailError) {
+          console.error('Error sending email notification:', emailError);
+        }
+        
+        // Load updated parcels list - still inside injection context
+        await this.loadParcels();
+      });
     } catch (error) {
       console.error('Error adding parcel:', error);
       this.showToast('Failed to add parcel. Please try again.');
@@ -367,48 +371,46 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
       header: 'Confirm Removal',
       message: 'Are you sure you want to remove this parcel?',
       buttons: [
-        {
-          text: 'Cancel',
-          role: 'cancel'
-        },
+        { text: 'Cancel', role: 'cancel' },
         {
           text: 'Remove',
           handler: async () => {
             try {
-              const loading = await this.loadingCtrl.create({
-                message: 'Removing parcel...'
-              });
+              const loading = await this.loadingCtrl.create({ message: 'Removing parcel...' });
               await loading.present();
               
-              // Get tracking ID of the parcel
-              const docRef = this.firestore.collection('assigned_parcels').doc(parcelId).get();
-              const doc = await firstValueFrom(docRef);
-              
-              if (doc.exists) {
-                const data = doc.data() as {trackingId?: string};
-                if (data?.trackingId) {
-                  // Delete from assigned_parcels collection
-                  await this.firestore.collection('assigned_parcels').doc(parcelId).delete();
-                  
-                  // Update status in main parcels collection
-                  const parcelRef = this.firestore.collection('parcels', ref => 
-                    ref.where('trackingId', '==', data.trackingId)).get();
-                  const parcelSnapshot = await firstValueFrom(parcelRef);
-                  
-                  if (!parcelSnapshot.empty) {
-                    const parcelDocId = parcelSnapshot.docs[0].id;
-                    await this.firestore.collection('parcels').doc(parcelDocId).update({
-                      status: 'Pending',
-                      deliverymanId: null,
-                      deliverymanName: null
-                    });
+              await runInInjectionContext(this.injector, async () => {
+                // Get tracking ID of the parcel
+                const docRef = this.firestore.collection('assigned_parcels').doc(parcelId).get();
+                const doc = await firstValueFrom(docRef);
+                
+                if (doc.exists) {
+                  const data = doc.data() as {trackingId?: string};
+                  if (data?.trackingId) {
+                    // Delete from assigned_parcels collection
+                    await this.firestore.collection('assigned_parcels').doc(parcelId).delete();
+                    
+                    // Update status in main parcels collection
+                    const parcelRef = this.firestore.collection('parcels', ref => 
+                      ref.where('trackingId', '==', data.trackingId)).get();
+                    const parcelSnapshot = await firstValueFrom(parcelRef);
+                    
+                    if (!parcelSnapshot.empty) {
+                      const parcelDocId = parcelSnapshot.docs[0].id;
+                      await this.firestore.collection('parcels').doc(parcelDocId).update({
+                        status: 'Pending',
+                        deliverymanId: null,
+                        deliverymanName: null
+                      });
+                    }
+                    
+                    this.showToast('Parcel removed successfully');
                   }
-                  
-                  this.showToast('Parcel removed successfully');
                 }
-              }
+              });
               
               await loading.dismiss();
+              this.loadParcels(); // Refresh the list
             } catch (error) {
               console.error('Error removing parcel:', error);
               this.showToast('Failed to remove parcel. Please try again.');
@@ -442,43 +444,48 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
               });
               await loading.present();
               
-              // Get tracking IDs of selected parcels first
-              const trackingIds = [];
-              for (const id of this.selectedParcels) {
-                const docRef = this.firestore.collection('assigned_parcels').doc(id).get();
-                const doc = await firstValueFrom(docRef);
-                if (doc.exists) {
-                  const data = doc.data() as {trackingId?: string};
-                  if (data?.trackingId) {
-                    trackingIds.push(data.trackingId);
+              // Wrap all Firebase operations in runInInjectionContext
+              await runInInjectionContext(this.injector, async () => {
+                // Get tracking IDs of selected parcels first
+                const trackingIds = [];
+                for (const id of this.selectedParcels) {
+                  const docRef = this.firestore.collection('assigned_parcels').doc(id).get();
+                  const doc = await firstValueFrom(docRef);
+                  if (doc.exists) {
+                    const data = doc.data() as {trackingId?: string};
+                    if (data?.trackingId) {
+                      trackingIds.push(data.trackingId);
+                    }
                   }
                 }
-              }
-              
-              // Delete from assigned_parcels collection
-              for (const id of this.selectedParcels) {
-                await this.firestore.collection('assigned_parcels').doc(id).delete();
-              }
-              
-              // Update status in main parcels collection
-              for (const trackingId of trackingIds) {
-                const parcelRef = this.firestore.collection('parcels', ref => 
-                  ref.where('trackingId', '==', trackingId)).get();
-                const parcelSnapshot = await firstValueFrom(parcelRef);
                 
-                if (!parcelSnapshot.empty) {
-                  const parcelDocId = parcelSnapshot.docs[0].id;
-                  await this.firestore.collection('parcels').doc(parcelDocId).update({
-                    status: 'Pending',
-                    deliverymanId: null,
-                    deliverymanName: null
-                  });
+                // Delete from assigned_parcels collection
+                for (const id of this.selectedParcels) {
+                  await this.firestore.collection('assigned_parcels').doc(id).delete();
                 }
-              }
+                
+                // Update status in main parcels collection
+                for (const trackingId of trackingIds) {
+                  const parcelRef = this.firestore.collection('parcels', ref => 
+                    ref.where('trackingId', '==', trackingId)).get();
+                  const parcelSnapshot = await firstValueFrom(parcelRef);
+                  
+                  if (!parcelSnapshot.empty) {
+                    const parcelDocId = parcelSnapshot.docs[0].id;
+                    await this.firestore.collection('parcels').doc(parcelDocId).update({
+                      status: 'Pending',
+                      deliverymanId: null,
+                      deliverymanName: null
+                    });
+                  }
+                }
+                
+                this.selectedParcels = [];
+              });
               
-              this.selectedParcels = [];
               this.showToast('Parcels removed successfully');
               await loading.dismiss();
+              this.loadParcels(); // Make sure to refresh after updates
             } catch (error) {
               console.error('Error removing parcels:', error);
               this.showToast('Failed to remove parcels. Please try again.');
@@ -570,7 +577,7 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
     }
   }
 
-  // Add this new method for direct assignment
+  // Add this new method for direct assignment - COMPLETELY REWRITTEN
   async addParcelWithoutValidation(trackingId: string, status: string): Promise<void> {
     if (!this.currentUserName || !trackingId) {
       this.showToast('Missing required information to assign parcel');
@@ -578,13 +585,21 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
     }
 
     try {
-      console.log(`Auto-assigning parcel with tracking ID: ${trackingId}, status: ${status}`);
+      // Store context values outside
+      const userName = this.currentUserName;
+      const userId = this.currentUserId;
 
+      // IMPORTANT: We make NO Firebase calls here directly!
+      // Just do necessary checks and return a function that will be called within injection context
+
+      // Execute inside an injection context by the caller
+      // All Firebase operations are now inside the injection context of the caller
+      
       // Check if parcel exists in the database
       const parcelQuery = this.firestore.collection('parcels', ref =>
         ref.where('trackingId', '==', trackingId)).get();
       const parcelQuerySnapshot = await firstValueFrom(parcelQuery);
-
+      
       if (parcelQuerySnapshot.empty) {
         this.showToast(`Parcel with tracking ID ${trackingId} does not exist in the system`);
         return Promise.reject('Parcel not found');
@@ -613,7 +628,7 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
       // Create new assigned parcel with status
       const newParcel = {
         trackingId: trackingId,
-        name: this.currentUserName,
+        name: userName,
         locationLat: location.coords.latitude,
         locationLng: location.coords.longitude,
         addedDate: new Date(),
@@ -626,8 +641,8 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
       // Update parcel status in main parcels collection
       await this.firestore.collection('parcels').doc(parcelDocId).update({
         status: status,
-        deliverymanId: this.currentUserId,
-        deliverymanName: this.currentUserName
+        deliverymanId: userId,
+        deliverymanName: userName
       });
 
       // Reset the form to default status
@@ -654,12 +669,25 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
       }
 
       return Promise.resolve();
-      
     } catch (error) {
-      console.error('Error auto-assigning parcel:', error);
-      this.showToast('Failed to assign parcel. Please try again.');
+      console.error('Error in addParcelWithoutValidation:', error);
       return Promise.reject(error);
     }
+  }
+
+  // Simplified version that doesn't make any Firebase calls
+  async validateParcelOperation(trackingId: string): Promise<boolean> {
+    if (!this.currentUserName || !trackingId) {
+      this.showToast('Missing required information to assign parcel');
+      return false;
+    }
+    
+    if (!trackingId.startsWith('TR') || trackingId.length !== 10) {
+      this.showToast('Invalid tracking ID format');
+      return false;
+    }
+    
+    return true;
   }
 
   // Optimize scanner specifically for TrackExpress barcode format
@@ -830,22 +858,22 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
           }, (result: any) => {
             if (result && result.codeResult) {
               const code = result.codeResult.code;
-              console.log('Barcode detected from image:', code);
               
-              // Reset file inputs
+              // Reset file inputs and close scanner
               if (this.fileInput) this.fileInput.nativeElement.value = '';
               if (this.directFileInput) this.directFileInput.nativeElement.value = '';
               
-              // Close scanner if needed
               if (closeScanner || this.isScannerActive) {
                 this.stopScanner();
               }
               
               resolve();
               
-              // We'll handle the parcel assignment outside this Promise
+              // Handle barcode directly using the same pattern as handleDetectedBarcode
               setTimeout(() => {
                 loading.dismiss();
+                
+                // Follow the same pattern as handleDetectedBarcode
                 this.handleDetectedBarcode(code);
               }, 100);
             } else {
@@ -887,55 +915,103 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
 
   // Enhanced method to handle detected barcodes
   async handleDetectedBarcode(code: string) {
-    // Verify this is a valid TrackExpress format again
+    // Verify and prepare as before
     if (!code.startsWith('TR') || code.length !== 10) {
       this.showToast("Invalid barcode format. Please scan a TrackExpress barcode.");
       return;
     }
-
-    // Play a success sound (optional)
-    this.playSuccessBeep();
     
-    // Show a different loading indicator for assignment
+    this.playSuccessBeep();
     const assigningLoading = await this.loadingCtrl.create({
       message: `Assigning parcel ${code}...`,
-      duration: 10000 // 10 second timeout
+      duration: 10000
     });
     await assigningLoading.present();
     
     try {
-      // First update the form with the detected code
+      // Form updates remain the same
       this.addParcelForm.patchValue({
         trackingId: code,
-        status: this.addParcelForm.value.status || 'In Transit' // Keep selected status if present
+        status: this.addParcelForm.value.status || 'In Transit'
       });
       
-      // Try to automatically add the parcel
-      await this.addParcelWithoutValidation(code, this.addParcelForm.value.status || 'In Transit');
-      this.showToast(`Successfully assigned parcel: ${code}`);
+      // Store context values
+      const status = this.addParcelForm.value.status || 'In Transit';
+      const userName = this.currentUserName;
+      const userId = this.currentUserId;
       
-      // Refresh the parcels list
+      // CRITICAL FIX: Do ALL Firebase operations directly here inside runInInjectionContext
+      // DO NOT call addParcelWithoutValidation which tries to do Firebase operations
+      await runInInjectionContext(this.injector, async () => {
+        // Check if parcel exists in the database
+        const parcelQuery = this.firestore.collection('parcels', ref =>
+          ref.where('trackingId', '==', code)).get();
+        const parcelQuerySnapshot = await firstValueFrom(parcelQuery);
+        
+        if (parcelQuerySnapshot.empty) {
+          this.showToast(`Parcel with tracking ID ${code} does not exist in the system`);
+          return;
+        }
+
+        // Check if already assigned
+        const assignedQuery = this.firestore.collection('assigned_parcels', ref =>
+          ref.where('trackingId', '==', code)).get();
+        const assignedQuerySnapshot = await firstValueFrom(assignedQuery);
+
+        if (!assignedQuerySnapshot.empty) {
+          this.showToast(`Parcel ${code} is already assigned`);
+          return;
+        }
+        
+        // Get location here (still within context)
+        const location = await this.getCurrentLocation();
+        if (!location) {
+          this.showToast('Unable to get current location. Please enable location services and try again.');
+          return;
+        }
+        
+        const parcelDocId = parcelQuerySnapshot.docs[0].id;
+        
+        await this.firestore.collection('assigned_parcels').add({
+          trackingId: code,
+          name: userName,
+          locationLat: location.coords.latitude,
+          locationLng: location.coords.longitude,
+          addedDate: new Date(),
+          status: status
+        });
+        
+        // Update parcel status in main parcels collection
+        await this.firestore.collection('parcels').doc(parcelDocId).update({
+          status: status,
+          deliverymanId: userId,
+          deliverymanName: userName
+        });
+        
+        // Send email notification to receiver
+        try {
+          const parcelDoc = await firstValueFrom(this.firestore.collection('parcels').doc(parcelDocId).get());
+          if (parcelDoc.exists) {
+            const parcelData = parcelDoc.data() as any;
+            if (parcelData) {
+              await this.sendEmailNotifications(parcelData, location.coords.latitude, location.coords.longitude, status);
+            }
+          }
+        } catch (emailError) {
+          console.error('Error sending email notification:', emailError);
+        }
+      });
+      
+      this.showToast(`Successfully assigned parcel: ${code}`);
       this.loadParcels();
     } catch (error) {
       console.error('Error assigning parcel:', error);
-      
-      // Show specific error message based on the error
-      if (error === 'Parcel not found') {
-        this.showToast(`Parcel with tracking ID ${code} does not exist in the system`);
-      } else if (error === 'Already assigned') {
-        this.showToast(`Parcel ${code} is already assigned to a courier`);
-      } else if (error === 'Location error') {
-        this.showToast('Could not determine your location. Please enable location services.');
-      } else {
-        this.showToast('Failed to assign parcel. Please try again or enter manually.');
-      }
+      // Show specific error messages based on error
+      this.showToast('Failed to assign parcel. Please try again.');
     } finally {
-      // Always dismiss the loading spinner
       try {
         await assigningLoading.dismiss();
-      } catch (e) {
-        // Ignore if already dismissed
-      }
+      } catch (e) {}
     }
   }
 

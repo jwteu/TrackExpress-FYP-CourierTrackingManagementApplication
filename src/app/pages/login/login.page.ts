@@ -1,4 +1,4 @@
-import { Component, OnInit, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
+import { Component, OnInit, CUSTOM_ELEMENTS_SCHEMA, inject, runInInjectionContext, Injector } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { AngularFireAuth } from '@angular/fire/compat/auth';
 import { AngularFirestore } from '@angular/fire/compat/firestore';
@@ -6,6 +6,7 @@ import { NavController, IonicModule } from '@ionic/angular';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-login',
@@ -18,6 +19,9 @@ import { RouterModule } from '@angular/router';
 export class LoginPage implements OnInit {
   loginForm!: FormGroup;
   errorMessage: string = '';
+
+  // Inject the injector to use with runInInjectionContext
+  private injector = inject(Injector);
 
   constructor(
     private fb: FormBuilder,
@@ -48,10 +52,14 @@ export class LoginPage implements OnInit {
       const { email, password, role } = this.loginForm.value;
 
       try {
-        // Retrieve the user document from Firestore
-        const userSnapshot = await this.firestore.collection('users', ref => ref.where('email', '==', email)).get().toPromise();
-        
-        if (!userSnapshot || userSnapshot.empty) {
+        // Use runInInjectionContext to maintain proper injection context
+        const userSnapshot = await runInInjectionContext(this.injector, () => {
+          return firstValueFrom(
+            this.firestore.collection('users', ref => ref.where('email', '==', email)).get()
+          );
+        });
+
+        if (userSnapshot.empty) {
           throw new Error('User not found');
         }
 
@@ -76,7 +84,7 @@ export class LoginPage implements OnInit {
         // Sign in with Firebase Authentication
         await this.afAuth.signInWithEmailAndPassword(email, password);
         console.log('Login successful');
-        
+
         // Store user session data in localStorage
         const sessionData = {
           uid: userData.uid,
@@ -86,9 +94,9 @@ export class LoginPage implements OnInit {
           staffId: userData.staffId,
           loggedInAt: new Date().toISOString()
         };
-        
+
         localStorage.setItem('userSession', JSON.stringify(sessionData));
-        
+
         if (role === 'admin') {
           this.navCtrl.navigateForward('/admin-home');
         } else {

@@ -1,9 +1,11 @@
-import { Component, OnInit } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, FormGroup, Validators } from '@angular/forms';
+import { Component, OnInit, inject, Injector, runInInjectionContext } from '@angular/core';
+import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import { CommonModule } from '@angular/common';
+import { IonicModule, LoadingController, ToastController } from '@ionic/angular';
 import { AngularFirestore } from '@angular/fire/compat/firestore';
-import { LoadingController, ToastController, IonicModule } from '@ionic/angular';
-import { Location, CommonModule } from '@angular/common';
+import { Location } from '@angular/common';
+import { firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-edit-parcel',
@@ -13,7 +15,7 @@ import { Location, CommonModule } from '@angular/common';
   imports: [
     CommonModule,
     ReactiveFormsModule,
-    IonicModule // Import IonicModule to use Ionic components like ion-icon and ion-spinner
+    IonicModule
   ]
 })
 export class EditParcelPage implements OnInit {
@@ -22,6 +24,9 @@ export class EditParcelPage implements OnInit {
   loading: boolean = true;
   loadingError: boolean = false;
   saving: boolean = false;
+  
+  // Add injector for Firebase operations
+  private injector = inject(Injector);
 
   constructor(
     private fb: FormBuilder,
@@ -65,51 +70,45 @@ export class EditParcelPage implements OnInit {
     this.parcelId = this.route.snapshot.paramMap.get('id') || '';
     
     if (this.parcelId) {
-      this.firestore.collection('parcels').doc(this.parcelId).get().subscribe(
-        doc => {
-          if (doc.exists) {
-            const data = doc.data() as Record<string, any>;
-            
-            // Format date for display
-            const formattedDate = data['date'] ? new Date(data['date']).toLocaleString() : '';
-            
-            // Update the form with the parcel data - using bracket notation to fix TypeScript errors
-            this.parcelForm.patchValue({
-              trackingId: data['trackingId'] || '',
-              date: formattedDate,
-              barcode: data['barcode'] || '',
-              pickupLocation: data['pickupLocation'] || '',
-              
-              // Editable fields
-              senderName: data['senderName'] || '',
-              senderContact: data['senderContact'] || '',
-              senderEmail: data['senderEmail'] || '',
-              senderAddress: data['senderAddress'] || '',
-              receiverName: data['receiverName'] || '',
-              receiverContact: data['receiverContact'] || '',
-              receiverEmail: data['receiverEmail'] || '',
-              receiverAddress: data['receiverAddress'] || ''
-            });
-            
-            this.loading = false;
-          } else {
-            this.loading = false;
-            this.loadingError = true;
-          }
-          loading.dismiss();
-        },
-        error => {
-          console.error('Error fetching parcel:', error);
+      try {
+        // Use runInInjectionContext for Firestore query
+        const doc = await runInInjectionContext(this.injector, () => {
+          return firstValueFrom(
+            this.firestore.collection('parcels').doc(this.parcelId).get()
+          );
+        });
+        
+        if (doc.exists) {
+          const parcelData = doc.data() as any;
+          this.parcelForm.patchValue({
+            trackingId: parcelData.trackingId || '',
+            date: parcelData.date || '',
+            barcode: parcelData.barcode || '',
+            pickupLocation: parcelData.pickupLocation || '',
+            senderName: parcelData.senderName || '',
+            senderContact: parcelData.senderContact || '',
+            senderEmail: parcelData.senderEmail || '',
+            senderAddress: parcelData.senderAddress || '',
+            receiverName: parcelData.receiverName || '',
+            receiverContact: parcelData.receiverContact || '',
+            receiverEmail: parcelData.receiverEmail || '',
+            receiverAddress: parcelData.receiverAddress || ''
+          });
           this.loading = false;
+        } else {
           this.loadingError = true;
-          loading.dismiss();
+          this.loading = false;
         }
-      );
+      } catch (error) {
+        console.error('Error fetching parcel:', error);
+        this.loading = false;
+        this.loadingError = true;
+      }
     } else {
       this.loading = false;
       this.loadingError = true;
-      loading.dismiss();
     }
+    loading.dismiss();
   }
 
   goBack() {
@@ -126,7 +125,7 @@ export class EditParcelPage implements OnInit {
   
       try {
         // Get form values and include ONLY sender and receiver fields
-        const parcelData = {
+        const updatedData = {
           senderName: this.parcelForm.get('senderName')?.value,
           senderContact: this.parcelForm.get('senderContact')?.value,
           senderEmail: this.parcelForm.get('senderEmail')?.value,
@@ -135,34 +134,38 @@ export class EditParcelPage implements OnInit {
           receiverContact: this.parcelForm.get('receiverContact')?.value,
           receiverEmail: this.parcelForm.get('receiverEmail')?.value,
           receiverAddress: this.parcelForm.get('receiverAddress')?.value,
-          lastModified: new Date()
+          updatedAt: new Date()
         };
   
-        // Update the parcel in Firestore
-        await this.firestore.collection('parcels').doc(this.parcelId).update(parcelData);
+        // Use runInInjectionContext for Firestore operation
+        await runInInjectionContext(this.injector, () => {
+          return this.firestore.collection('parcels').doc(this.parcelId).update(updatedData);
+        });
   
         loading.dismiss();
         this.saving = false;
-  
-        // Show success message
+        
+        // Show success toast
         const toast = await this.toastCtrl.create({
-          message: 'Parcel information updated successfully!',
+          message: 'Parcel updated successfully',
           duration: 2000,
           color: 'success',
           position: 'bottom'
         });
         await toast.present();
-  
-        // Navigate to the manage-parcel page
-        this.router.navigate(['/manage-parcel']);
+        
+        // Navigate back to manage parcels
+        setTimeout(() => {
+          this.router.navigate(['/manage-parcel']);
+        }, 500);
       } catch (error) {
+        console.error('Error updating parcel:', error);
         loading.dismiss();
         this.saving = false;
-        console.error('Error updating parcel:', error);
-  
+        
         // Show error toast
         const toast = await this.toastCtrl.create({
-          message: 'Failed to update parcel information. Please try again.',
+          message: 'Failed to update parcel. Please try again.',
           duration: 3000,
           color: 'danger',
           position: 'bottom'

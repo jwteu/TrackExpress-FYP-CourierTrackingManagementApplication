@@ -1,4 +1,4 @@
-import { Component, OnInit, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
+import { Component, OnInit, CUSTOM_ELEMENTS_SCHEMA, inject, runInInjectionContext, Injector } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { AngularFireAuth } from '@angular/fire/compat/auth';
 import { AngularFirestore } from '@angular/fire/compat/firestore';
@@ -6,7 +6,7 @@ import { NavController, IonicModule } from '@ionic/angular';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
-import { Observable } from 'rxjs';
+import { firstValueFrom } from 'rxjs';
 import { map } from 'rxjs/operators';
 
 @Component({
@@ -22,6 +22,9 @@ export class SignupPage implements OnInit {
   emailError: string = '';
   staffIdError: string = '';
   nameError: string = '';
+
+  // Add injector property
+  private injector = inject(Injector);
 
   constructor(
     private fb: FormBuilder,
@@ -65,13 +68,23 @@ export class SignupPage implements OnInit {
   }
 
   private async validateStaffId(staffId: string, role: string): Promise<boolean> {
-    const staffDoc = await this.firestore.collection('staff', ref => ref.where('staffId', '==', staffId).where('role', '==', role)).get().toPromise();
-    return staffDoc ? !staffDoc.empty : false;
+    const staffSnapshot = await runInInjectionContext(this.injector, () => {
+      return firstValueFrom(
+        this.firestore.collection('staff', ref => 
+          ref.where('staffId', '==', staffId).where('role', '==', role)).get()
+      );
+    });
+    return !staffSnapshot.empty;
   }
 
   private async validateStaffName(staffId: string, name: string, role: string): Promise<boolean> {
-    const staffDoc = await this.firestore.collection('staff', ref => ref.where('staffId', '==', staffId).where('name', '==', name).where('role', '==', role)).get().toPromise();
-    return staffDoc ? !staffDoc.empty : false;
+    const staffSnapshot = await runInInjectionContext(this.injector, () => {
+      return firstValueFrom(
+        this.firestore.collection('staff', ref => 
+          ref.where('staffId', '==', staffId).where('name', '==', name).where('role', '==', role)).get()
+      );
+    });
+    return !staffSnapshot.empty;
   }
 
   async onSubmit() {
@@ -96,20 +109,24 @@ export class SignupPage implements OnInit {
 
       try {
         // Create user with Firebase Authentication
-        const userCredential = await this.afAuth.createUserWithEmailAndPassword(email, password);
+        const userCredential = await runInInjectionContext(this.injector, () => {
+          return this.afAuth.createUserWithEmailAndPassword(email, password);
+        });
         const uid = userCredential.user?.uid;
 
         // Save additional user data to Firestore
         if (uid) {
-          await this.firestore.collection('users').doc(uid).set({
-            name,
-            email, // Store the email in its original case
-            icNumber,
-            phone,
-            address,
-            role,
-            staffId,
-            uid
+          await runInInjectionContext(this.injector, () => {
+            return this.firestore.collection('users').doc(uid).set({
+              name,
+              email, // Store the email in its original case
+              icNumber,
+              phone,
+              address,
+              role,
+              staffId,
+              uid
+            });
           });
 
           console.log('Signup successful');

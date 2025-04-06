@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject, Injector, runInInjectionContext } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IonicModule } from '@ionic/angular';
@@ -40,34 +40,42 @@ export class TakePhotoPage implements OnInit {
   selectedParcel: Parcel | null = null;
   isLoadingParcels: boolean = false;
 
-  constructor(
-    private navCtrl: NavController,
-    private firestore: AngularFirestore,
-    private storage: AngularFireStorage,
-    private auth: AngularFireAuth,
-    private loadingCtrl: LoadingController,
-    private toastCtrl: ToastController,
-    private alertCtrl: AlertController
-  ) { }
+  // Angular 19 injection pattern
+  private navCtrl = inject(NavController);
+  private firestore = inject(AngularFirestore);
+  private storage = inject(AngularFireStorage);
+  private auth = inject(AngularFireAuth);
+  private loadingCtrl = inject(LoadingController);
+  private toastCtrl = inject(ToastController);
+  private alertCtrl = inject(AlertController);
+  private injector = inject(Injector);
+
+  constructor() { }
 
   ngOnInit() {
-    // Get current user info
-    this.auth.authState.subscribe(user => {
-      if (user) {
-        this.currentUserId = user.uid;
-        this.firestore.collection('users').doc(user.uid).get().subscribe(doc => {
-          if (doc.exists) {
-            const userData = doc.data() as { name?: string };
-            this.currentUserName = userData?.name || user.displayName || 'Unknown User';
-            
-            // Load assigned parcels once we have the user name
-            this.loadAssignedParcels();
-          }
-        });
-      } else {
-        // Redirect to login if not authenticated
-        this.navCtrl.navigateRoot('/login');
-      }
+    // First level injection context
+    runInInjectionContext(this.injector, () => {
+      this.auth.authState.subscribe(user => {
+        if (user) {
+          this.currentUserId = user.uid;
+          
+          // CRITICAL FIX: Nested injection context for the Firebase operation in the callback
+          runInInjectionContext(this.injector, () => {
+            this.firestore.collection('users').doc(user.uid).get().subscribe(doc => {
+              if (doc.exists) {
+                const userData = doc.data() as { name?: string };
+                this.currentUserName = userData?.name || user.displayName || 'Unknown User';
+                
+                // Load assigned parcels once we have the user name
+                this.loadAssignedParcels();
+              }
+            });
+          });
+        } else {
+          // Redirect to login if not authenticated
+          this.navCtrl.navigateRoot('/login');
+        }
+      });
     });
   }
 
@@ -77,42 +85,45 @@ export class TakePhotoPage implements OnInit {
     try {
       this.isLoadingParcels = true;
       
-      // Query by name since deliverymanId is not in the database structure
-      const assignedParcelsSnapshot = await firstValueFrom(
-        this.firestore.collection('assigned_parcels', ref =>
-          ref.where('name', '==', this.currentUserName)
-        ).valueChanges({ idField: 'id' })
-      );
-      
-      const parcelsWithAddresses: Parcel[] = [];
-      
-      for (const assignedParcel of assignedParcelsSnapshot as Parcel[]) {
-        try {
-          // Get the full parcel data to get receiver address
-          const parcelQuery = this.firestore.collection('parcels', ref => 
-            ref.where('trackingId', '==', assignedParcel.trackingId)
-          ).get();
-          
-          const parcelQuerySnapshot = await firstValueFrom(parcelQuery);
-          
-          if (!parcelQuerySnapshot.empty) {
-            const parcelData = parcelQuerySnapshot.docs[0].data() as any;
-            
-            // Include all parcels that are in transit or out for delivery
-            // We'll handle filtering in the UI if needed
-            parcelsWithAddresses.push({
-              ...assignedParcel,
-              receiverAddress: parcelData.receiverAddress || 'No address available',
-              receiverName: parcelData.receiverName,
-              status: assignedParcel.status || parcelData.status || 'Pending'
+      // Use runInInjectionContext for the collection operation
+      await runInInjectionContext(this.injector, async () => {
+        const assignedParcelsSnapshot = await firstValueFrom(
+          this.firestore.collection('assigned_parcels', ref =>
+            ref.where('name', '==', this.currentUserName)
+          ).valueChanges({ idField: 'id' })
+        );
+        
+        const parcelsWithAddresses: Parcel[] = [];
+        
+        for (const assignedParcel of assignedParcelsSnapshot as Parcel[]) {
+          try {
+            // CRITICAL FIX: Another nested runInInjectionContext for each loop iteration
+            await runInInjectionContext(this.injector, async () => {
+              const parcelQuery = this.firestore.collection('parcels', ref => 
+                ref.where('trackingId', '==', assignedParcel.trackingId)
+              ).get();
+              
+              const parcelQuerySnapshot = await firstValueFrom(parcelQuery);
+              
+              if (!parcelQuerySnapshot.empty) {
+                const parcelData = parcelQuerySnapshot.docs[0].data() as any;
+                
+                parcelsWithAddresses.push({
+                  ...assignedParcel,
+                  receiverAddress: parcelData.receiverAddress || 'No address available',
+                  receiverName: parcelData.receiverName,
+                  status: assignedParcel.status || parcelData.status || 'Pending'
+                });
+              }
             });
+          } catch (error) {
+            console.error('Error fetching parcel details:', error);
           }
-        } catch (error) {
-          console.error('Error fetching parcel details:', error);
         }
-      }
+        
+        this.assignedParcels = parcelsWithAddresses;
+      });
       
-      this.assignedParcels = parcelsWithAddresses;
       this.isLoadingParcels = false;
     } catch (error) {
       console.error('Error loading assigned parcels:', error);
@@ -305,33 +316,35 @@ export class TakePhotoPage implements OnInit {
     }
   }
 
-  // Add this helper method to update Firestore
+  // Update the updateParcelStatus method to use runInInjectionContext
   async updateParcelStatus(trackingId: string, photoURL: string) {
-    // First find the parcel
-    const parcelRef = this.firestore.collection('parcels')
-      .ref.where('trackingId', '==', trackingId);
-    
-    const parcelSnapshot = await parcelRef.get();
-    if (parcelSnapshot.empty) return;
-    
-    const parcelId = parcelSnapshot.docs[0].id;
-    
-    // Update main parcels collection
-    await this.firestore.collection('parcels').doc(parcelId).update({
-      status: 'Delivered',
-      photoURL: photoURL,
-      photoTimestamp: firebase.firestore.FieldValue.serverTimestamp(),
-      deliveryCompletedDate: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    
-    // Find and update assigned_parcels
-    if (this.selectedParcel?.id) {
-      await this.firestore.collection('assigned_parcels').doc(this.selectedParcel.id).update({
+    await runInInjectionContext(this.injector, async () => {
+      // First find the parcel
+      const parcelRef = this.firestore.collection('parcels')
+        .ref.where('trackingId', '==', trackingId);
+      
+      const parcelSnapshot = await parcelRef.get();
+      if (parcelSnapshot.empty) return;
+      
+      const parcelId = parcelSnapshot.docs[0].id;
+      
+      // Update main parcels collection
+      await this.firestore.collection('parcels').doc(parcelId).update({
         status: 'Delivered',
         photoURL: photoURL,
+        photoTimestamp: firebase.firestore.FieldValue.serverTimestamp(),
         deliveryCompletedDate: firebase.firestore.FieldValue.serverTimestamp()
       });
-    }
+      
+      // Find and update assigned_parcels
+      if (this.selectedParcel?.id) {
+        await this.firestore.collection('assigned_parcels').doc(this.selectedParcel.id).update({
+          status: 'Delivered',
+          photoURL: photoURL,
+          deliveryCompletedDate: firebase.firestore.FieldValue.serverTimestamp()
+        });
+      }
+    });
   }
 
   resetForm() {

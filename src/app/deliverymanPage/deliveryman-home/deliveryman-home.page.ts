@@ -1,9 +1,10 @@
-import { Component, OnInit, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
+import { Component, OnInit, CUSTOM_ELEMENTS_SCHEMA, inject, Injector, runInInjectionContext } from '@angular/core';
 import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IonicModule } from '@ionic/angular';
 import { AngularFireAuth } from '@angular/fire/compat/auth';
+import { firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-deliveryman-home',
@@ -15,6 +16,9 @@ import { AngularFireAuth } from '@angular/fire/compat/auth';
 })
 export class DeliverymanHomePage implements OnInit {
   userName: string = '';
+  
+  // Add injector for Firebase operations
+  private injector = inject(Injector);
 
   constructor(
     private router: Router,
@@ -52,14 +56,20 @@ export class DeliverymanHomePage implements OnInit {
     this.router.navigate([page]);
   }
 
-  logout() {
+  async logout() {
     localStorage.removeItem('userSession');
-    this.afAuth.signOut().then(() => {
+    
+    try {
+      // Use runInInjectionContext for Firebase signOut
+      await runInInjectionContext(this.injector, () => {
+        return this.afAuth.signOut();
+      });
+      
       console.log('User signed out');
       this.router.navigate(['/login']);
-    }).catch(error => {
+    } catch (error) {
       console.error('Sign out error:', error);
       this.router.navigate(['/login']);
-    });
+    }
   }
 }
