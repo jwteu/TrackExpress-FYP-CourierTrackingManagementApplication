@@ -1,869 +1,568 @@
 :host {
-    --theme-color:rgb(240, 209, 0); // Brighter yellow similar to login page
-    --theme-color-light: rgba(255, 193, 7, 0.1);
-    --theme-color-medium: rgb(255, 193, 7);
-    --border-radius: 8px;
-  }
-  
-  // Header styling
-  ion-header {
-    ion-toolbar {
-      --background: white; // White background for header
-      border-bottom: 1px solid var(--theme-color-light);
-      
-      ion-back-button {
-        --color: var(--theme-color); // Yellow back button
-      }
-      
-      ion-title {
-        font-weight: 600;
-        font-size: 1.1rem;
-        color: var(--theme-color); // Yellow title
-      }
-      
-      ion-badge {
-        position: absolute;
-        top: 5px;
-        right: 5px;
-        font-size: 10px;
-        padding: 2px 4px;
-      }
-    }
-  }
-  
-  // Content styling
-  ion-content {
-    --background: #f9f9f9;
-  }
-  
-  // Section titles and header
-  .section-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 10px;
-  }
-  
-  .section-title {
-    font-size: 1rem;
-    font-weight: 600;
-    color: #444; // Darker text for contrast
-    position: relative;
-    padding-left: 10px;
-    margin: 0;
-    
-    &:before {
-      content: '';
-      position: absolute;
-      left: 0;
-      top: 0;
-      height: 100%;
-      width: 3px;
-      background-color: var(--theme-color); // Yellow accent
-      border-radius: 3px;
-    }
-  }
-  
-  .selection-actions {
-    display: flex;
-    gap: 5px;
-    
-    ion-button {
-      --color: var(--theme-color); // Yellow text for buttons
-      --padding-start: 4px;
-      --padding-end: 8px;
-      height: 25px;
-      font-size: 11px;
-      margin: 0;
-      
-      ion-icon {
-        font-size: 14px;
-        margin-right: 2px;
-      }
-      
-      &[color="danger"] {
-        --color: var(--ion-color-danger); // Keep danger color for delete button
-      }
-    }
-  }
-  
-  // Add parcel container
-  .add-parcel-container {
-    background-color: white;
-    border-radius: var(--border-radius);
-    padding: 12px; // Reduced padding
-    margin-bottom: 12px; // Reduced margin
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
-    border-top: 3px solid var(--theme-color); // Yellow accent on top
-    
-    .custom-input {
-      --background: var(--theme-color-light);
-      --border-radius: 6px;
-      --border-width: 0;
-      --padding-start: 10px; // Reduced padding
-      --padding-end: 6px; // Reduced padding
-      --min-height: 40px; // Reduced height
-      margin-bottom: 12px; // Reduced margin
-      
-      ion-label {
-        margin-bottom: 4px;
-        font-size: 0.9rem; // Smaller font
-      }
-      
-      ion-input {
-        --padding-top: 6px; // Reduced padding
-        --padding-bottom: 6px; // Reduced padding
-        font-size: 0.9rem; // Smaller font
-      }
-      
-      ion-icon {
-        color: var(--theme-color); // Yellow icon
-        font-size: 18px; // Smaller icons
-      }
-    }
-    
-    .status-selection {
-      margin-top: 8px; // Reduced margin
-      margin-bottom: 12px; // Reduced margin
-      
-      ion-segment {
-        --background: var(--theme-color-light);
-        border-radius: 6px; // Smaller radius
-        
-        ion-segment-button {
-          --background-checked: var(--theme-color);
-          --color-checked: black;
-          --indicator-color: transparent;
-          min-height: 36px; // Reduced height
-          --border-radius: 5px; // Smaller radius
-          --margin-top: 2px; // Reduced margin
-          --margin-bottom: 2px; // Reduced margin
-          --margin-start: 2px; // Reduced margin
-          --margin-end: 2px; // Reduced margin
-          font-size: 11px; // Smaller font
-          font-weight: 500;
-          
-          ion-icon {
-            font-size: 14px; // Smaller icon
-            margin-bottom: 1px; // Reduced margin
-          }
-          
-          ion-label {
-            margin-top: 1px; // Reduced margin
-          }
-        }
-      }
-    }
-    
-    .add-button {
-      --background: var(--theme-color); // Yellow button
-      --color: white; // White text for better contrast
-      --border-radius: 6px;
-      --box-shadow: 0 2px 6px rgba(255, 193, 7, 0.3); // Yellow shadow
-      margin-top: 6px; // Reduced margin
-      height: 36px; // Reduced height
-      font-weight: 600;
-      font-size: 0.9rem; // Smaller font
-      
-      ion-icon {
-        margin-right: 4px; // Reduced margin
-        font-size: 16px; // Smaller icon
-      }
-    }
-  }
-  
-  // Empty state
-  .empty-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 30px 20px;
-    background-color: white;
-    border-radius: var(--border-radius);
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
-    border: 1px dashed var(--theme-color-medium); // Dashed yellow border
-    
-    ion-icon {
-      font-size: 36px;
-      color: var(--theme-color-medium); // Yellow icon
-      margin-bottom: 12px;
-    }
-    
-    p {
-      color: #666;
-      font-size: 0.9rem;
-      margin: 0;
-    }
-  }
-  
-  // Compact parcel list
-  .parcel-list {
-    background-color: white;
-    border-radius: var(--border-radius);
-    overflow: hidden;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
-    display: flex;
-    flex-direction: column;
-    gap: 8px; // Add gap between items
-    padding: 8px; // Add padding inside list container
-    
-    .parcel-item {
-      --padding-start: 6px; // Reduced padding
-      --padding-end: 6px; // Reduced padding
-      --padding-top: 8px; // Reduced padding
-      --padding-bottom: 8px; // Reduced padding
-      --inner-padding-end: 6px; // Reduced padding
-      --border-color: #e0e0e0; // Darker border color for better visibility
-      border: 1px solid #e0e0e0; // Add border to all sides
-      border-radius: 8px; // Add rounded corners
-      overflow: hidden; // Keep content within rounded corners
-      margin: 0; // Remove margin as we're using gap
-      position: relative;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-      
-      &:last-child {
-        border-bottom: none; // Remove border from last item
-      }
-      
-      &:nth-child(even) {
-        --background: rgba(255, 193, 7, 0.03); // Very light yellow for alternating items
-      }
-      
-      &.selected {
-        --background: rgba(255, 193, 7, 0.12); // More visible yellow highlight
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); // Add shadow to selected items
-        z-index: 1; // Bring selected items to front
-        
-        &::before {
-          content: '';
-          position: absolute;
-          left: 0;
-          top: 0;
-          height: 100%;
-          width: 3px;
-          background-color: var(--theme-color); // Yellow accent when selected
-        }
-        
-        // Make selected items more prominent
-        ion-label h2 {
-          color: #000; // Darker text for selected items
-          font-weight: 700;
-        }
-      }
-      
-      ion-checkbox {
-        --size: 16px; // Smaller checkbox
-        --border-radius: 4px;
-        --border-color: var(--theme-color-medium);
-        --border-color-checked: var(--theme-color);
-        --background-checked: var(--theme-color); // Yellow checkbox
-        --checkmark-color: white;
-        margin-right: 6px; // Reduced margin
-      }
-      
-      ion-label {
-        margin: 0;
-        white-space: normal !important;
-        
-        h2 {
-          font-size: 0.9rem !important; // Smaller font
-          font-weight: 700 !important;
-          margin-bottom: 3px !important; // Reduced margin
-        }
-        
-        .info-row {
-          display: flex;
-          align-items: center;
-          margin: 3px 0 !important; // Reduced margin
-          font-size: 0.75rem; // Smaller font
-          color: #666;
-          
-          ion-icon {
-            font-size: 12px; // Smaller icon
-            margin-right: 4px; // Reduced margin
-            color: var(--theme-color); // Yellow icons
-          }
-        }
-      }
-      
-      .destination-address {
-        display: flex;
-        align-items: flex-start;
-        margin: 6px 0; // Reduced margin
-        padding: 4px; // Reduced padding
-        background-color: #FFEED4; // Light orange/yellow background
-        border-radius: 6px;
-        border-left: 3px solid var(--theme-color);
-        
-        ion-icon {
-          font-size: 14px; // Smaller icon
-          margin-right: 6px; // Reduced margin
-          color: #FF9800;
-          flex-shrink: 0;
-        }
-        
-        .address-text {
-          font-size: 0.8rem; // Smaller font
-          font-weight: 500;
-          color: #333;
-          white-space: normal; // Allow text wrapping
-          line-height: 1.3;
-        }
-      }
-      
-      .parcel-status {
-        padding: 2px 6px; // Reduced padding
-        border-radius: 12px;
-        font-size: 9px; // Smaller font
-        font-weight: 600;
-        margin-left: 8px;
-        text-transform: uppercase;
-        vertical-align: middle;
-        
-        &.in-transit {
-          background-color: #cce5ff;
-          color: #004085;
-        }
-        
-        &.out-for-delivery {
-          background-color: #d4edda;
-          color: #155724;
-        }
-        
-        &.pending {
-          background-color: #fff3cd;
-          color: #856404;
-        }
-        
-        &.delivered {
-          background-color: #c3e6cb;
-          color: #155724;
-        }
-      }
-      
-      .item-actions {
-        display: flex;
-        align-items: center;
-        
-        ion-button {
-          --padding-top: 0;
-          --padding-bottom: 0;
-          --padding-start: 3px;
-          --padding-end: 3px;
-          height: 26px;
-          margin: 0 0 0 5px;
-          
-          &:not([color="danger"]) {
-            --color: var(--theme-color); // Yellow for non-danger buttons
-          }
-          
-          ion-icon {
-            font-size: 16px;
-          }
-        }
-      }
-      
-      // Add subtle transition
-      transition: background-color 0.2s ease;
-    }
-  }
-  
-  // Floating action button
-  ion-fab {
-    ion-fab-button {
-      --background: var(--theme-color); // Yellow FAB
-      --color: white; // White icon for contrast
-      --box-shadow: 0 4px 10px rgba(255, 193, 7, 0.4); // Yellow shadow
-      height: 45px;
-      width: 45px;
-      margin-bottom: 10px;
-      margin-right: 10px;
-      transition: all 0.2s ease;
-      animation: pulse 2s infinite ease-in-out; // Moved up here
-      
-      &[color="danger"] {
-        --background: var(--ion-color-danger);
-      }
-    }
-  }
-  
-  // Define keyframes outside of any selector
-  @keyframes pulse {
-    0% {
-      transform: scale(1);
-      box-shadow: 0 2px 10px rgba(var(--ion-color-danger-rgb), 0.4);
-    }
-    50% {
-      transform: scale(1.05);
-      box-shadow: 0 2px 15px rgba(var(--ion-color-danger-rgb), 0.6);
-    }
-    100% {
-      transform: scale(1);
-      box-shadow: 0 2px 10px rgba(var(--ion-color-danger-rgb), 0.4);
-    }
-  }
-  
-  // Style for the badge on the FAB button
-  .fab-badge {
-    position: absolute;
-    top: 0;
-    right: 0;
-    background-color: white;
-    color: var(--ion-color-danger);
-    border-radius: 50%;
-    width: 22px;
-    height: 22px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 12px;
-    font-weight: bold;
-    transform: translate(30%, -30%);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-  }
-  
-  // Additional login-like elements
-  .parcel-list {
-    .parcel-item {
-      // Add a subtle yellow hover effect
-      &:hover {
-        --background: rgba(255, 193, 7, 0.05);
-      }
-    }
-  }
-  
-  // Add card-like styling similar to login page
-  .add-parcel-container, .parcel-list, .empty-state {
-    border-radius: 10px;
-    overflow: hidden;
-    transition: all 0.3s ease;
-    
-    &:hover {
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
-    }
-  }
-  
-  // Add a count indicator when multiple items are selected
-  .selection-indicator {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background-color: var(--theme-color-light);
-    border-radius: 24px;
-    padding: 6px 12px;
-    margin-bottom: 12px;
-    
-    ion-icon {
-      color: var(--theme-color);
-      margin-right: 6px;
-      font-size: 18px;
-    }
-    
-    span {
-      font-weight: 600;
-      font-size: 14px;
-    }
-  }
-  
-  // Scanner related styles
-  .custom-input {
-    --background: var(--theme-color-light);
-    --border-radius: 6px;
+  --theme-color:  hsl(48, 95%, 49%);/* Darker yellow */
+  --theme-dark:  hsl(48, 95%, 49%);  /* Even darker yellow for accents */
+  --theme-light: rgba(230, 200, 0, 0.08);
+  --card-bg: #ffffff;
+  --card-radius: 18px;
+  --text-dark: #333333;
+  --text-medium: #666666;
+  --text-light: #999999;
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+  --border-light: #f0f0f0;
+}
+
+// Smaller header style
+ion-header {
+  background: transparent;
+
+  ion-toolbar {
+    --background: var(--theme-color);
+    --color: #ffffff;
     --border-width: 0;
-    --padding-start: 12px;
-    --padding-end: 8px;
-    margin-bottom: 16px;
-    
-    ion-icon {
-      color: var(--theme-color); // Yellow icon
+    --min-height: 48px; /* Reduced min-height */
+    padding-top: 3%; /* Reduced padding */
+    padding-bottom: 4%; /* Reduced padding */
+
+    ion-title {
+      font-weight: 700;
+      font-size: 22px; /* Smaller font size */
     }
-    
-    .scan-button {
-      --color: var(--theme-color);
-      height: 100%;
-      min-height: 40px;
-      margin: 0;
-      padding: 0;
-      
-      &::part(native) {
-        padding: 0 8px;
-      }
-      
-      ion-icon {
-        font-size: 20px;
-      }
+
+    ion-back-button {
+      --icon-font-size: 16px; /* Smaller icon */
+      --color: #ffffff;
     }
   }
-  
-  // Scanner styles for web scanning
-  .scanner-container {
+}
+
+ion-content {
+  --background: #f9f9f9;
+}
+
+// Main container
+.main-container {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 16px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+// Header section with icon
+.header-section {
+  text-align: center;
+  margin-bottom: 10px;
+  animation: fadeInDown 0.5s ease forwards;
+
+  .header-icon {
+    width: 76px;
+    height: 76px;
+    border-radius: 50%;
+    background: var(--theme-light);
+    margin: 0 auto 16px;
     display: flex;
-    flex-direction: column;
     align-items: center;
-    background-color: #000;
-    border-radius: 8px;
-    overflow: hidden;
-    padding-bottom: 16px;
-    
-    .scanner-header-text {
-      color: white;
-      text-align: center;
-      padding: 16px;
-      
-      h2 {
-        margin: 0 0 8px 0;
-        font-size: 20px;
-      }
-      
-      p {
-        margin: 0;
-        opacity: 0.7;
-        font-size: 14px;
-      }
-    }
-    
-    .scanner-viewport {
-      width: 100%;
-      height: 80vw;
-      max-height: 70vh;
-      position: relative;
-      overflow: hidden;
-      background: black;
-      
-      .scanner-element {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        
-        canvas, video {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-        }
-      }
-      
-      .scanner-overlay {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        
-        .scanner-target {
-          width: 80%; // Wider target area for barcodes
-          height: 120px; // Fixed height sized for typical barcode
-          border: 2px solid var(--theme-color);
-          border-radius: 5px;
-          box-shadow: 0 0 0 4000px rgba(0, 0, 0, 0.7);
-          position: relative;
-          
-          &:before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 0;
-            right: 0;
-            height: 1px;
-            background-color: rgba(255, 222, 89, 0.9); // Brighter scan line
-            animation: scan-animation 1.5s linear infinite;
-            box-shadow: 0 0 8px rgba(255, 222, 89, 0.8);
-          }
-          
-          &:after {
-            content: 'Code-128';
-            position: absolute;
-            bottom: -25px;
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: 12px;
-            color: rgba(255, 255, 255, 0.7);
-          }
-        }
-      }
-    }
-    
-    ion-button {
-      margin-top: 16px;
-      width: 90%;
-      --border-radius: 20px;
-    }
-  }
-  
-  @keyframes scan-animation {
-    0% {
-      top: 10%;
-      opacity: 0.6;
-    }
-    50% {
-      top: 90%;
-      opacity: 1;
-    }
-    100% {
-      top: 10%;
-      opacity: 0.6;
-    }
-  }
-  
-  // Scanner UI when active
-  .scanner-active {
-    --background: transparent;
-    background: transparent;
-    
-    // Hide all content when scanner is active
-    .add-parcel-container,
-    .parcels-container,
-    ion-fab {
-      display: none;
-    }
-  }
-  
-  // Apply to the body tag when scanning
-  :host-context(body.scanner-active) {
-    ion-content {
-      --background: transparent;
-      background: transparent;
-    }
-    
-    ion-header {
-      display: none;
-    }
-  }
-  
-  .scanner-ui {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 10;
-    display: flex;
-    flex-direction: column;
     justify-content: center;
-    align-items: center;
-    
-    .scanner-overlay {
-      width: 100%;
-      height: 100%;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      background-color: rgba(0, 0, 0, 0.4);
-      
-      .scanner-target {
-        width: 70vw;
-        height: 70vw;
-        max-width: 300px;
-        max-height: 300px;
-        border: 2px solid var(--theme-color);
-        border-radius: 10px;
-        box-shadow: 0 0 0 4000px rgba(0, 0, 0, 0.7);
-        position: relative;
-        
-        &:before {
-          content: '';
-          position: absolute;
-          top: 50%;
-          left: 0;
-          right: 0;
-          height: 2px;
-          background-color: rgba(248, 232, 8, 0.5);
-          animation: scan-animation 2s linear infinite;
-        }
-      }
+    box-shadow: 0 8px 16px rgba(66, 133, 244, 0.15);
+
+    ion-icon {
+      font-size: 40px;
+      color: var(--theme-dark);
     }
-    
-    .close-scanner {
-      position: absolute;
-      bottom: 40px;
-      left: 50%;
-      transform: translateX(-50%);
-      --background: rgba(255, 255, 255, 0.2);
-      --color: white;
-      --border-radius: 20px;
-      
+  }
+
+  h1 {
+    font-size: 26px;
+    font-weight: 700;
+    margin: 0 0 8px;
+    color: var(--text-dark);
+  }
+
+  p {
+    font-size: 15px;
+    color: var(--text-medium);
+    max-width: 320px;
+    margin: 0 auto;
+    line-height: 1.4;
+  }
+}
+
+// Card component style
+.card {
+  background: var(--card-bg);
+  border-radius: var(--card-radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  transition: all 0.3s ease;
+  animation: fadeInUp 0.5s ease forwards;
+
+  .card-header {
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--border-light);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    h2 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      color: var(--text-dark);
+
       ion-icon {
         margin-right: 8px;
+        color: var(--theme-color);
+        font-size: 20px;
+      }
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 4px;
+
+      ion-button {
+        --color: var(--theme-color);
+        font-size: 12px;
+        font-weight: 600;
       }
     }
   }
-  
-  // Add global styles for scanner-active class (add to global.scss or styles.scss)
-  // You might need to add this to your global stylesheet if the above doesn't work
-  body.scanner-active {
-    background: transparent !important;
-    --background: transparent !important;
-    
-    ion-app,
-    ion-content,
-    .ion-page {
-      background: transparent !important;
-      --background: transparent !important;
-    }
+
+  .card-content {
+    padding: 20px;
   }
-  
-  // Make the destination address stand out
-  .destination-address {
-    display: flex;
-    align-items: flex-start;
-    margin: 8px 0;
-    padding: 6px;
-    background-color: #FFEED4; // Light orange/yellow background
-    border-radius: 6px;
-    border-left: 3px solid var(--theme-color);
-    
-    ion-icon {
-      font-size: 16px;
-      margin-right: 8px;
-      color: #FF9800;
-      flex-shrink: 0;
+}
+
+// Form styling
+.form-card {
+  .form-field {
+    margin-bottom: 20px;
+
+    ion-label {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-dark);
+      margin-bottom: 8px;
+      display: block;
     }
-    
-    .address-text {
-      font-size: 0.85rem;
-      font-weight: 500;
-      color: #333;
-      white-space: normal; // Allow text wrapping
-      line-height: 1.3;
+
+    ion-input, ion-textarea {
+      --background: #f5f7fa;
+      --padding-start: 16px;
+      --padding-end: 16px;
+      --padding-top: 12px;
+      --padding-bottom: 12px;
+      --border-radius: 8px;
+      margin-top: 8px;
     }
-  }
-  
-  // Status selection segment
-  .status-selection {
-    margin-top: 16px;
-    margin-bottom: 16px;
-    
+
     ion-segment {
-      --background: var(--theme-color-light);
+      --background: #f5f7fa;
       border-radius: 8px;
+      margin-top: 8px;
       
       ion-segment-button {
         --background-checked: var(--theme-color);
-        --color-checked: black;
+        --color-checked: #ffffff;
         --indicator-color: transparent;
         min-height: 42px;
-        --border-radius: 6px;
-        --margin-top: 3px;
-        --margin-bottom: 3px;
-        --margin-start: 3px;
-        --margin-end: 3px;
-        font-size: 12px;
-        font-weight: 500;
         
         &::part(indicator) {
           display: none;
         }
         
         ion-icon {
-          margin-bottom: 2px;
+          font-size: 18px;
+          margin-bottom: 4px;
+        }
+        
+        .small-text {
+          font-size: 11px;
+          margin-top: 2px;
+          text-transform: none;
+        }
+      }
+    }
+
+    .helper-text {
+      font-size: 12px;
+      color: #f44336;
+      margin-top: 4px;
+      display: block;
+    }
+
+    .input-with-buttons {
+      display: flex;
+      align-items: center;
+      background: #f5f7fa;
+      border-radius: 8px;
+      overflow: hidden;
+      margin-top: 8px;
+
+      ion-input {
+        margin-top: 0;
+        flex: 1;
+      }
+
+      .input-buttons {
+        display: flex;
+        
+        ion-button {
+          --padding-start: 8px;
+          --padding-end: 8px;
+          --color: var(--theme-dark);
+          height: 42px;
         }
       }
     }
   }
-  
-  // Show status in the UI for existing parcels
-  .parcel-status {
-    display: inline-block;
-    padding: 3px 8px;
-    border-radius: 12px;
-    font-size: 10px;
-    font-weight: 600;
-    margin-left: 8px;
-    text-transform: uppercase;
-    vertical-align: middle;
-    
-    &.in-transit {
-      background-color: #cce5ff;
-      color: #004085;
-    }
-    
-    &.out-for-delivery {
-      background-color: #d4edda;
-      color: #155724;
-    }
-    
-    &.pending {
-      background-color: #fff3cd;
-      color: #856404;
-    }
-    
-    &.delivered {
-      background-color: #c3e6cb;
-      color: #155724;
-    }
-  }
-  
-  .tracking-header {
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    margin-bottom: 3px; // Reduced margin
-    
-    h2 {
-      margin: 0;
-      flex-grow: 0;
-      font-size: 0.9rem; // Smaller font
-    }
-  }
-  
-  // Upload option section in scanner
-  .upload-option {
-    width: 90%;
-    margin-top: 16px;
-    padding: 12px;
-    background-color: rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
-    text-align: center;
-    
-    p {
-      color: white;
-      opacity: 0.8;
-      font-size: 14px;
-      margin: 0 0 10px 0;
-    }
-    
+
+  .form-actions {
+    margin-top: 24px;
+
     ion-button {
-      --border-color: rgba(255, 255, 255, 0.5);
-      font-size: 14px;
+      --background: var(--theme-color);
+      --color: white;
+      --border-radius: 8px;
+      --box-shadow: none;
+      height: 48px;
+      font-weight: 600;
     }
   }
-  
-  // Scan and upload actions in the input field
-  .scan-actions {
+}
+
+// Parcel list styling
+.parcels-card {
+  .parcel-list {
     display: flex;
-    align-items: center;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .parcel-item {
+    display: flex;
+    align-items: flex-start;
+    background: #f8fafc;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+    border: 1px solid #edf2f7;
+    transition: all 0.2s ease;
+    animation: fadeInUp 0.4s ease forwards;
+    animation-delay: calc(0.05s * var(--animation-order, 0));
+
+    &:hover {
+      background: #edf2f7;
+      transform: translateY(-2px);
+    }
+
+    &.selected {
+      background: var(--theme-light);
+      border-color: var(--theme-dark);
+      transform: translateY(-2px);
+    }
     
-    .scan-button, .upload-button {
-      --color: var(--theme-color);
-      height: 100%;
-      min-height: 40px;
-      margin: 0;
-      padding: 0;
-      --padding-start: 4px; // Reduced padding
-      --padding-end: 4px; // Reduced padding
-      
-      &::part(native) {
-        padding: 0 8px;
-      }
+    // Bigger selection circle
+    .selection-circle {
+      margin-right: 16px;
+      padding-top: 4px;
       
       ion-icon {
-        font-size: 18px; // Smaller icon
+        font-size: 30px; // Increased size
+        color: var(--theme-color);
+        cursor: pointer;
       }
     }
     
-    .upload-button {
-      margin-right: -4px;
+    // Main content area
+    .parcel-content {
+      flex: 1;
+    }
+
+    .parcel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      
+      .tracking-id {
+        font-weight: 700;
+        font-size: 16px;
+        color: var(--text-dark);
+      }
+    }
+
+    .parcel-body {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .detail-item {
+      display: flex;
+      align-items: flex-start;
+      font-size: 13px;
+      color: var(--text-medium);
+
+      ion-icon {
+        font-size: 16px;
+        margin-right: 8px;
+        color: var(--theme-color);
+        flex-shrink: 0;
+        margin-top: 2px;
+      }
+    }
+
+    .parcel-actions {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      display: flex;
+      align-items: center;
+
+      .select-checkbox {
+        ion-icon {
+          font-size: 24px;
+          color: var(--theme-color);
+        }
+      }
+
+      .action-buttons {
+        display: flex;
+
+        ion-button {
+          --padding-start: 6px;
+          --padding-end: 6px;
+        }
+      }
     }
   }
-  
-  .scanner-tips {
-    display: block;
-    color: rgba(255, 255, 255, 0.7);
-    font-size: 11px;
-    margin-top: 4px;
+}
+
+// Status badge styling
+.status-badge {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 4px 8px;
+  border-radius: 12px;
+  line-height: 1;
+
+  &.in-transit {
+    background-color: #e3f2fd;
+    color: #1976d2;
   }
+
+  &.out-for-delivery {
+    background-color: #e8f5e9;
+    color: #388e3c;
+  }
+
+  &.delivered {
+    background-color: #e8f5e9;
+    color: #388e3c;
+  }
+
+  &.pending {
+    background-color: #fff8e1;
+    color: #ff8f00;
+  }
+}
+
+// Loading and empty states
+.loading-state,
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 16px;
+
+  ion-spinner {
+    color: var(--theme-color);
+    height: 40px;
+    width: 40px;
+    margin-bottom: 20px;
+    opacity: 0.8;
+  }
+
+  ion-icon {
+    color: var(--text-light);
+    font-size: 44px;
+    margin-bottom: 16px;
+    opacity: 0.8;
+  }
+
+  p {
+    color: var(--text-medium);
+    font-size: 16px;
+    font-weight: 500;
+    margin: 0 0 6px;
+    text-align: center;
+  }
+
+  small {
+    color: var(--text-light);
+    font-size: 13px;
+  }
+}
+
+// Scanner overlay
+.scanner-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.9);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.3s ease;
+
+  .scanner-container {
+    width: 100%;
+    max-width: 600px;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+
+    .scanner-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+
+      h3 {
+        color: white;
+        margin: 0;
+        font-size: 20px;
+        font-weight: 600;
+      }
+
+      ion-button {
+        --color: white;
+      }
+    }
+
+    .scanner-viewport {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      overflow: hidden;
+      border-radius: 12px;
+
+      #scanner {
+        width: 100%;
+        height: 100%;
+        position: relative;
+        
+        video {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+      }
+
+      .scan-region-highlight {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 70%;
+        height: 30%;
+        border: 2px solid var(--theme-color);
+        border-radius: 12px;
+        box-shadow: 0 0 0 100vw rgba(0, 0, 0, 0.5);
+        animation: pulse 1.5s infinite;
+      }
+    }
+
+    .scanner-footer {
+      margin-top: 20px;
+      text-align: center;
+
+      p {
+        color: white;
+        font-size: 14px;
+        margin: 0;
+      }
+    }
+  }
+}
+
+// Processing overlay
+.processing-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.8);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.3s ease;
+
+  .processing-content {
+    background: white;
+    border-radius: 12px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+
+    ion-spinner {
+      width: 40px;
+      height: 40px;
+      margin-bottom: 16px;
+      color: var(--theme-color);
+    }
+
+    p {
+      margin: 0;
+      color: var(--text-dark);
+      font-weight: 500;
+    }
+  }
+}
+
+// Animations
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 100vw rgba(0, 0, 0, 0.5), 0 0 0 2px var(--theme-color); }
+  50% { box-shadow: 0 0 0 100vw rgba(0, 0, 0, 0.5), 0 0 0 5px rgba(66, 133, 244, 0.6); }
+  100% { box-shadow: 0 0 0 100vw rgba(0, 0, 0, 0.5), 0 0 0 2px var(--theme-color); }
+}

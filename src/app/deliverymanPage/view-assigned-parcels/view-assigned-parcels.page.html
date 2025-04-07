@@ -1,168 +1,175 @@
-<ion-header class="ion-no-border" [class.scanner-header]="isScannerActive">
-  <ion-toolbar color="light">
+<ion-header class="ion-no-border">
+  <ion-toolbar>
     <ion-buttons slot="start">
-      <ion-back-button defaultHref="/deliveryman-home" icon="arrow-back-outline"></ion-back-button>
+      <ion-back-button defaultHref="/deliveryman-home"></ion-back-button>
     </ion-buttons>
-    <ion-title>My Parcels</ion-title>
-    
-    <!-- Add close button when scanner is active -->
-    <ion-buttons slot="end" *ngIf="isScannerActive">
-      <ion-button (click)="stopScanner()">
-        <ion-icon slot="icon-only" name="close-outline"></ion-icon>
-      </ion-button>
-    </ion-buttons>
+    <ion-title>Assigned Parcels</ion-title>
   </ion-toolbar>
 </ion-header>
 
-<ion-content [fullscreen]="true" class="ion-padding">
-  <!-- Scanner UI when active -->
-  <div class="scanner-container" *ngIf="isScannerActive">
-    <div class="scanner-header-text">
-      <h2>Scan TrackExpress Barcode</h2>
-      <p>Align the barcode within the frame</p>
-      <small class="scanner-tips">Hold steady • Ensure good lighting • Keep 10-20cm distance</small>
-    </div>
-    
-    <div class="scanner-viewport">
-      <div #scannerElement class="scanner-element"></div>
-      <div class="scanner-overlay">
-        <div class="scanner-target"></div>
-      </div>
-    </div>
-    
-    <ion-button expand="full" color="light" (click)="stopScanner()">
-      <ion-icon name="close-circle-outline" slot="start"></ion-icon>
-      Cancel Scan
-    </ion-button>
-  </div>
-
-  <!-- Regular content - hidden during scanning -->
-  <div [hidden]="isScannerActive">
-    <!-- Add parcel form with scan button -->
-    <div class="add-parcel-container">
-      <form [formGroup]="addParcelForm" (ngSubmit)="addParcel()">
-        <ion-item class="custom-input">
-          <ion-label position="floating">Tracking ID</ion-label>
-          <ion-input formControlName="trackingId" type="text"></ion-input>
-          <div slot="end" class="scan-actions">
-            <!-- File input for direct upload without opening scanner -->
-            <input type="file" #directFileInput accept="image/*" style="display: none" (change)="processUploadedImage($event, true)">
-            <ion-button fill="clear" class="upload-button" (click)="directFileInput.click()" type="button">
-              <ion-icon name="image-outline"></ion-icon>
-            </ion-button>
-            <ion-button fill="clear" class="scan-button" (click)="startScanner()" type="button">
-              <ion-icon name="scan-outline"></ion-icon>
-            </ion-button>
+<ion-content class="ion-padding">
+  <div class="main-container">
+    <!-- Add Parcel Form -->
+    <div class="card form-card">
+      <div class="card-content">
+        <form [formGroup]="parcelForm" (ngSubmit)="addParcel()">
+          <div class="form-field">
+            <ion-label>Tracking ID</ion-label>
+            <div class="input-with-buttons">
+              <ion-input formControlName="trackingId" placeholder="Enter tracking ID"></ion-input>
+              <div class="input-buttons">
+                <ion-button fill="clear" size="small" (click)="startBarcodeScanner()" [disabled]="isAddingParcel">
+                  <ion-icon name="scan-outline"></ion-icon>
+                </ion-button>
+                <ion-button fill="clear" size="small" (click)="uploadBarcode()" [disabled]="isAddingParcel">
+                  <ion-icon name="image-outline"></ion-icon>
+                </ion-button>
+              </div>
+            </div>
+            <small class="helper-text" *ngIf="parcelForm.get('trackingId')?.invalid && parcelForm.get('trackingId')?.touched">
+              Please enter a valid tracking ID
+            </small>
           </div>
-        </ion-item>
-        
-        <!-- Status selection -->
-        <div class="status-selection">
-          <ion-segment formControlName="status" mode="ios">
-            <ion-segment-button value="In Transit">
-              <ion-icon name="bicycle-outline"></ion-icon>
-              <ion-label>In Transit</ion-label>
-            </ion-segment-button>
-            <ion-segment-button value="Out for Delivery">
-              <ion-icon name="car-outline"></ion-icon>
-              <ion-label>Out for Delivery</ion-label>
-            </ion-segment-button>
-          </ion-segment>
-        </div>
-        
-        <ion-button expand="block" type="submit" [disabled]="addParcelForm.invalid || isLoading" class="add-button">
-          <ion-spinner *ngIf="isLoading"></ion-spinner>
-          <ion-icon *ngIf="!isLoading" name="add-circle" slot="start"></ion-icon>
-          <span *ngIf="!isLoading">Assign Parcel</span>
-        </ion-button>
-      </form>
-    </div>
-
-    <!-- Parcel list -->
-    <div class="parcels-container">
-      <div class="section-header">
-        <h2 class="section-title">My Assigned Parcels</h2>
-        <div class="selection-actions" *ngIf="parcels.length > 0">
-          <!-- Show "Select All" when not all parcels are selected -->
-          <ion-button fill="clear" size="small" (click)="selectAllParcels()" *ngIf="parcels.length !== selectedParcels.length">
-            <ion-icon name="checkbox-outline" slot="start"></ion-icon>
-            All
-          </ion-button>
           
-          <!-- Show "Unselect All" when any parcels are selected -->
-          <ion-button fill="clear" size="small" (click)="deselectAllParcels()" *ngIf="selectedParcels.length > 0">
-            <ion-icon name="close-circle-outline" slot="start"></ion-icon>
-            Unselect
-          </ion-button>
-        </div>
-      </div>
-      
-      <!-- Empty state -->
-      <div class="empty-state" *ngIf="parcels.length === 0">
-        <ion-icon name="cube-outline"></ion-icon>
-        <p>No parcels assigned yet</p>
-      </div>
-      
-      <!-- Compact parcel list with destination address added -->
-      <div class="parcel-list">
-        <ion-item *ngFor="let parcel of parcels" 
-                  class="parcel-item" 
-                  [class.selected]="isSelected(parcel.id)"
-                  lines="full">
-          <ion-checkbox slot="start" 
-                       [checked]="isSelected(parcel.id)" 
-                       (ionChange)="onParcelSelection($event, parcel.id)">
-          </ion-checkbox>
+          <!-- Replace the status segment in the form -->
+          <div class="form-field">
+            <ion-label>Status</ion-label>
+            <ion-segment formControlName="status">
+              <ion-segment-button value="In Transit">
+                <ion-icon name="airplane-outline"></ion-icon>
+                <ion-label class="small-text">In Transit</ion-label>
+              </ion-segment-button>
+              <ion-segment-button value="Out for Delivery">
+                <ion-icon name="bicycle-outline"></ion-icon>
+                <ion-label class="small-text">Out for Delivery</ion-label>
+              </ion-segment-button>
+            </ion-segment>
+          </div>
           
-          <ion-label>
-            <div class="tracking-header">
-              <h2>{{parcel.trackingId}}</h2>
-              <!-- Add status badge -->
-              <span class="parcel-status" 
-                    [ngClass]="{'in-transit': parcel.status === 'In Transit', 
-                               'out-for-delivery': parcel.status === 'Out for Delivery',
-                               'pending': !parcel.status || parcel.status === 'Pending',
-                               'delivered': parcel.status === 'Delivered'}">
-                {{parcel.status || 'Pending'}}
+          <div class="form-actions">
+            <ion-button expand="block" type="submit" [disabled]="parcelForm.invalid || isAddingParcel">
+              <ion-spinner *ngIf="isAddingParcel" name="crescent"></ion-spinner>
+              <span *ngIf="!isAddingParcel">
+                <ion-icon name="add-circle-outline" slot="start"></ion-icon>
+                Add Parcel
               </span>
-            </div>
-            
-            <!-- Show the destination address prominently -->
-            <div class="destination-address">
-              <ion-icon name="location" color="warning"></ion-icon>
-              <span class="address-text">{{parcel.receiverAddress || 'No destination address found'}}</span>
-            </div>
-            
-            <p class="info-row">
-              <ion-icon name="calendar-outline"></ion-icon>
-              <span>{{formatDate(parcel.addedDate)}}</span>
-            </p>
-            
-            <p class="info-row">
-              <ion-icon name="navigate-outline"></ion-icon>
-              <span>{{parcel.locationLat | number:'1.4-4'}}°, {{parcel.locationLng | number:'1.4-4'}}°</span>
-            </p>
-          </ion-label>
-          
-          <!-- Keep the individual delete icon on each item, but only show when not in multi-select mode -->
-          <div class="item-actions" slot="end" *ngIf="selectedParcels.length === 0">
-            <ion-button fill="clear" size="small" (click)="viewParcelDetails(parcel)">
-              <ion-icon name="eye-outline" slot="icon-only"></ion-icon>
-            </ion-button>
-            <ion-button fill="clear" size="small" color="danger" (click)="removeParcel(parcel.id)">
-              <ion-icon name="trash-outline" slot="icon-only"></ion-icon>
             </ion-button>
           </div>
-        </ion-item>
+        </form>
+      </div>
+    </div>
+    
+    <!-- Parcel List with adjusted header -->
+    <div class="card parcels-card">
+      <div class="card-header">
+        <h2>
+          <ion-icon name="cube-outline"></ion-icon>
+          Assigned Parcels
+        </h2>
+        
+        <!-- Replace the header-actions div in the parcels-card -->
+        <div class="header-actions" *ngIf="assignedParcels.length > 0">
+          <ion-button fill="clear" size="small" (click)="toggleAllParcels()">
+            <ion-icon [name]="allSelected ? 'close-circle-outline' : 'checkmark-done-outline'" slot="start"></ion-icon>
+            {{ allSelected ? 'Clear' : 'All' }}
+          </ion-button>
+        </div>
+      </div>
+      
+      <div class="card-content">
+        <!-- Loading state -->
+        <div class="loading-state" *ngIf="isLoadingParcels">
+          <ion-spinner name="bubbles"></ion-spinner>
+          <p>Loading your assigned parcels...</p>
+        </div>
+        
+        <!-- Empty state -->
+        <div class="empty-state" *ngIf="!isLoadingParcels && assignedParcels.length === 0">
+          <ion-icon name="cube-outline"></ion-icon>
+          <p>No parcels assigned</p>
+          <small>Assign parcels for delivery using the form above</small>
+        </div>
+        
+        <!-- Parcel list with improved selection circles -->
+        <div class="parcel-list" *ngIf="!isLoadingParcels && assignedParcels.length > 0">
+          <div class="parcel-item" 
+               *ngFor="let parcel of assignedParcels; let i = index" 
+               [class.selected]="parcel.selected" 
+               [attr.tabindex]="i">
+            
+            <!-- Circle selection on left side - made bigger -->
+            <div class="selection-circle" (click)="toggleSelection(parcel)">
+              <ion-icon [name]="parcel.selected ? 'checkmark-circle' : 'ellipse-outline'"></ion-icon>
+            </div>
+            
+            <!-- Main content (clickable for detailed view) -->
+            <div class="parcel-content">
+              <div class="parcel-header">
+                <div class="tracking-id">{{ parcel.trackingId }}</div>
+                <div class="status-badge" [ngClass]="getStatusClass(parcel.status)">
+                  {{ parcel.status || 'Pending' }}
+                </div>
+              </div>
+              
+              <div class="parcel-body">
+                <div class="detail-item">
+                  <ion-icon name="location-outline"></ion-icon>
+                  <span>{{ parcel.receiverAddress || 'No address' }}</span>
+                </div>
+                
+                <div class="detail-item">
+                  <ion-icon name="calendar-outline"></ion-icon>
+                  <span>{{ formatDate(parcel.addedDate) }}</span>
+                </div>
+                
+                <div class="detail-item">
+                  <ion-icon name="navigate-outline"></ion-icon>
+                  <span>{{ formatCoordinate(parcel.locationLat) }}, {{ formatCoordinate(parcel.locationLng) }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
-
-  <!-- Only show floating action button for batch deletion when items are selected -->
-  <ion-fab vertical="bottom" horizontal="end" slot="fixed" *ngIf="selectedParcels.length > 0 && !isScannerActive">
+  
+  <!-- Floating action button for removing selected parcels -->
+  <ion-fab vertical="bottom" horizontal="end" slot="fixed" *ngIf="isMultiSelectMode">
     <ion-fab-button color="danger" (click)="removeSelectedParcels()">
-      <ion-icon name="trash"></ion-icon>
-      <span class="fab-badge" *ngIf="selectedParcels.length > 1">{{selectedParcels.length}}</span>
+      <ion-icon name="trash-outline"></ion-icon>
     </ion-fab-button>
   </ion-fab>
+  
+  <!-- Hidden file input for barcode upload -->
+  <input type="file" #fileInput hidden accept="image/*" (change)="processUploadedImage($event)">
+
+  <!-- For the scanner overlay, use a non-focusing container -->
+  <div class="scanner-overlay" *ngIf="isScanningBarcode" tabindex="-1">
+    <div class="scanner-container">
+      <div class="scanner-header">
+        <h3>Scan Barcode</h3>
+        <button type="button" class="close-button" (click)="stopBarcodeScanner()">
+          <ion-icon name="close-outline"></ion-icon>
+        </button>
+      </div>
+      
+      <div class="scanner-viewport">
+        <div #scanner></div>
+        <div class="scan-region-highlight"></div>
+      </div>
+      
+      <div class="scanner-footer">
+        <p>Position the barcode within the frame</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Also replace the processing overlay -->
+  <div class="processing-overlay" *ngIf="isProcessingImage" tabindex="-1">
+    <div class="processing-content">
+      <ion-spinner name="circles"></ion-spinner>
+      <p>Processing image...</p>
+    </div>
+  </div>
 </ion-content>
