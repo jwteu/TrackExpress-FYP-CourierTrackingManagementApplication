@@ -488,7 +488,7 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
 
   startBarcodeScanner() {
     this.isScanningBarcode = true;
-    
+
     setTimeout(() => {
       Quagga.init({
         inputStream: {
@@ -496,7 +496,7 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
           type: 'LiveStream',
           target: this.scannerElement.nativeElement,
           constraints: {
-             facingMode: 'environment',
+            facingMode: 'environment',
             width: { min: 640 },
             height: { min: 480 },
             aspectRatio: { min: 1, max: 2 }
@@ -506,69 +506,24 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
           patchSize: 'medium',
           halfSample: true
         },
-        numOfWorkers: 4,  // More workers for better processing
-        frequency: 10,    // Scan frequency
+        numOfWorkers: 4,
+        frequency: 10,
         decoder: {
-          readers: [
-            'code_128_reader',  // Best for alphanumeric like TR1234AB
-            {
-              format: "code_128",
-              config: {
-                supplements: [
-                  'code_128_reader'
-                ]
-              }
-            }
-          ],
-          multiple: false
+          readers: ['code_128_reader']
         },
-        locate: true,
-        debug: {
-          drawBoundingBox: true,
-          showFrequency: true,
-          drawScanline: true,
-          showPattern: true
-        }
+        locate: true
       }, (err) => {
         if (err) {
-          console.error('Quagga initialization failed:', err);
-          this.showToast('Failed to initialize camera scanner');
+          console.error('Scanner initialization failed:', err);
+          this.showToast('Failed to initialize scanner');
           this.isScanningBarcode = false;
           return;
         }
-        
+
         Quagga.start();
-        
-        Quagga.onDetected((result) => {
-          const code = result.codeResult.code;
-          console.log('Detected code:', code, 'Format:', result.codeResult.format);
-          
-          if (code) {
-            // Validate the format - should start with TR and be 10 chars
-            const isValidFormat = /^TR[A-Z0-9]{8}$/i.test(code);
-            
-            // Play sound regardless of format
-            this.playSuccessBeep();
-            
-            // Set the detected code in the form
-            this.parcelForm.patchValue({
-              trackingId: code
-            });
-            
-            // Stop scanner
-            this.stopBarcodeScanner();
-            
-            if (isValidFormat) {
-              this.showToast(`Valid tracking ID detected: ${code}`);
-              // Auto-submit if valid format
-              this.addParcel();
-            } else {
-              this.showToast(`Warning: "${code}" doesn't match expected format TR + 8 characters`);
-            }
-          }
-        });
+        console.log('Scanner started successfully');
       });
-    }, 800); // Longer timeout for better camera initialization
+    }, 800);
   }
 
   stopBarcodeScanner() {
@@ -731,5 +686,25 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
 
   goBack() {
     this.navCtrl.navigateBack('/deliveryman-home');
+  }
+
+  private processDetectedCode(code: string): string {
+    if (!code) return '';
+
+    // Clean the code (remove unwanted characters)
+    const cleanCode = code.replace(/[^\w\d]/g, '');
+
+    // If it already looks like a TR code, return it
+    if (/^TR[A-Z0-9]{8}$/i.test(cleanCode)) {
+      return cleanCode.toUpperCase();
+    }
+
+    // If it's numeric, convert it to TR format
+    if (/^\d+$/.test(cleanCode)) {
+      return `TR${cleanCode.substring(0, 8).toUpperCase()}`;
+    }
+
+    // Default case: return the cleaned code
+    return cleanCode.toUpperCase();
   }
 }

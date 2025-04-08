@@ -433,19 +433,14 @@ ion-content {
 
     .scanner-header {
       display: flex;
-      justify-content: space-between;
+      justify-content: flex-end; // Changed from space-between to flex-end
       align-items: center;
       margin-bottom: 20px;
-
-      h3 {
-        color: white;
-        margin: 0;
-        font-size: 20px;
-        font-weight: 600;
-      }
+      padding: 0 10px;
 
       ion-button {
         --color: white;
+        font-size: 24px; // Make the X button larger
       }
     }
 

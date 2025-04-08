@@ -11,6 +11,8 @@ import { AngularFireAuthModule } from '@angular/fire/compat/auth';
 import { AngularFirestoreModule } from '@angular/fire/compat/firestore';
 import { environment } from '../environments/environment'; // Ensure this is correctly pointing to your environment file
 
+import { CloudinaryService } from './services/cloudinary.service';
+
 @NgModule({
   declarations: [AppComponent],
   imports: [
@@ -21,7 +23,10 @@ import { environment } from '../environments/environment'; // Ensure this is cor
     AngularFireAuthModule,
     AngularFirestoreModule
   ],
-  providers: [{ provide: RouteReuseStrategy, useClass: IonicRouteStrategy }],
+  providers: [
+    { provide: RouteReuseStrategy, useClass: IonicRouteStrategy },
+    CloudinaryService
+  ],
   bootstrap: [AppComponent],
 })
 export class AppModule {}

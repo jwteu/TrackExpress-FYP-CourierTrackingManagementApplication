@@ -5,12 +5,12 @@ import { IonicModule } from '@ionic/angular';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { NavController, LoadingController, ToastController, AlertController } from '@ionic/angular';
 import { AngularFirestore } from '@angular/fire/compat/firestore';
-import { AngularFireStorage } from '@angular/fire/compat/storage';
 import { AngularFireAuth } from '@angular/fire/compat/auth';
-import { firstValueFrom } from 'rxjs';
-import { finalize } from 'rxjs/operators';
+import { firstValueFrom, from } from 'rxjs'; // Add 'from' to the imports
 import firebase from 'firebase/compat/app';
 import 'firebase/compat/firestore';
+import { CloudinaryService } from '../../services/cloudinary.service';
+import { ParcelService } from '../../services/parcel.service';
 
 interface Parcel {
   id?: string;
@@ -40,93 +40,87 @@ export class TakePhotoPage implements OnInit {
   selectedParcel: Parcel | null = null;
   isLoadingParcels: boolean = false;
 
-  // Angular 19 injection pattern
+  // Angular 19 injection pattern - keep field injection as in ParcelService
   private navCtrl = inject(NavController);
   private firestore = inject(AngularFirestore);
-  private storage = inject(AngularFireStorage);
   private auth = inject(AngularFireAuth);
   private loadingCtrl = inject(LoadingController);
   private toastCtrl = inject(ToastController);
   private alertCtrl = inject(AlertController);
   private injector = inject(Injector);
+  private cloudinaryService = inject(CloudinaryService);
+  private parcelService = inject(ParcelService); // Add this to use ParcelService methods
 
   constructor() { }
 
   ngOnInit() {
-    // First level injection context
-    runInInjectionContext(this.injector, () => {
-      this.auth.authState.subscribe(user => {
-        if (user) {
-          this.currentUserId = user.uid;
-          
-          // CRITICAL FIX: Nested injection context for the Firebase operation in the callback
-          runInInjectionContext(this.injector, () => {
-            this.firestore.collection('users').doc(user.uid).get().subscribe(doc => {
-              if (doc.exists) {
-                const userData = doc.data() as { name?: string };
-                this.currentUserName = userData?.name || user.displayName || 'Unknown User';
-                
-                // Load assigned parcels once we have the user name
-                this.loadAssignedParcels();
-              }
-            });
+    // Subscribe to auth state at the top level
+    this.auth.authState.subscribe(user => {
+      if (user) {
+        this.currentUserId = user.uid;
+        
+        // Get user data with proper injection context
+        runInInjectionContext(this.injector, () => {
+          this.firestore.collection('users').doc(user.uid).get().subscribe(doc => {
+            if (doc.exists) {
+              const userData = doc.data() as { name?: string };
+              this.currentUserName = userData?.name || user.displayName || 'Unknown User';
+              
+              // Load assigned parcels once we have the user name
+              this.loadAssignedParcels();
+            }
           });
-        } else {
-          // Redirect to login if not authenticated
-          this.navCtrl.navigateRoot('/login');
-        }
-      });
+        });
+      } else {
+        // Redirect to login if not authenticated
+        this.navCtrl.navigateRoot('/login');
+      }
     });
   }
 
   async loadAssignedParcels() {
     if (!this.currentUserName) return;
     
+    this.isLoadingParcels = true;
+    
     try {
-      this.isLoadingParcels = true;
-      
-      // Use runInInjectionContext for the collection operation
-      await runInInjectionContext(this.injector, async () => {
-        const assignedParcelsSnapshot = await firstValueFrom(
-          this.firestore.collection('assigned_parcels', ref =>
-            ref.where('name', '==', this.currentUserName)
-          ).valueChanges({ idField: 'id' })
-        );
-        
-        const parcelsWithAddresses: Parcel[] = [];
-        
-        for (const assignedParcel of assignedParcelsSnapshot as Parcel[]) {
-          try {
-            // CRITICAL FIX: Another nested runInInjectionContext for each loop iteration
-            await runInInjectionContext(this.injector, async () => {
-              const parcelQuery = this.firestore.collection('parcels', ref => 
-                ref.where('trackingId', '==', assignedParcel.trackingId)
-              ).get();
+      // Use the ParcelService pattern instead of direct Firestore calls
+      this.parcelService.getAssignedParcels(this.currentUserName).subscribe({
+        next: async (assignedParcelsSnapshot) => {
+          const parcelsWithAddresses: Parcel[] = [];
+          
+          // Process each assigned parcel
+          for (const assignedParcel of assignedParcelsSnapshot) {
+            try {
+              // Use ParcelService pattern
+              const parcelDetails = await firstValueFrom(
+                this.parcelService.getParcelDetails(assignedParcel.trackingId)
+              );
               
-              const parcelQuerySnapshot = await firstValueFrom(parcelQuery);
-              
-              if (!parcelQuerySnapshot.empty) {
-                const parcelData = parcelQuerySnapshot.docs[0].data() as any;
-                
+              if (parcelDetails) {
                 parcelsWithAddresses.push({
                   ...assignedParcel,
-                  receiverAddress: parcelData.receiverAddress || 'No address available',
-                  receiverName: parcelData.receiverName,
-                  status: assignedParcel.status || parcelData.status || 'Pending'
+                  receiverAddress: parcelDetails.receiverAddress || 'No address available',
+                  receiverName: parcelDetails.receiverName,
+                  status: assignedParcel.status || parcelDetails.status || 'Pending'
                 });
               }
-            });
-          } catch (error) {
-            console.error('Error fetching parcel details:', error);
+            } catch (error) {
+              console.error('Error fetching parcel details:', error);
+            }
           }
+          
+          this.assignedParcels = parcelsWithAddresses;
+          this.isLoadingParcels = false;
+        },
+        error: (error) => {
+          console.error('Error loading assigned parcels:', error);
+          this.isLoadingParcels = false;
+          this.showToast('Failed to load assigned parcels');
         }
-        
-        this.assignedParcels = parcelsWithAddresses;
       });
-      
-      this.isLoadingParcels = false;
     } catch (error) {
-      console.error('Error loading assigned parcels:', error);
+      console.error('Error in loadAssignedParcels:', error);
       this.isLoadingParcels = false;
       this.showToast('Failed to load assigned parcels');
     }
@@ -259,90 +253,121 @@ export class TakePhotoPage implements OnInit {
       return;
     }
 
+    let loading: HTMLIonLoadingElement | null = null;
+
     try {
       this.isLoading = true;
-      const loading = await this.loadingCtrl.create({
+      
+      // Create loading with better accessibility options
+      loading = await this.loadingCtrl.create({
         message: 'Uploading verification photo...',
-        spinner: 'circles'
+        spinner: 'circles',
+        backdropDismiss: false,
+        cssClass: 'accessibility-loading',
+        keyboardClose: false, // Prevent keyboard from interfering
+        animated: true
       });
+      
       await loading.present();
 
-      try {
+      // Use runInInjectionContext for the entire submit operation
+      await runInInjectionContext(this.injector, async () => {
         // Optimize image
-        const optimizedImage = await this.resizeImage(this.capturedImage, 800); // Smaller size
-        
-        // Convert data URL to blob
+        const optimizedImage = await this.resizeImage(this.capturedImage!, 800);
         const response = await fetch(optimizedImage);
         const blob = await response.blob();
         
         const timestamp = new Date().getTime();
-        const trackingId = this.selectedParcel.trackingId;
-        const filePath = `parcel-photos/${trackingId}_${timestamp}.jpg`;
+        const trackingId = this.selectedParcel!.trackingId;
+        const fileName = `${trackingId}_${timestamp}`;
         
-        // Create a reference
-        const fileRef = this.storage.ref(filePath);
+        // Upload to Cloudinary using the service
+        const uploadResult = await firstValueFrom(
+          this.cloudinaryService.uploadImage(blob, fileName)
+        );
         
-        // Start with simpler metadata
-        const uploadTask = this.storage.upload(filePath, blob);
+        const downloadURL = uploadResult.secure_url;
         
-        // Wait for upload to complete
-        const result = await uploadTask;
-        console.log('Upload completed:', result);
+        // Update parcel status
+        await this.updateParcelStatus(trackingId, downloadURL);
         
-        // Get download URL
-        const downloadURL = await firstValueFrom(fileRef.getDownloadURL());
-        console.log('Download URL:', downloadURL);
+        // Dismiss loading
+        if (loading) {
+          await loading.dismiss();
+          loading = null;
+        }
         
-        // Continue with updating Firestore...
-        // Update parcel status in Firestore (simplified)
-        await this.updateParcelStatus(this.selectedParcel.trackingId, downloadURL);
-        
-        await loading.dismiss();
+        // Show success
         this.showSuccessAlert();
         this.resetForm();
-        this.loadAssignedParcels();
         
-      } catch (error) {
-        console.error('Upload or Firestore error:', error);
-        await loading.dismiss();
-        this.showToast('Failed to process photo. Please try again.');
-      }
+        // Reload parcels list
+        await this.loadAssignedParcels();
+      });
     } catch (error) {
-      console.error('Error in submit process:', error);
-      await this.loadingCtrl.dismiss();
-      this.showToast('Failed to process the request');
+      console.error('Process error:', error);
+      
+      // Safely dismiss loading if it exists
+      if (loading) {
+        try {
+          await loading.dismiss();
+        } catch (dismissError) {
+          console.log('Error dismissing loader:', dismissError);
+        }
+      }
+      
+      this.showToast('Failed to upload photo. Please try again.');
     } finally {
       this.isLoading = false;
     }
   }
 
-  // Update the updateParcelStatus method to use runInInjectionContext
+  // Update parcel status method - use ParcelService instead of direct Firestore
   async updateParcelStatus(trackingId: string, photoURL: string) {
-    await runInInjectionContext(this.injector, async () => {
-      // First find the parcel
-      const parcelRef = this.firestore.collection('parcels')
-        .ref.where('trackingId', '==', trackingId);
-      
-      const parcelSnapshot = await parcelRef.get();
-      if (parcelSnapshot.empty) return;
-      
-      const parcelId = parcelSnapshot.docs[0].id;
-      
-      // Update main parcels collection
-      await this.firestore.collection('parcels').doc(parcelId).update({
-        status: 'Delivered',
-        photoURL: photoURL,
-        photoTimestamp: firebase.firestore.FieldValue.serverTimestamp(),
-        deliveryCompletedDate: firebase.firestore.FieldValue.serverTimestamp()
-      });
-      
-      // Find and update assigned_parcels
-      if (this.selectedParcel?.id) {
-        await this.firestore.collection('assigned_parcels').doc(this.selectedParcel.id).update({
-          status: 'Delivered',
-          photoURL: photoURL,
-          deliveryCompletedDate: firebase.firestore.FieldValue.serverTimestamp()
-        });
+    return runInInjectionContext(this.injector, async () => {
+      try {
+        // First get the parcel details using ParcelService
+        const parcelDetails = await firstValueFrom(
+          this.parcelService.getParcelDetails(trackingId)
+        );
+        
+        if (!parcelDetails) {
+          throw new Error('Parcel not found');
+        }
+        
+        // Update the parcel status using ParcelService
+        await firstValueFrom(
+          this.parcelService.updateParcelWithTracking(
+            parcelDetails.id,
+            {
+              status: 'Delivered',
+              photoURL: photoURL,
+              photoTimestamp: firebase.firestore.FieldValue.serverTimestamp(),
+              deliveryCompletedDate: firebase.firestore.FieldValue.serverTimestamp()
+            },
+            {
+              status: 'Delivered',
+              description: 'Parcel has been delivered successfully',
+              location: this.selectedParcel?.receiverAddress || '',
+              deliverymanName: this.currentUserName || '',
+              photoURL: photoURL
+            }
+          )
+        );
+        
+        // If the parcel is in assigned_parcels, update it there as well
+        if (this.selectedParcel?.id) {
+          await firstValueFrom(
+            from(this.firestore.collection('assigned_parcels').doc(this.selectedParcel.id).update({
+              status: 'Delivered',
+              photoURL: photoURL,
+              deliveryCompletedDate: firebase.firestore.FieldValue.serverTimestamp()
+            }))
+          );
+        }
+      } catch (error) {
+        console.error('Error updating parcel status:', error);
+        throw error;
       }
     });
   }
@@ -362,7 +387,6 @@ export class TakePhotoPage implements OnInit {
     toast.present();
   }
 
-  // Enhance the success alert
   async showSuccessAlert() {
     const alert = await this.alertCtrl.create({
       header: 'Delivery Verified',

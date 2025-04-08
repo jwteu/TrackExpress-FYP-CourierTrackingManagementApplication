@@ -188,4 +188,77 @@ export class ParcelService {
       return response;
     }));
   }
+
+  /**
+   * Update parcel status with tracking history
+   */
+  updateParcelWithTracking(
+    parcelId: string, 
+    updateData: any, 
+    trackingInfo: { 
+      status: string, 
+      location?: string, 
+      description?: string,
+      deliverymanName?: string,
+      photoURL?: string
+    }
+  ): Observable<void> {
+    return new Observable(observer => {
+      runInInjectionContext(this.injector, async () => {
+        try {
+          // Get parcel data first to get tracking ID
+          const parcelDoc = await this.firestore.collection('parcels').doc(parcelId).get().toPromise();
+          if (!parcelDoc?.exists) {
+            throw new Error('Parcel not found');
+          }
+          
+          const parcelData = parcelDoc.data() as any;
+          const trackingId = parcelData.trackingId;
+          
+          // Start a batch write
+          const batch = this.firestore.firestore.batch();
+          
+          // Update the parcel document
+          const parcelRef = this.firestore.collection('parcels').doc(parcelId).ref;
+          batch.update(parcelRef, {
+            ...updateData,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
+          
+          // Create a tracking history document
+          const trackingHistoryRef = this.firestore.collection('tracking_history').doc().ref;
+          batch.set(trackingHistoryRef, {
+            parcelId,
+            trackingId,
+            status: trackingInfo.status,
+            description: trackingInfo.description || this.getStatusDescription(trackingInfo.status),
+            location: trackingInfo.location,
+            deliverymanName: trackingInfo.deliverymanName,
+            photoURL: trackingInfo.photoURL,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+          });
+          
+          // Commit the batch
+          await batch.commit();
+          observer.next();
+          observer.complete();
+        } catch (error) {
+          observer.error(error);
+        }
+      });
+    });
+  }
+
+  /**
+   * Helper method for status descriptions
+   */
+  private getStatusDescription(status: string): string {
+    switch(status) {
+      case 'Registered': return 'Parcel has been registered';
+      case 'In Transit': return 'Parcel is in transit to delivery location';
+      case 'Out for Delivery': return 'Parcel is out for delivery to recipient';
+      case 'Delivered': return 'Parcel has been delivered successfully';
+      default: return `Status updated to: ${status}`;
+    }
+  }
 }

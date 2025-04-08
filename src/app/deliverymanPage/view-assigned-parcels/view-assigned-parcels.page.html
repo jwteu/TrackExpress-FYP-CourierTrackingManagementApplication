@@ -144,18 +144,18 @@
   <!-- Hidden file input for barcode upload -->
   <input type="file" #fileInput hidden accept="image/*" (change)="processUploadedImage($event)">
 
-  <!-- For the scanner overlay, use a non-focusing container -->
-  <div class="scanner-overlay" *ngIf="isScanningBarcode" tabindex="-1">
+  <!-- Update the scanner overlay to only have an X button -->
+  <div class="scanner-overlay" *ngIf="isScanningBarcode" [attr.inert]="!isScanningBarcode ? '' : null">
     <div class="scanner-container">
       <div class="scanner-header">
-        <h3>Scan Barcode</h3>
-        <button type="button" class="close-button" (click)="stopBarcodeScanner()">
-          <ion-icon name="close-outline"></ion-icon>
-        </button>
+        <ion-button fill="clear" (click)="stopBarcodeScanner()">
+          <ion-icon name="close-outline" slot="icon-only" color="light"></ion-icon>
+        </ion-button>
       </div>
       
       <div class="scanner-viewport">
-        <div #scanner></div>
+        <!-- This is the important element! Make sure it's properly sized -->
+        <div #scanner class="scanner-element"></div>
         <div class="scan-region-highlight"></div>
       </div>
       

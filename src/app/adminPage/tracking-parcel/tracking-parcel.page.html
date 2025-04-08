@@ -55,21 +55,127 @@
           <p class="tracking-id">{{ parcel.trackingId }}</p>
         </div>
         
-        <!-- Status timeline -->
-        <div class="status-timeline">
-          <h3>Current Status</h3>
-          <ion-item lines="none" class="status-item">
-            <ion-icon name="checkmark-circle" color="success" slot="start" *ngIf="parcel.status === 'Delivered'"></ion-icon>
-            <ion-icon name="time" color="warning" slot="start" *ngIf="parcel.status !== 'Delivered'"></ion-icon>
-            <ion-label>
-              <h2>{{ parcel.status || 'Processing' }}</h2>
-              <p>{{ parcel.date | date:'medium' }}</p>
-            </ion-label>
-          </ion-item>
+        <!-- Delivery status overview -->
+        <div class="status-overview">
+          <div class="current-status">
+            <h3>Current Status</h3>
+            <div class="status-badge" [ngClass]="getStatusClass(parcel.status)">
+              {{ parcel.status || 'Processing' }}
+            </div>
+          </div>
           
-          <ion-button expand="block" (click)="viewParcelDetails(parcel.id)">
-            View Full Details
-          </ion-button>
+          <div class="sender-receiver-info">
+            <div class="info-block">
+              <h4>From:</h4>
+              <p>{{ parcel.senderName || 'Unknown Sender' }}</p>
+              <p class="address">{{ parcel.senderAddress || 'No address available' }}</p>
+            </div>
+            <div class="divider">
+              <ion-icon name="arrow-forward"></ion-icon>
+            </div>
+            <div class="info-block">
+              <h4>To:</h4>
+              <p>{{ parcel.receiverName || 'Unknown Receiver' }}</p>
+              <p class="address">{{ parcel.receiverAddress || 'No address available' }}</p>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Enhanced Tracking Timeline -->
+        <div class="delivery-timeline">
+          <h3>Delivery Progress</h3>
+          
+          <div class="timeline">
+            <!-- Timeline event: Parcel registered -->
+            <div class="timeline-event" [ngClass]="{'active': parcel.status}">
+              <div class="timeline-icon" [ngClass]="{'active': parcel.status}">
+                <ion-icon name="create-outline"></ion-icon>
+              </div>
+              <div class="timeline-content">
+                <div class="timeline-header">
+                  <h4>Parcel Registered</h4>
+                  <span class="timeline-date">{{ formatDate(parcel.createdAt || parcel.date) }}</span>
+                </div>
+                <p>Parcel has been registered at {{ parcel.pickupLocation || 'origin facility' }}</p>
+              </div>
+            </div>
+            
+            <!-- Timeline event: In Transit (conditionally rendered) -->
+            <div class="timeline-event" *ngIf="hasTrackingEvent('In Transit')" 
+                 [ngClass]="{'active': isEventActive('In Transit')}">
+              <div class="timeline-icon" [ngClass]="{'active': isEventActive('In Transit')}">
+                <ion-icon name="airplane-outline"></ion-icon>
+              </div>
+              <div class="timeline-content">
+                <div class="timeline-header">
+                  <h4>In Transit</h4>
+                  <span class="timeline-date">{{ getEventDate('In Transit') }}</span>
+                </div>
+                <p>Parcel is in transit to delivery location</p>
+                <div class="deliveryman-info" *ngIf="parcel.deliverymanName">
+                  <ion-icon name="person-outline"></ion-icon>
+                  <span>Handled by: {{ parcel.deliverymanName }}</span>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Timeline event: Out for Delivery (conditionally rendered) -->
+            <div class="timeline-event" *ngIf="hasTrackingEvent('Out for Delivery')"
+                 [ngClass]="{'active': isEventActive('Out for Delivery')}">
+              <div class="timeline-icon" [ngClass]="{'active': isEventActive('Out for Delivery')}">
+                <ion-icon name="bicycle-outline"></ion-icon>
+              </div>
+              <div class="timeline-content">
+                <div class="timeline-header">
+                  <h4>Out for Delivery</h4>
+                  <span class="timeline-date">{{ getEventDate('Out for Delivery') }}</span>
+                </div>
+                <p>Parcel is out for delivery to recipient</p>
+                <div class="deliveryman-info" *ngIf="parcel.deliverymanName">
+                  <ion-icon name="person-outline"></ion-icon>
+                  <span>Delivery by: {{ parcel.deliverymanName }}</span>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Timeline event: Delivered (conditionally rendered) -->
+            <div class="timeline-event" *ngIf="hasTrackingEvent('Delivered')"
+                 [ngClass]="{'active': isEventActive('Delivered')}">
+              <div class="timeline-icon" [ngClass]="{'active': isEventActive('Delivered')}">
+                <ion-icon name="checkmark-circle-outline"></ion-icon>
+              </div>
+              <div class="timeline-content">
+                <div class="timeline-header">
+                  <h4>Delivered</h4>
+                  <span class="timeline-date">{{ getEventDate('Delivered') }}</span>
+                </div>
+                <p>Parcel has been delivered successfully</p>
+                <div class="delivery-photo" *ngIf="parcel.photoURL">
+                  <h5>Delivery Verification Photo</h5>
+                  <img [src]="parcel.photoURL" alt="Delivery verification photo">
+                </div>
+              </div>
+            </div>
+            
+            <!-- Additional tracking events from parcel.trackingEvents array if available -->
+            <div class="timeline-event" *ngFor="let event of parcel.trackingEvents" 
+                 [ngClass]="{'active': event.active !== false}">
+              <div class="timeline-icon" [ngClass]="{'active': event.active !== false}">
+                <ion-icon [name]="event.icon || 'information-circle-outline'"></ion-icon>
+              </div>
+              <div class="timeline-content">
+                <div class="timeline-header">
+                  <h4>{{ event.title }}</h4>
+                  <span class="timeline-date">{{ formatDate(event.timestamp) }}</span>
+                </div>
+                <p>{{ event.description }}</p>
+                <div class="location-info" *ngIf="event.location">
+                  <ion-icon name="location-outline"></ion-icon>
+                  <span>{{ event.location }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </ion-card-content>
     </ion-card>
