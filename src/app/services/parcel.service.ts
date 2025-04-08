@@ -1,6 +1,6 @@
 import { Injectable, inject, Injector, runInInjectionContext } from '@angular/core';
 import { AngularFirestore } from '@angular/fire/compat/firestore';
-import { Observable, from, map, of } from 'rxjs';
+import { Observable, from, map, of, first } from 'rxjs';
 import firebase from 'firebase/compat/app';
 
 export interface Parcel {
@@ -204,45 +204,74 @@ export class ParcelService {
     }
   ): Observable<void> {
     return new Observable(observer => {
-      runInInjectionContext(this.injector, async () => {
+      runInInjectionContext(this.injector, () => {
         try {
-          // Get parcel data first to get tracking ID
-          const parcelDoc = await this.firestore.collection('parcels').doc(parcelId).get().toPromise();
-          if (!parcelDoc?.exists) {
-            throw new Error('Parcel not found');
-          }
-          
-          const parcelData = parcelDoc.data() as any;
-          const trackingId = parcelData.trackingId;
-          
-          // Start a batch write
-          const batch = this.firestore.firestore.batch();
-          
-          // Update the parcel document
-          const parcelRef = this.firestore.collection('parcels').doc(parcelId).ref;
-          batch.update(parcelRef, {
-            ...updateData,
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-          });
-          
-          // Create a tracking history document
-          const trackingHistoryRef = this.firestore.collection('tracking_history').doc().ref;
-          batch.set(trackingHistoryRef, {
-            parcelId,
-            trackingId,
-            status: trackingInfo.status,
-            description: trackingInfo.description || this.getStatusDescription(trackingInfo.status),
-            location: trackingInfo.location,
-            deliverymanName: trackingInfo.deliverymanName,
-            photoURL: trackingInfo.photoURL,
-            timestamp: firebase.firestore.FieldValue.serverTimestamp()
-          });
-          
-          // Commit the batch
-          await batch.commit();
-          observer.next();
-          observer.complete();
+          // Get Firestore references within the injection context
+          const firestoreInstance = this.firestore.firestore;
+          const parcelsCollection = this.firestore.collection('parcels');
+          const trackingHistoryCollection = this.firestore.collection('tracking_history');
+
+          // Fetch the parcel document
+          parcelsCollection
+            .doc(parcelId)
+            .get()
+            .pipe(first())
+            .subscribe({
+              next: parcelDoc => {
+                if (!parcelDoc.exists) {
+                  observer.error(new Error('Parcel not found'));
+                  return;
+                }
+
+                const parcelData = parcelDoc.data() as any;
+                const trackingId = parcelData.trackingId;
+
+                // Pre-compute the description
+                const statusDescription =
+                  trackingInfo.description || this.getStatusDescription(trackingInfo.status);
+
+                // Create the batch
+                const batch = firestoreInstance.batch();
+
+                // Update the parcel document
+                const parcelRef = parcelsCollection.doc(parcelId).ref;
+                batch.update(parcelRef, {
+                  ...updateData,
+                  updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                });
+
+                // Create a tracking history document
+                const trackingHistoryRef = trackingHistoryCollection.doc().ref;
+                batch.set(trackingHistoryRef, {
+                  parcelId,
+                  trackingId,
+                  status: trackingInfo.status,
+                  description: statusDescription,
+                  location: trackingInfo.location,
+                  deliverymanName: trackingInfo.deliverymanName,
+                  photoURL: trackingInfo.photoURL,
+                  timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                });
+
+                // Commit the batch
+                batch
+                  .commit()
+                  .then(() => {
+                    observer.next();
+                    observer.complete();
+                  })
+                  .catch(error => {
+                    console.error('Batch commit error:', error);
+                    observer.error(error);
+                  });
+              },
+              error: err => {
+                console.error('Error fetching parcel document:', err);
+                observer.error(err);
+              },
+            });
         } catch (error) {
+          console.error('Top-level error in updateParcelWithTracking:', error);
           observer.error(error);
         }
       });

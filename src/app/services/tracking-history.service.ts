@@ -2,6 +2,7 @@ import { Injectable, inject, Injector, runInInjectionContext } from '@angular/co
 import { AngularFirestore } from '@angular/fire/compat/firestore';
 import { Observable } from 'rxjs';
 import firebase from 'firebase/compat/app';
+import { map } from 'rxjs/operators';
 
 export interface TrackingEvent {
   trackingId: string;
@@ -61,10 +62,69 @@ export class TrackingHistoryService {
         this.firestore.collection<TrackingEvent>('tracking_history', ref =>
           ref.where('trackingId', '==', trackingId)
             .orderBy('timestamp', 'asc')
-        ).valueChanges().subscribe({
-          next: (data) => observer.next(data),
-          error: (err) => observer.error(err),
-          complete: () => observer.complete()
+        ).get().pipe(
+          map(snapshot => snapshot.docs.map(doc => doc.data() as TrackingEvent))
+        ).subscribe({
+          next: (data) => {
+            observer.next(data);
+            observer.complete(); // Explicitly complete after getting data
+          },
+          error: (err) => observer.error(err)
+        });
+      });
+    });
+  }
+
+  /**
+   * Get tracking history for multiple parcels by their tracking IDs
+   * @param trackingIds Array of tracking IDs to fetch history for
+   * @returns Observable with arrays of tracking events grouped by tracking ID
+   */
+  getBatchTrackingHistory(trackingIds: string[]): Observable<Map<string, TrackingEvent[]>> {
+    if (!trackingIds || trackingIds.length === 0) {
+      return new Observable(observer => {
+        observer.next(new Map());
+        observer.complete();
+      });
+    }
+
+    return new Observable(observer => {
+      runInInjectionContext(this.injector, () => {
+        // Firestore has a 'in' operator limitation of 10 items
+        // Split into batches if needed
+        const batchSize = 10;
+        const batches: string[][] = [];
+        
+        for (let i = 0; i < trackingIds.length; i += batchSize) {
+          batches.push(trackingIds.slice(i, i + batchSize));
+        }
+        
+        // Map to store results grouped by tracking ID
+        const resultMap = new Map<string, TrackingEvent[]>();
+        let completedBatches = 0;
+        
+        batches.forEach(batchIds => {
+          this.firestore.collection<TrackingEvent>('tracking_history', ref =>
+            ref.where('trackingId', 'in', batchIds)
+              .orderBy('timestamp', 'asc')
+          ).valueChanges().subscribe({
+            next: (events) => {
+              // Group events by tracking ID
+              events.forEach(event => {
+                if (!resultMap.has(event.trackingId)) {
+                  resultMap.set(event.trackingId, []);
+                }
+                resultMap.get(event.trackingId)?.push(event);
+              });
+              
+              completedBatches++;
+              if (completedBatches === batches.length) {
+                observer.next(resultMap);
+                observer.complete();
+              }
+            },
+            error: (err) => observer.error(err)
+          });
         });
       });
     });
