@@ -122,9 +122,9 @@
                   <span>{{ formatDate(parcel.addedDate) }}</span>
                 </div>
                 
-                <div class="detail-item">
+                <div class="detail-item" *ngIf="parcel.locationDescription">
                   <ion-icon name="navigate-outline"></ion-icon>
-                  <span>{{ formatCoordinate(parcel.locationLat) }}, {{ formatCoordinate(parcel.locationLng) }}</span>
+                  <span>{{ parcel.locationDescription }}</span>
                 </div>
               </div>
             </div>

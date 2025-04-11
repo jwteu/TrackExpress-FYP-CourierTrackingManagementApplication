@@ -74,4 +74,44 @@ export class GeocodingService {
       });
     });
   }
+
+  getCoordinatesFromAddress(address: string): Observable<any> {
+    return new Observable(observer => {
+      runInInjectionContext(this.injector, () => {
+        if (!address || address.trim() === '') {
+          observer.error(new Error('Address is empty'));
+          return;
+        }
+        
+        const encodedAddress = encodeURIComponent(address);
+        
+        from(fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodedAddress}&limit=1`
+        )
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('Failed to get coordinates from address');
+          }
+          return response.json();
+        }))
+        .pipe(
+          catchError(error => {
+            console.error('Error in geocoding:', error);
+            return of([]);
+          })
+        )
+        .subscribe({
+          next: (data) => {
+            if (data && data.length > 0) {
+              observer.next(data[0]);
+            } else {
+              observer.next(null);
+            }
+            observer.complete();
+          },
+          error: (err) => observer.error(err)
+        });
+      });
+    });
+  }
 }

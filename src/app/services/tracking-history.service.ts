@@ -19,6 +19,18 @@ export interface TrackingEvent {
   active?: boolean;
   icon?: string;
 }
+ 
+export interface ParcelHandler {
+  trackingId: string;
+  parcelId: string;
+  deliverymanId: string;
+  deliverymanName: string;
+  photoURL?: string;
+  assignedAt: any; // Firebase timestamp
+  removedAt?: any; // Firebase timestamp when they're done with it
+  status: string; // Status when handling the parcel
+  notes?: string;
+}
 
 @Injectable({
   providedIn: 'root'
@@ -125,6 +137,87 @@ export class TrackingHistoryService {
             },
             error: (err) => observer.error(err)
           });
+        });
+      });
+    });
+  }
+
+  /**
+   * Record a new parcel handler when a deliveryman takes responsibility for a parcel
+   */
+  addParcelHandler(handler: ParcelHandler): Observable<string> {
+    // Ensure timestamp is a Firebase timestamp
+    if (!(handler.assignedAt instanceof firebase.firestore.Timestamp)) {
+      handler.assignedAt = firebase.firestore.Timestamp.now();
+    }
+
+    return new Observable(observer => {
+      runInInjectionContext(this.injector, () => {
+        this.firestore.collection('parcel_handlers').add({
+          ...handler,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          active: true
+        }).then(docRef => {
+          observer.next(docRef.id);
+          observer.complete();
+        }).catch(err => {
+          observer.error(err);
+        });
+      });
+    });
+  }
+
+  /**
+   * Update a handler record when deliveryman completes their part
+   */
+  completeParcelHandling(trackingId: string, deliverymanId: string): Observable<void> {
+    return new Observable(observer => {
+      runInInjectionContext(this.injector, () => {
+        // Find the active handler record for this deliveryman and parcel
+        this.firestore.collection('parcel_handlers', ref =>
+          ref.where('trackingId', '==', trackingId)
+            .where('deliverymanId', '==', deliverymanId)
+            .where('active', '==', true)
+        ).get().subscribe({
+          next: (snapshot) => {
+            if (snapshot.empty) {
+              observer.error(new Error('No active handler record found'));
+              return;
+            }
+            
+            // Update the handler record with removal time
+            const handlerDoc = snapshot.docs[0];
+            handlerDoc.ref.update({
+              removedAt: firebase.firestore.FieldValue.serverTimestamp(),
+              active: false
+            }).then(() => {
+              observer.next();
+              observer.complete();
+            }).catch(err => {
+              observer.error(err);
+            });
+          },
+          error: (err) => observer.error(err)
+        });
+      });
+    });
+  }
+
+  /**
+   * Get all handlers for a specific parcel by tracking ID
+   */
+  getParcelHandlers(trackingId: string): Observable<ParcelHandler[]> {
+    return new Observable(observer => {
+      runInInjectionContext(this.injector, () => {
+        this.firestore.collection<ParcelHandler>('parcel_handlers', ref =>
+          ref.where('trackingId', '==', trackingId)
+            .orderBy('assignedAt', 'asc')
+        ).valueChanges().subscribe({
+          next: (handlers) => {
+            observer.next(handlers);
+            observer.complete();
+          },
+          error: (err) => observer.error(err)
         });
       });
     });

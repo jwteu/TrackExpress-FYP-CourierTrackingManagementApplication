@@ -35,11 +35,19 @@ export class AddParcelPage implements OnInit {
     this.parcelForm = this.fb.group({
       senderName: ['', [Validators.required, Validators.pattern('^[a-zA-Z ]*$')]],
       senderContact: ['', [Validators.required, Validators.pattern('^[0-9]*$')]],
-      senderEmail: ['', [Validators.required, Validators.email]],
+      senderEmail: ['', [
+        Validators.required, 
+        Validators.email,
+        Validators.pattern('^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,4}$')
+      ]],
       senderAddress: ['', Validators.required],
       receiverName: ['', [Validators.required, Validators.pattern('^[a-zA-Z ]*$')]],
       receiverContact: ['', [Validators.required, Validators.pattern('^[0-9]*$')]],
-      receiverEmail: ['', [Validators.required, Validators.email]],
+      receiverEmail: ['', [
+        Validators.required, 
+        Validators.email,
+        Validators.pattern('^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,4}$')
+      ]],
       receiverAddress: ['', Validators.required],
       pickupLocation: ['', Validators.required],
       date: ['', Validators.required],
@@ -284,6 +292,25 @@ export class AddParcelPage implements OnInit {
 
   async sendEmailNotifications(parcelData: any) {
     try {
+      // Validate email addresses before sending
+      const validateEmail = (email: string): boolean => {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+      };
+
+      // Sanitize email - remove any whitespace and validate
+      const senderEmail = parcelData.senderEmail?.trim();
+      const receiverEmail = parcelData.receiverEmail?.trim();
+
+      if (!validateEmail(senderEmail)) {
+        console.warn('Invalid sender email format:', senderEmail);
+        throw new Error('Sender email format is invalid');
+      }
+
+      if (!validateEmail(receiverEmail)) {
+        console.warn('Invalid receiver email format:', receiverEmail);
+        throw new Error('Receiver email format is invalid');
+      }
+
       // Attempt to send the sender email first
       try {
         // Using simplified template parameters
@@ -295,12 +322,11 @@ export class AddParcelPage implements OnInit {
             tracking_id: parcelData.trackingId,
             date: new Date(parcelData.date).toLocaleDateString(),
             pickup_location: parcelData.pickupLocation,
-            // EmailJS requires an email address to send to
-            to_email: parcelData.senderEmail,
-            // Include some standard email fields that EmailJS might need
-            to_name: parcelData.senderName || 'Customer',  // Added to_name field
+            to_email: senderEmail, // Use validated email
+            to_name: parcelData.senderName || 'Customer',
             from_name: 'TrackExpress',
-            reply_to: 'noreply@trackexpress.com'
+            reply_to: 'noreply@trackexpress.com',
+            status: 'Registered' // Add status parameter
           }
         };
 
@@ -314,12 +340,13 @@ export class AddParcelPage implements OnInit {
           body: JSON.stringify(senderParams)
         });
         
-        const senderResult = await senderResponse.text();
-        console.log('Sender email result:', senderResult);
-        
         if (!senderResponse.ok) {
-          throw new Error(`Failed to send sender email: ${senderResult}`);
+          const errorText = await senderResponse.text();
+          console.error('Sender email API response:', errorText);
+          throw new Error(`Failed to send sender email: ${errorText}`);
         }
+        
+        console.log('Sender email sent successfully');
       } catch (senderError) {
         console.error('Sender email failed:', senderError);
         // Continue with receiver email even if sender email fails
@@ -335,10 +362,11 @@ export class AddParcelPage implements OnInit {
             tracking_id: parcelData.trackingId,
             date: new Date(parcelData.date).toLocaleDateString(),
             to_name: parcelData.receiverName || 'Customer',
-            location_info: parcelData.pickupLocation, // Pickup location
-            to_email: parcelData.receiverEmail, // ADD THIS LINE - it was missing!
+            location_info: parcelData.pickupLocation,
+            to_email: receiverEmail, // Use validated email
             from_name: 'TrackExpress',
-            reply_to: 'noreply@trackexpress.com'
+            reply_to: 'noreply@trackexpress.com',
+            status: 'Registered' // Add status parameter
           }
         };
 
@@ -352,12 +380,13 @@ export class AddParcelPage implements OnInit {
           body: JSON.stringify(receiverParams)
         });
         
-        const receiverResult = await receiverResponse.text();
-        console.log('Receiver email result:', receiverResult);
-        
         if (!receiverResponse.ok) {
-          throw new Error(`Failed to send receiver email: ${receiverResult}`);
+          const errorText = await receiverResponse.text();
+          console.error('Receiver email API response:', errorText);
+          throw new Error(`Failed to send receiver email: ${errorText}`);
         }
+        
+        console.log('Receiver email sent successfully');
       } catch (receiverError) {
         console.error('Receiver email failed:', receiverError);
         // We've already attempted both emails, so we'll throw the error

@@ -46,23 +46,23 @@
         <ion-card-title>{{ parcel.trackingId }}</ion-card-title>
       </ion-card-header>
       <ion-card-content>
-        <!-- Horizontal Progress Indicator -->
+        <!-- Horizontal Progress Indicator - Enhanced for better visibility -->
         <div class="progress-tracker">
-          <div class="progress-step" [ngClass]="{'active': isEventActive('Registered')}">
+          <div class="progress-step" [ngClass]="{'active': isEventActive('Registered')}" data-step="1">
             <div class="step-icon">
               <ion-icon name="create-outline"></ion-icon>
             </div>
             <div class="step-label">Pickup</div>
           </div>
           <div class="progress-line" [ngClass]="{'active': isEventActive('In Transit')}"></div>
-          <div class="progress-step" [ngClass]="{'active': isEventActive('In Transit')}">
+          <div class="progress-step" [ngClass]="{'active': isEventActive('In Transit')}" data-step="2">
             <div class="step-icon">
               <ion-icon name="airplane-outline"></ion-icon>
             </div>
             <div class="step-label">Delivering</div>
           </div>
           <div class="progress-line" [ngClass]="{'active': isEventActive('Delivered')}"></div>
-          <div class="progress-step" [ngClass]="{'active': isEventActive('Delivered')}">
+          <div class="progress-step" [ngClass]="{'active': isEventActive('Delivered')}" data-step="3">
             <div class="step-icon">
               <ion-icon name="checkmark-circle-outline"></ion-icon>
             </div>
@@ -87,15 +87,101 @@
           </div>
         </div>
 
+        <!-- Map Container -->
+        <div class="map-container" *ngIf="parcel && mapCoordinates">
+          <h3>Delivery Route</h3>
+          <div class="map-info">
+            <div class="map-status">
+              <span class="current-location">{{ mapCoordinates.currentLocation }}</span>
+              <div class="distance-info" *ngIf="mapCoordinates.distance">
+                <ion-icon name="navigate-outline"></ion-icon>
+                <span>{{ mapCoordinates.distance }} km to destination</span>
+              </div>
+            </div>
+            <div class="map-actions">
+              <ion-button size="small" fill="clear" (click)="openExternalMap()">
+                <ion-icon name="open-outline" slot="start"></ion-icon>
+                Open in Maps
+              </ion-button>
+            </div>
+          </div>
+          
+          <!-- The map element -->
+          <div class="map-wrapper">
+            <div #mapElement class="map-element"></div>
+            <div class="map-overlay" *ngIf="!mapLoaded">
+              <ion-spinner name="dots"></ion-spinner>
+              <span>Loading map...</span>
+            </div>
+            <div class="map-error" *ngIf="mapLoaded && !map">
+              <ion-icon name="alert-circle-outline"></ion-icon>
+              <span>Could not load map. Tap to retry.</span>
+              <ion-button size="small" (click)="initializeMap()">Retry</ion-button>
+            </div>
+          </div>
+          
+          <!-- Destination info -->
+          <div class="destination-info">
+            <div class="destination-icon">
+              <ion-icon name="flag-outline"></ion-icon>
+            </div>
+            <div class="destination-details">
+              <div class="destination-title">Delivery Address</div>
+              <div class="destination-address">{{ parcel.receiverAddress }}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Delivery Estimation -->
+        <div class="delivery-estimation" *ngIf="parcel && estimatedDelivery">
+          <div class="estimation-header">
+            <ion-icon name="time-outline"></ion-icon>
+            <h3>Estimated Delivery</h3>
+          </div>
+          
+          <div class="estimation-content">
+            <div class="estimated-date">
+              <div class="date-label">Expected delivery by:</div>
+              <div class="date-value">{{ estimatedDelivery.formattedDate }}</div>
+            </div>
+            
+            <div class="estimation-details">
+              <div class="detail-item">
+                <ion-icon name="calendar-outline"></ion-icon>
+                <span>{{ estimatedDelivery.dayOfWeek }}</span>
+              </div>
+              <div class="detail-item" *ngIf="estimatedDelivery.daysRemaining !== null">
+                <ion-icon name="hourglass-outline"></ion-icon>
+                <span>{{ estimatedDelivery.daysRemaining === 0 ? 'Today' : 
+                        estimatedDelivery.daysRemaining === 1 ? 'Tomorrow' : 
+                        estimatedDelivery.daysRemaining + ' days remaining' }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Location Timeline -->
         <div class="delivery-timeline">
           <h3>Location History</h3>
           <div class="timeline">
             <div class="timeline-event" 
                  *ngFor="let event of sortedTrackingEvents; let i = index"
-                 [ngClass]="{'active': event.active !== false}"
+                 [ngClass]="{
+                   'active': event.active !== false,
+                   'event-handler': event.title === 'Handler Assigned',
+                   'event-pickup': event.title === 'Pickup',
+                   'event-outfordelivery': event.title === 'Out for Delivery',
+                   'event-delivered': event.title === 'Delivered'
+                 }"
                  [style.--animation-order]="i">
-              <div class="timeline-icon" [ngClass]="{'active': event.active !== false}">
+              <div class="timeline-icon" [ngClass]="{
+                'active': event.active !== false,
+                'icon-handler': event.title === 'Handler Assigned',
+                'icon-pickup': event.title === 'Pickup',
+                'icon-transit': event.title === 'In Transit',
+                'icon-outfordelivery': event.title === 'Out for Delivery',
+                'icon-delivered': event.title === 'Delivered'
+              }">
                 <ion-icon [name]="event.icon || 'information-circle-outline'"></ion-icon>
               </div>
               <div class="timeline-content">
@@ -104,16 +190,27 @@
                   <span class="timeline-date">{{ formatDate(event.timestamp) }}</span>
                 </div>
                 <p>{{ event.description }}</p>
+                
+                <!-- Always show status -->
+                <div class="status-badge" [ngClass]="'status-' + event.status.toLowerCase().replace(' ', '-')">
+                  {{ event.status }}
+                </div>
+                
                 <div class="combined-info">
+                  <!-- Always show location -->
                   <span>
                     <ion-icon name="location-outline"></ion-icon>
                     {{ event.location }}
                   </span>
+                  
+                  <!-- Show handler name when available -->
                   <span *ngIf="event.deliverymanName">
                     <ion-icon name="person-outline"></ion-icon>
                     {{ event.deliverymanName }}
                   </span>
                 </div>
+                
+                <!-- Show photo only for delivered status -->
                 <div class="delivery-photo" *ngIf="event.photoURL">
                   <img [src]="event.photoURL" alt="Delivery verification photo">
                 </div>

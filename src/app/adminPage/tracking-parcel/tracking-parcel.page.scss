@@ -34,12 +34,12 @@ ion-button {
   --box-shadow: 0 2px 6px rgba(0,0,0,0.1);
 }
 
-/* Horizontal Progress Tracker */
+/* Horizontal Progress Tracker - Enhanced for better visibility */
 .progress-tracker {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin: 16px 0;
+  margin: 24px 0;
   position: relative;
   padding: 0 10px;
 }
@@ -49,58 +49,82 @@ ion-button {
   flex-direction: column;
   align-items: center;
   z-index: 2;
-  transition: all 0.3s ease;
+  transition: all 0.5s ease;
+  position: relative;
+
+  &::before {
+    content: attr(data-step);
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 12px;
+    font-weight: bold;
+    color: #bdbdbd;
+    transition: color 0.3s ease;
+  }
 
   .step-icon {
-    width: 36px;
-    height: 36px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
     background-color: #f5f5f5;
     display: flex;
     align-items: center;
     justify-content: center;
     border: 2px solid #e0e0e0;
-    margin-bottom: 4px;
-    transition: all 0.3s ease;
+    margin-bottom: 8px;
+    transition: all 0.5s ease;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 
     ion-icon {
-      font-size: 18px;
+      font-size: 20px;
       color: #bdbdbd;
       transition: color 0.3s ease;
     }
   }
 
   .step-label {
-    font-size: 10px;
+    font-size: 12px;
     color: #757575;
     font-weight: 600;
-    transition: color 0.3s ease;
+    transition: color 0.5s ease;
   }
 
   &.active {
     .step-icon {
       background-color: #FFDE59;
       border-color: #FFDE59;
+      transform: scale(1.1);
+      box-shadow: 0 4px 8px rgba(255, 222, 89, 0.4);
+      
       ion-icon {
         color: #333;
       }
     }
+    
+    &::before {
+      color: #333;
+    }
+    
     .step-label {
       color: #333;
+      font-weight: 700;
     }
   }
 }
 
 .progress-line {
   flex: 1;
-  height: 3px;
+  height: 4px;
   background-color: #e0e0e0;
   position: relative;
   z-index: 1;
-  transition: background-color 0.3s ease;
+  transition: background-color 0.8s ease;
 
   &.active {
     background-color: #FFDE59;
+    box-shadow: 0 2px 4px rgba(255, 222, 89, 0.2);
   }
 }
 
@@ -192,6 +216,23 @@ ion-button {
     &.source-parcels .timeline-content {
       border-left: 3px solid #FFDE59; // Yellow border for admin events
     }
+
+    &.source-handlers .timeline-content {
+      border-left: 3px solid #ff9800; // Orange border for handler events
+    }
+    
+    .timeline-badge {
+      position: absolute;
+      top: -4px;
+      right: 8px;
+      background: #ff9800;
+      color: white;
+      font-size: 8px;
+      padding: 2px 6px;
+      border-radius: 10px;
+      font-weight: bold;
+      text-transform: uppercase;
+    }
   }
 
   .timeline-icon {
@@ -219,6 +260,21 @@ ion-button {
       ion-icon {
         color: #333;
       }
+    }
+
+    &.source-handlers {
+      border-color: #ff9800;
+      background-color: #ff9800;
+    }
+    
+    &.source-assigned {
+      border-color: #4A90E2;
+      background-color: #4A90E2;
+    }
+    
+    &.source-parcels {
+      border-color: #FFDE59;
+      background-color: #FFDE59;
     }
   }
 
@@ -290,7 +346,55 @@ ion-button {
         border: 1px solid #e0e0e0;
       }
     }
+
+    .status-badge {
+      display: inline-block;
+      font-size: 9px;
+      font-weight: 600;
+      text-transform: uppercase;
+      padding: 3px 6px;
+      border-radius: 10px;
+      margin-bottom: 4px;
+    }
   }
+}
+
+.status-registered {
+  background-color: #e3f2fd;
+  color: #1976d2;
+}
+
+.status-in-transit {
+  background-color: #e8f5e9;
+  color: #43a047;
+}
+
+.status-out-for-delivery {
+  background-color: #fff3e0;
+  color: #ef6c00;
+}
+
+.status-delivered {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+}
+
+/* Better event type styling */
+.event-pickup .timeline-content {
+  border-left: 3px solid #FFDE59;
+}
+
+.event-handler .timeline-content {
+  border-left: 3px solid #ff9800;
+}
+
+.event-transit .timeline-content,
+.event-outfordelivery .timeline-content {
+  border-left: 3px solid #4A90E2;
+}
+
+.event-delivered .timeline-content {
+  border-left: 3px solid #4CAF50;
 }
 
 ion-card {
@@ -335,6 +439,27 @@ ion-card-content {
   animation-delay: calc(0.1s * var(--animation-order, 0));
 }
 
+/* Add these animations for better visual feedback */
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 222, 89, 0.7);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(255, 222, 89, 0);
+    transform: scale(1.05);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 222, 89, 0);
+    transform: scale(1);
+  }
+}
+
+/* Apply the animation to active icons */
+.progress-step.active .step-icon {
+  animation: pulse 2s infinite;
+}
+
 /* Responsive adjustment for small screens */
 @media (max-width: 576px) {
   .sender-receiver-compact .info-pair {
@@ -344,6 +469,168 @@ ion-card-content {
       height: 1px;
       width: 100%;
       margin: 8px 0;
+    }
+  }
+}
+
+/* Enhanced Map Route Styling */
+.map-container {
+  margin: 20px 0;
+  background-color: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); /* Deeper shadow for emphasis */
+  
+  h3 {
+    padding: 16px 16px 8px;
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #333;
+  }
+}
+
+.map-wrapper {
+  position: relative;
+  height: 300px !important; /* Increased height for better map visibility */
+  width: 100%;
+  border: 1px solid #eee;
+  min-height: 250px; /* Increased minimum height */
+  
+  .map-element {
+    height: 100% !important; 
+    width: 100% !important;
+    z-index: 0;
+  }
+}
+
+/* Better marker and popup styling */
+.leaflet-div-icon {
+  background: transparent !important;
+  border: none !important;
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: 8px;
+  padding: 2px;
+  box-shadow: 0 3px 12px rgba(0,0,0,0.15);
+}
+
+.leaflet-popup-content {
+  margin: 10px 12px;
+  line-height: 1.5;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* Enhanced destination info box */
+.destination-info {
+  display: flex;
+  align-items: center;
+  padding: 16px;
+  background-color: #f9f9f9;
+  border-top: 1px solid #f0f0f0;
+  
+  .destination-icon {
+    background-color: #FFDE59;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 14px;
+    flex-shrink: 0;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    
+    ion-icon {
+      font-size: 20px;
+      color: #333;
+    }
+  }
+  
+  .destination-details {
+    .destination-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: #666;
+      margin-bottom: 3px;
+    }
+    
+    .destination-address {
+      font-size: 14px;
+      color: #333;
+      line-height: 1.4;
+    }
+  }
+}
+
+/* Delivery Estimation Component */
+.delivery-estimation {
+  margin: 20px 0;
+  background-color: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  
+  .estimation-header {
+    display: flex;
+    align-items: center;
+    padding: 16px 16px 8px;
+    
+    ion-icon {
+      color: #FFDE59;
+      font-size: 18px;
+      margin-right: 8px;
+    }
+    
+    h3 {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 600;
+      color: #333;
+    }
+  }
+  
+  .estimation-content {
+    padding: 0 16px 16px;
+  }
+  
+  .estimated-date {
+    margin-bottom: 12px;
+    
+    .date-label {
+      font-size: 11px;
+      color: #666;
+      margin-bottom: 4px;
+    }
+    
+    .date-value {
+      font-size: 16px;
+      font-weight: 700;
+      color: #333;
+    }
+  }
+  
+  .estimation-details {
+    background-color: #f9f9f9;
+    border-radius: 8px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    
+    .detail-item {
+      display: flex;
+      align-items: center;
+      font-size: 13px;
+      color: #555;
+      
+      ion-icon {
+        font-size: 16px;
+        margin-right: 8px;
+        color: #999;
+      }
     }
   }
 }

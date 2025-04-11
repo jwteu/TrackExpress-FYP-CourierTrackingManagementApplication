@@ -1,6 +1,6 @@
 import { Injectable, inject, Injector, runInInjectionContext } from '@angular/core';
 import { AngularFirestore } from '@angular/fire/compat/firestore';
-import { Observable, from, map, of, first } from 'rxjs';
+import { Observable, from, map, of, first, tap } from 'rxjs';
 import firebase from 'firebase/compat/app';
 
 export interface Parcel {
@@ -14,6 +14,9 @@ export interface Parcel {
   receiverName?: string;
   status?: string;
   selected?: boolean;
+  userId?: string;   // Add userId to the interface
+  userEmail?: string; // Add userEmail to the interface
+  locationDescription?: string; // Add this property
 }
 
 @Injectable({
@@ -43,14 +46,61 @@ export class ParcelService {
     });
   }
   
-  // Get assigned parcels for a specific deliveryman
-  getAssignedParcels(deliverymanName: string): Observable<Parcel[]> {
+  // Get assigned parcels for a specific deliveryman with user ID verification
+  getAssignedParcels(deliverymanName: string, userId?: string): Observable<Parcel[]> {
     return new Observable(observer => {
       runInInjectionContext(this.injector, () => {
-        this.firestore.collection<Parcel>('assigned_parcels', ref => 
-          ref.where('name', '==', deliverymanName)
-        ).valueChanges({ idField: 'id' }).subscribe({
+        let query = this.firestore.collection<Parcel>('assigned_parcels', ref => {
+          let q = ref.where('name', '==', deliverymanName);
+          // If userId is provided, add additional filter for extra security
+          if (userId) {
+            q = q.where('userId', '==', userId);
+          }
+          return q;
+        });
+        
+        query.valueChanges({ idField: 'id' }).pipe(
+          // Log any inconsistencies for debugging
+          tap(parcels => {
+            if (userId) {
+              const invalidParcels = parcels.filter(p => p.userId && p.userId !== userId);
+              if (invalidParcels.length > 0) {
+                console.warn('Found parcels with mismatched user ID:', invalidParcels);
+              }
+            }
+          })
+        ).subscribe({
           next: (data) => observer.next(data),
+          error: (err) => observer.error(err),
+          complete: () => observer.complete()
+        });
+      });
+    });
+  }
+  
+  // Get assigned parcels with multi-factor verification
+  getAssignedParcelsSecure(deliverymanName: string, userId: string): Observable<Parcel[]> {
+    return new Observable(observer => {
+      runInInjectionContext(this.injector, () => {
+        // Require BOTH name and userId to match - significantly more secure
+        let query = this.firestore.collection<Parcel>('assigned_parcels', ref => 
+          ref.where('name', '==', deliverymanName)
+             .where('userId', '==', userId)
+        );
+        
+        query.valueChanges({ idField: 'id' }).subscribe({
+          next: (data) => {
+            // Additional verification at the application level
+            const verifiedData = data.filter(parcel => {
+              const ownershipValid = parcel.userId === userId && parcel.name === deliverymanName;
+              if (!ownershipValid) {
+                console.error(`Security concern: Found parcel ${parcel.trackingId} with mismatched ownership`);
+              }
+              return ownershipValid;
+            });
+            
+            observer.next(verifiedData);
+          },
           error: (err) => observer.error(err),
           complete: () => observer.complete()
         });

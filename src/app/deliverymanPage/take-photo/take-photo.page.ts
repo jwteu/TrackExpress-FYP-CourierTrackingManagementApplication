@@ -54,55 +54,148 @@ export class TakePhotoPage implements OnInit {
   constructor() { }
 
   ngOnInit() {
-    // Subscribe to auth state at the top level
+    // Check local storage first to determine if session is valid
+    const sessionData = localStorage.getItem('userSession');
+    
+    if (sessionData) {
+      try {
+        const userSession = JSON.parse(sessionData);
+        
+        // Verify role to prevent unauthorized access
+        if (userSession.role !== 'deliveryman') {
+          console.error('Invalid role for this page');
+          this.handleInvalidSession('Invalid user role');
+          return;
+        }
+        
+        // Set session data from local storage first (faster load)
+        this.currentUserId = userSession.uid;
+        this.currentUserName = userSession.name;
+        
+        // Load parcels immediately using session data
+        this.loadAssignedParcels();
+      } catch (error) {
+        console.error('Error parsing session data:', error);
+      }
+    }
+
+    // Subscribe to auth state at the top level for double verification
     this.auth.authState.subscribe(user => {
       if (user) {
-        this.currentUserId = user.uid;
+        if (this.currentUserId !== user.uid) {
+          // If the user ID from Firebase doesn't match our session, reset everything
+          console.warn('User ID mismatch between session and Firebase auth');
+          this.handleInvalidSession('User identity mismatch');
+          return;
+        }
         
-        // Get user data with proper injection context
-        runInInjectionContext(this.injector, () => {
-          this.firestore.collection('users').doc(user.uid).get().subscribe(doc => {
-            if (doc.exists) {
-              const userData = doc.data() as { name?: string };
-              this.currentUserName = userData?.name || user.displayName || 'Unknown User';
-              
-              // Load assigned parcels once we have the user name
-              this.loadAssignedParcels();
-            }
-          });
-        });
+        // Get user data to verify further
+        this.getUserData(user.uid);
       } else {
-        // Redirect to login if not authenticated
-        this.navCtrl.navigateRoot('/login');
+        this.handleInvalidSession('No authenticated user');
       }
     });
   }
 
+  ionViewWillEnter() {
+    // Refresh data when the page becomes visible
+    if (this.currentUserId && this.currentUserName) {
+      this.loadAssignedParcels();
+    }
+  }
+
+  private async getUserData(userId: string) {
+    try {
+      const userData = await runInInjectionContext(this.injector, () => {
+        return firstValueFrom(this.parcelService.getUserByID(userId));
+      });
+      
+      if (!userData || userData.role !== 'deliveryman') {
+        this.handleInvalidSession('Invalid user data');
+        return;
+      }
+      
+      if (this.currentUserName !== userData.name) {
+        console.warn('Username mismatch between session and database');
+        this.currentUserName = userData.name;
+        
+        // Update session storage
+        this.updateSessionData(userData);
+        
+        // Refresh parcels with new username
+        this.loadAssignedParcels();
+      }
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+    }
+  }
+
+  private handleInvalidSession(reason: string) {
+    console.error('Session invalid:', reason);
+    this.showToast('Session error. Please login again.');
+    
+    localStorage.removeItem('userSession');
+    
+    // Force logout and redirect to login page
+    this.auth.signOut().then(() => {
+      this.navCtrl.navigateRoot('/login');
+    });
+  }
+
+  private updateSessionData(userData: any) {
+    try {
+      const sessionData = {
+        uid: userData.id,
+        email: userData.email,
+        name: userData.name,
+        role: userData.role,
+        lastVerified: new Date().toISOString()
+      };
+      
+      localStorage.setItem('userSession', JSON.stringify(sessionData));
+    } catch (error) {
+      console.error('Error updating session data:', error);
+    }
+  }
+
   loadAssignedParcels() {
-    if (!this.currentUserName) return;
+    if (!this.currentUserName || !this.currentUserId) {
+      this.showToast('Session data missing. Please go back and try again.');
+      return;
+    }
     
     this.isLoadingParcels = true;
     
     // Use runInInjectionContext for all operations
     runInInjectionContext(this.injector, () => {
-      // Fix: Add non-null assertion operator to tell TypeScript that currentUserName is not null
-      this.parcelService.getAssignedParcels(this.currentUserName!).subscribe({
+      // Use the secure method that requires both name AND ID
+      this.parcelService.getAssignedParcelsSecure(
+        this.currentUserName!, 
+        this.currentUserId!
+      ).subscribe({
         next: async (assignedParcelsSnapshot) => {
-          const parcelsWithAddresses: Parcel[] = [];
+          // Process the parcels as before
+          console.log('Received assigned parcels:', assignedParcelsSnapshot);
+          const parcelsWithDetails: Parcel[] = [];
           
-          // Process each assigned parcel within the injection context
-          for (const assignedParcel of assignedParcelsSnapshot) {
+          for (const parcel of assignedParcelsSnapshot) {
+            // Skip processing if the userId doesn't match (extra security)
+            if (parcel.userId && parcel.userId !== this.currentUserId) {
+              console.warn('Skipping parcel due to user ID mismatch');
+              continue;
+            }
+            
             try {
-              const parcelDetails = await firstValueFrom(
-                this.parcelService.getParcelDetails(assignedParcel.trackingId)
+              const details = await firstValueFrom(
+                this.parcelService.getParcelDetails(parcel.trackingId)
               );
               
-              if (parcelDetails) {
-                parcelsWithAddresses.push({
-                  ...assignedParcel,
-                  receiverAddress: parcelDetails.receiverAddress || 'No address available',
-                  receiverName: parcelDetails.receiverName,
-                  status: assignedParcel.status || parcelDetails.status || 'Pending'
+              if (details) {
+                parcelsWithDetails.push({
+                  ...parcel,
+                  receiverAddress: details.receiverAddress || 'No address available',
+                  receiverName: details.receiverName || 'Unknown',
+                  status: parcel.status || details.status
                 });
               }
             } catch (error) {
@@ -110,7 +203,7 @@ export class TakePhotoPage implements OnInit {
             }
           }
           
-          this.assignedParcels = parcelsWithAddresses;
+          this.assignedParcels = parcelsWithDetails;
           this.isLoadingParcels = false;
         },
         error: (error) => {

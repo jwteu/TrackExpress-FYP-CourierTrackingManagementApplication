@@ -5,6 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { IonicModule } from '@ionic/angular';
 import { AngularFireAuth } from '@angular/fire/compat/auth';
 import { firstValueFrom } from 'rxjs';
+import { take } from 'rxjs/operators';
 
 @Component({
   selector: 'app-deliveryman-home',
@@ -46,6 +47,14 @@ export class DeliverymanHomePage implements OnInit {
       }
       
       this.userName = userSession.name || '';
+      
+      // Verify with auth state to ensure session is valid
+      this.afAuth.authState.pipe(take(1)).subscribe(user => {
+        if (!user || user.uid !== userSession.uid) {
+          console.error('Session mismatch with Firebase auth');
+          this.logout();
+        }
+      });
     } catch (error) {
       console.error('Error parsing user session:', error);
       this.logout();

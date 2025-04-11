@@ -6,12 +6,13 @@ import { AngularFireAuth } from '@angular/fire/compat/auth';
 import { Capacitor } from '@capacitor/core';
 import { Geolocation, Position } from '@capacitor/geolocation';
 import { Subscription, firstValueFrom, forkJoin } from 'rxjs';
-import { switchMap, catchError, tap } from 'rxjs/operators';
+import { switchMap, catchError, tap, delay } from 'rxjs/operators';
 import * as Quagga from 'quagga';
 import firebase from 'firebase/compat/app';
 import { RouterModule } from '@angular/router';
 import { ParcelService, Parcel } from '../../services/parcel.service';
 import { GeocodingService } from '../../services/geocoding.service';
+import { TrackingHistoryService, TrackingEvent, ParcelHandler } from '../../services/tracking-history.service';
 
 @Component({
   selector: 'app-view-assigned-parcels',
@@ -52,6 +53,10 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
   private alertCtrl = inject(AlertController);
   private parcelService = inject(ParcelService);
   private geocodingService = inject(GeocodingService);
+  private trackingHistoryService = inject(TrackingHistoryService);
+
+  // Add this property to your component
+  private sessionCheckInterval: any;
 
   constructor() {
     // Initialize form
@@ -62,19 +67,86 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
   }
 
   ngOnInit() {
-    this.authSubscription = this.auth.authState.subscribe(user => {
+    // Clear any existing subscriptions first
+    this.clearSubscriptions();
+    
+    // Reset state variables
+    this.resetState();
+    
+    // Check local storage first to determine if session is valid
+    const sessionData = localStorage.getItem('userSession');
+    let sessionUserId = null;
+    
+    if (sessionData) {
+      try {
+        const userSession = JSON.parse(sessionData);
+        sessionUserId = userSession.uid;
+        
+        // Verify role to prevent unauthorized access
+        if (userSession.role !== 'deliveryman') {
+          console.error('Invalid role for this page');
+          this.handleInvalidSession('Invalid user role');
+          return;
+        }
+      } catch (error) {
+        console.error('Error parsing session data:', error);
+      }
+    }
+    
+    this.authSubscription = this.auth.authState.pipe(
+      // Add delay to ensure Firebase auth state is fully updated
+      delay(300)
+    ).subscribe(user => {
       if (user) {
+        // Store current user information
         this.currentUserId = user.uid;
         
-        // Get user's name from Firestore
-        this.getUserName(user.uid).then(userName => {
-          this.currentUserName = userName || user.displayName || 'Unknown User';
-          this.loadAssignedParcels();
+        // Check if session userId matches Firebase auth userId
+        if (sessionUserId && sessionUserId !== user.uid) {
+          console.error('User ID mismatch between session and Firebase auth');
+          this.handleInvalidSession('User identity mismatch');
+          return;
+        }
+        
+        console.log('Current logged-in user ID:', this.currentUserId);
+        
+        // Get user's name from Firestore with triple verification
+        this.getUserName(user.uid).then(userData => {
+          if (userData && userData.name) {
+            // Verify email, role, and ID match
+            if (userData.email === user.email && 
+                userData.role === 'deliveryman' && 
+                userData.id === user.uid) {
+              
+              this.currentUserName = userData.name;
+              console.log('User verified:', this.currentUserName, user.email);
+              
+              // Update session data with verified information
+              this.updateSessionData(userData);
+              
+              this.loadAssignedParcels();
+            } else {
+              console.error('User verification failed. Data mismatch!');
+              console.error('Email match:', userData.email === user.email);
+              console.error('Role:', userData.role);
+              console.error('ID match:', userData.id === user.uid);
+              this.handleInvalidSession('User verification failed');
+            }
+          } else {
+            console.warn('User data incomplete or missing');
+            this.handleInvalidSession('User data incomplete');
+          }
+        }).catch(error => {
+          console.error('Failed to load user data:', error);
+          this.handleInvalidSession('Failed to load user profile');
         });
       } else {
-        this.navCtrl.navigateRoot('/login');
+        this.handleInvalidSession('No authenticated user');
       }
     });
+
+    // Start periodic session verification
+    this.startSessionVerification();
   }
 
   ngOnDestroy() {
@@ -85,6 +157,11 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
       this.parcelsSubscription.unsubscribe();
     }
     this.stopBarcodeScanner();
+
+    // Clear the interval
+    if (this.sessionCheckInterval) {
+      clearInterval(this.sessionCheckInterval);
+    }
   }
 
   ionViewWillLeave() {
@@ -105,25 +182,11 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
     }
   }
 
-  // Get user name from Firestore
-  private async getUserName(userId: string): Promise<string | null> {
-    try {
-      const userData = await firstValueFrom(
-        this.parcelService.getUserByID(userId)
-      );
-      
-      if (userData) {
-        return userData.name || null;
-      }
-      return null;
-    } catch (error) {
-      console.error('Error fetching user name:', error);
-      return null;
-    }
-  }
-
   loadAssignedParcels() {
-    if (!this.currentUserName) return;
+    if (!this.currentUserName || !this.currentUserId || !this.verifySessionFreshness()) {
+      this.handleInvalidSession('Session invalid when loading parcels');
+      return;
+    }
     
     this.isLoadingParcels = true;
     
@@ -132,21 +195,60 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
       this.parcelsSubscription.unsubscribe();
     }
     
-    this.parcelsSubscription = this.parcelService.getAssignedParcels(this.currentUserName).subscribe({
+    // Pass both name AND ID for verification - both must match
+    this.parcelsSubscription = this.parcelService.getAssignedParcelsSecure(
+      this.currentUserName, 
+      this.currentUserId
+    ).subscribe({
       next: async (parcels) => {
         console.log('Received assigned parcels:', parcels);
         const parcelsWithAddresses: Parcel[] = [];
         
-        // For each assigned parcel, get additional details
+        // For each assigned parcel, get additional details and verify ownership
         for (const parcel of parcels) {
           try {
+            // Skip parcels that don't belong to this user
+            if (parcel.userId && parcel.userId !== this.currentUserId) {
+              console.warn(`Skipping parcel ${parcel.trackingId} - user ID mismatch`);
+              continue;
+            }
+            
             const parcelDetails = await firstValueFrom(
               this.parcelService.getParcelDetails(parcel.trackingId)
             );
             
+            // Convert coordinates to location description
+            let locationDescription = "Unknown location";
+            if (parcel.locationLat && parcel.locationLng) {
+              try {
+                // Try to get address from geocoding service
+                const geoData = await firstValueFrom(
+                  this.geocodingService.getAddressFromCoordinates(
+                    parcel.locationLat, 
+                    parcel.locationLng
+                  )
+                );
+                
+                if (geoData && geoData.display_name) {
+                  // Extract just the city/area part of the address
+                  const addressParts = geoData.display_name.split(',');
+                  if (addressParts.length > 2) {
+                    // Use just city and region, not the full address
+                    locationDescription = addressParts.slice(1, 3).join(', ').trim();
+                  } else {
+                    locationDescription = geoData.display_name;
+                  }
+                }
+              } catch (geoError) {
+                console.warn('Error getting location name:', geoError);
+                locationDescription = `Location ${parcel.locationLat.toFixed(2)}, ${parcel.locationLng.toFixed(2)}`;
+              }
+            }
+            
             if (parcelDetails) {
               parcelsWithAddresses.push({
                 ...parcel,
+                locationDescription,
                 receiverAddress: parcelDetails.receiverAddress || 'No address available',
                 receiverName: parcelDetails.receiverName,
                 status: parcel.status || parcelDetails.status || 'Pending',
@@ -332,10 +434,30 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
               return forkJoin([]);
             }
             
+            // Record this handler's data in parcel_handlers collection
+            const handlerTask = this.trackingHistoryService.completeParcelHandling(
+              parcel.trackingId,
+              this.currentUserId || 'unknown'
+            );
+            
+            // Add a tracking event for the handoff
+            const trackingTask = this.trackingHistoryService.addTrackingEvent({
+              trackingId: parcel.trackingId,
+              parcelId: parcelDetails.id,
+              status: 'Handoff',
+              title: 'Parcel Handoff',
+              description: `Parcel handed off by ${this.currentUserName}`,
+              timestamp: firebase.firestore.Timestamp.now(),
+              location: parcel.locationLat && parcel.locationLng ? 
+                `${parcel.locationLat.toFixed(6)}, ${parcel.locationLng.toFixed(6)}` : undefined,
+              deliverymanId: this.currentUserId || undefined,
+              deliverymanName: this.currentUserName || undefined
+            });
+            
             const deleteTask = this.parcelService.removeAssignedParcel(parcel.id!);
             const resetTask = this.parcelService.resetParcelStatus(parcelDetails.id);
             
-            return forkJoin([deleteTask, resetTask]);
+            return forkJoin([deleteTask, resetTask, handlerTask, trackingTask]);
           })
         );
       });
@@ -360,6 +482,13 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
   }
 
   async addParcel() {
+    // Verify user session is still valid before proceeding
+    if (!this.currentUserId || !this.currentUserName || !this.verifySessionFreshness()) {
+      this.showToast('Session expired. Please login again.');
+      this.handleInvalidSession('Session validation failed during parcel add');
+      return;
+    }
+
     if (this.parcelForm.invalid) {
       this.showToast('Please enter a valid tracking ID');
       return;
@@ -369,7 +498,7 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
     const status = this.parcelForm.get('status')?.value;
     
     if (!trackingId || !status) {
-      this.showToast('Invalid form values');
+      this.showToast('Please fill in all required fields');
       return;
     }
     
@@ -407,14 +536,45 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
         throw new Error('Geolocation is not available on this device');
       }
       
-      // Add to assigned parcels
+      // Get address from coordinates
+      let locationDescription = "Current location";
+      try {
+        const geoData = await firstValueFrom(
+          this.geocodingService.getAddressFromCoordinates(
+            position.coords.latitude, 
+            position.coords.longitude
+          )
+        );
+        
+        if (geoData && geoData.display_name) {
+          // Extract just the city/area part of the address
+          const addressParts = geoData.display_name.split(',');
+          if (addressParts.length > 2) {
+            // Use just city and region, not the full address
+            locationDescription = addressParts.slice(1, 3).join(', ').trim();
+          } else {
+            locationDescription = geoData.display_name;
+          }
+        }
+      } catch (geoError) {
+        console.warn('Error getting location name:', geoError);
+        locationDescription = `Location ${position.coords.latitude.toFixed(2)}, ${position.coords.longitude.toFixed(2)}`;
+      }
+      
+      // Add to assigned parcels with current location
       const assignedParcelData = {
         trackingId,
         name: this.currentUserName,
+        userId: this.currentUserId,
+        userEmail: (await this.auth.currentUser)?.email || 'unknown',
+        sessionId: this.generateSessionId(),
         locationLat: position.coords.latitude,
         locationLng: position.coords.longitude,
+        locationDescription: locationDescription,
         addedDate: firebase.firestore.FieldValue.serverTimestamp(),
-        status
+        status,
+        // Add a timestamp for when location was updated
+        locationUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
       };
       
       console.log('Adding to assigned parcels:', assignedParcelData);
@@ -425,6 +585,20 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
       );
       
       console.log('Assigned parcel added with ID:', assignedId);
+      
+      // Record this handler in parcel_handlers collection
+      await firstValueFrom(
+        this.trackingHistoryService.addParcelHandler({
+          trackingId: trackingId,
+          parcelId: parcelDetails.id,
+          deliverymanId: this.currentUserId || 'unknown',
+          deliverymanName: this.currentUserName || 'Unknown Deliveryman',
+          status: status,
+          assignedAt: firebase.firestore.Timestamp.now()
+        })
+      );
+      
+      console.log('Parcel handler record added');
       
       // Update parcel status - also use firstValueFrom
       await firstValueFrom(
@@ -493,218 +667,356 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
       Quagga.init({
         inputStream: {
           name: 'Live',
-          type: 'LiveStream',
-          target: this.scannerElement.nativeElement,
-          constraints: {
-            facingMode: 'environment',
-            width: { min: 640 },
-            height: { min: 480 },
-            aspectRatio: { min: 1, max: 2 }
-          }
-        },
-        locator: {
-          patchSize: 'medium',
-          halfSample: true
-        },
-        numOfWorkers: 4,
-        frequency: 10,
-        decoder: {
-          readers: ['code_128_reader']
-        },
-        locate: true
-      }, (err) => {
-        if (err) {
-          console.error('Scanner initialization failed:', err);
-          this.showToast('Failed to initialize scanner');
-          this.isScanningBarcode = false;
-          return;
+        type: 'LiveStream',
+        target: this.scannerElement.nativeElement,
+        constraints: {
+          facingMode: 'environment',
+          width: { min: 640 },
+          height: { min: 480 },
+          aspectRatio: { min: 1, max: 2 }
         }
-
-        Quagga.start();
-        console.log('Scanner started successfully');
-      });
-    }, 800);
-  }
-
-  stopBarcodeScanner() {
-    if (Quagga) {
-      try {
-        Quagga.stop();
-      } catch (e) {
-        console.log('Error stopping Quagga:', e);
+      },
+      locator: {
+        patchSize: 'medium',
+        halfSample: true
+      },
+      numOfWorkers: 4,
+      frequency: 10,
+      decoder: {
+        readers: ['code_128_reader']
+      },
+      locate: true
+    }, (err) => {
+      if (err) {
+        console.error('Scanner initialization failed:', err);
+        this.showToast('Failed to initialize scanner');
+        this.isScanningBarcode = false;
+        return;
       }
-    }
-    this.isScanningBarcode = false;
-  }
 
-  uploadBarcode() {
-    this.fileInput.nativeElement.click();
-  }
+      Quagga.start();
+      console.log('Scanner started successfully');
+    });
+  }, 800);
+}
 
-  async processUploadedImage(event: any) {
-    const file = event.target.files[0];
-    
-    if (!file) return;
-    
-    this.isProcessingImage = true;
-    
+stopBarcodeScanner() {
+  if (Quagga) {
     try {
-      const dataUrl = await this.readFileAsDataURL(file);
+      Quagga.stop();
+    } catch (e) {
+      console.log('Error stopping Quagga:', e);
+    }
+  }
+  this.isScanningBarcode = false;
+}
+
+uploadBarcode() {
+  this.fileInput.nativeElement.click();
+}
+
+async processUploadedImage(event: any) {
+  const file = event.target.files[0];
+  
+  if (!file) return;
+  
+  this.isProcessingImage = true;
+  
+  try {
+    const dataUrl = await this.readFileAsDataURL(file);
+    
+    // Create a temporary image element to process with Quagga
+    const img = new Image();
+    img.src = dataUrl;
+    
+    img.onload = () => {
+      // Create a temporary canvas for the image
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
       
-      // Create a temporary image element to process with Quagga
-      const img = new Image();
-      img.src = dataUrl;
+      if (!ctx) {
+        this.isProcessingImage = false;
+        this.showToast('Failed to process the image - canvas context creation failed');
+        // Clear the tracking ID even on error
+        this.resetFileInput();
+        return;
+      }
       
-      img.onload = () => {
-        // Create a temporary canvas for the image
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      
+      ctx.drawImage(img, 0, 0, img.width, img.height);
+      
+      // Use Quagga to detect barcodes in the static image
+      Quagga.decodeSingle({
+        src: dataUrl,
+        numOfWorkers: 0,
+        inputStream: {
+          size: Math.max(img.width, img.height)
+        },
+        decoder: {
+          readers: [
+            'code_128_reader',
+            'ean_reader',
+            'ean_8_reader',
+            'code_39_reader',
+            'code_93_reader',
+            'upc_reader',
+            'upc_e_reader'
+          ]
+        }
+      }, (result) => {
+        this.isProcessingImage = false;
         
-        if (!ctx) {
-          this.isProcessingImage = false;
-          this.showToast('Failed to process the image - canvas context creation failed');
-          // Clear the tracking ID even on error
-          this.resetFileInput();
-          return;
+        if (result && result.codeResult) {
+          const code = result.codeResult.code;
+          
+          // Play success sound
+          this.playSuccessBeep();
+          
+          // Set the detected code in the form
+          this.parcelForm.patchValue({
+            trackingId: code
+          });
+          
+          this.showToast(`Detected barcode: ${code}`);
+          
+          // Auto-submit if it's a valid code
+          if (code.startsWith('TR') && code.length === 10) {
+            this.addParcel();
+          }
+        } else {
+          this.showToast('No barcode detected in the image');
+          // Clear the tracking ID field on failure too
+          this.parcelForm.patchValue({
+            trackingId: ''
+          });
         }
         
-        canvas.width = img.width;
-        canvas.height = img.height;
-        
-        ctx.drawImage(img, 0, 0, img.width, img.height);
-        
-        // Use Quagga to detect barcodes in the static image
-        Quagga.decodeSingle({
-          src: dataUrl,
-          numOfWorkers: 0,
-          inputStream: {
-            size: Math.max(img.width, img.height)
-          },
-          decoder: {
-            readers: [
-              'code_128_reader',
-              'ean_reader',
-              'ean_8_reader',
-              'code_39_reader',
-              'code_93_reader',
-              'upc_reader',
-              'upc_e_reader'
-            ]
-          }
-        }, (result) => {
-          this.isProcessingImage = false;
-          
-          if (result && result.codeResult) {
-            const code = result.codeResult.code;
-            
-            // Play success sound
-            this.playSuccessBeep();
-            
-            // Set the detected code in the form
-            this.parcelForm.patchValue({
-              trackingId: code
-            });
-            
-            this.showToast(`Detected barcode: ${code}`);
-            
-            // Auto-submit if it's a valid code
-            if (code.startsWith('TR') && code.length === 10) {
-              this.addParcel();
-            }
-          } else {
-            this.showToast('No barcode detected in the image');
-            // Clear the tracking ID field on failure too
-            this.parcelForm.patchValue({
-              trackingId: ''
-            });
-          }
-          
-          // Reset the file input
-          this.resetFileInput();
-        });
-      };
-      
-      img.onerror = () => {
-        this.isProcessingImage = false;
-        this.showToast('Failed to process the image');
-        // Clear the tracking ID on error
+        // Reset the file input
         this.resetFileInput();
-      };
-    } catch (error) {
+      });
+    };
+    
+    img.onerror = () => {
       this.isProcessingImage = false;
-      console.error('Error processing uploaded image:', error);
       this.showToast('Failed to process the image');
-      // Clear tracking ID on error
+      // Clear the tracking ID on error
       this.resetFileInput();
-    }
+    };
+  } catch (error) {
+    this.isProcessingImage = false;
+    console.error('Error processing uploaded image:', error);
+    this.showToast('Failed to process the image');
+    // Clear tracking ID on error
+    this.resetFileInput();
   }
+}
 
-  readFileAsDataURL(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
+readFileAsDataURL(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+resetFileInput() {
+  if (this.fileInput && this.fileInput.nativeElement) {
+    this.fileInput.nativeElement.value = '';
   }
+}
 
-  resetFileInput() {
-    if (this.fileInput && this.fileInput.nativeElement) {
-      this.fileInput.nativeElement.value = '';
-    }
-  }
+playSuccessBeep() {
+  const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+  const oscillator = audioContext.createOscillator();
+  const gainNode = audioContext.createGain();
+  
+  oscillator.connect(gainNode);
+  gainNode.connect(audioContext.destination);
+  
+  oscillator.type = 'sine';
+  oscillator.frequency.value = 1800;
+  gainNode.gain.value = 0.5;
+  
+  oscillator.start();
+  
+  setTimeout(() => {
+    oscillator.stop();
+    audioContext.close();
+  }, 150);
+}
 
-  playSuccessBeep() {
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-    const oscillator = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
-    
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
-    
-    oscillator.type = 'sine';
-    oscillator.frequency.value = 1800;
-    gainNode.gain.value = 0.5;
-    
-    oscillator.start();
-    
-    setTimeout(() => {
-      oscillator.stop();
-      audioContext.close();
-    }, 150);
-  }
+async showToast(message: string) {
+  const toast = await this.toastCtrl.create({
+    message: message,
+    duration: 2000,
+    position: 'bottom',
+    color: 'dark'
+  });
+  toast.present();
+}
 
-  async showToast(message: string) {
-    const toast = await this.toastCtrl.create({
-      message: message,
-      duration: 2000,
-      position: 'bottom',
-      color: 'dark'
-    });
-    toast.present();
-  }
+goBack() {
+  this.navCtrl.navigateBack('/deliveryman-home');
+}
 
-  goBack() {
-    this.navCtrl.navigateBack('/deliveryman-home');
-  }
+private processDetectedCode(code: string): string {
+  if (!code) return '';
 
-  private processDetectedCode(code: string): string {
-    if (!code) return '';
+  // Clean the code (remove unwanted characters)
+  const cleanCode = code.replace(/[^\w\d]/g, '');
 
-    // Clean the code (remove unwanted characters)
-    const cleanCode = code.replace(/[^\w\d]/g, '');
-
-    // If it already looks like a TR code, return it
-    if (/^TR[A-Z0-9]{8}$/i.test(cleanCode)) {
-      return cleanCode.toUpperCase();
-    }
-
-    // If it's numeric, convert it to TR format
-    if (/^\d+$/.test(cleanCode)) {
-      return `TR${cleanCode.substring(0, 8).toUpperCase()}`;
-    }
-
-    // Default case: return the cleaned code
+  // If it already looks like a TR code, return it
+  if (/^TR[A-Z0-9]{8}$/i.test(cleanCode)) {
     return cleanCode.toUpperCase();
   }
+
+  // If it's numeric, convert it to TR format
+  if (/^\d+$/.test(cleanCode)) {
+    return `TR${cleanCode.substring(0, 8).toUpperCase()}`;
+  }
+
+  // Default case: return the cleaned code
+  return cleanCode.toUpperCase();
+}
+
+// Reset state to avoid data persistence between sessions
+private resetState() {
+  this.currentUserId = null;
+  this.currentUserName = null;
+  this.assignedParcels = [];
+  this.isLoadingParcels = false;
+  this.isAddingParcel = false;
+  this.isScanningBarcode = false;
+  this.isProcessingImage = false;
+  this.isMultiSelectMode = false;
+  this.allSelected = false;
+  
+  // Reset form
+  if (this.parcelForm) {
+    this.parcelForm.reset({
+      trackingId: '',
+      status: 'In Transit'
+    });
+  }
+}
+
+// Clear all subscriptions
+private clearSubscriptions() {
+  if (this.authSubscription) {
+    this.authSubscription.unsubscribe();
+  }
+  if (this.parcelsSubscription) {
+    this.parcelsSubscription.unsubscribe();
+  }
+}
+
+// Handle invalid session
+private handleInvalidSession(reason: string) {
+  console.error('Session invalid:', reason);
+  this.showToast('Session error. Please login again.');
+  
+  // Force logout and redirect to login page
+  this.auth.signOut().then(() => {
+    this.navCtrl.navigateRoot('/login');
+  });
+}
+
+// Get user data with comprehensive verification
+private async getUserName(userId: string): Promise<any> {
+  try {
+    const userData = await firstValueFrom(
+      this.parcelService.getUserByID(userId)
+    );
+    
+    if (!userData) {
+      console.error('User data not found for ID:', userId);
+      return null;
+    }
+    
+    // Triple verification
+    // 1. Verify ID matches
+    if (userData.id !== userId) {
+      console.error('User ID mismatch! Expected:', userId, 'Got:', userData.id);
+      throw new Error('User identity verification failed');
+    }
+    
+    // 2. Verify role is deliveryman
+    if (userData.role !== 'deliveryman') {
+      console.error('User role is not deliveryman:', userData.role);
+      throw new Error('User role verification failed');
+    }
+    
+    // 3. Verify account is active
+    if (userData.status === 'disabled' || userData.status === 'suspended') {
+      console.error('User account is not active:', userData.status);
+      throw new Error('User account is not active');
+    }
+    
+    return userData;
+  } catch (error) {
+    console.error('Error fetching user data:', error);
+    return null;
+  }
+}
+
+// Update session data with verified information
+private updateSessionData(userData: any) {
+  try {
+    const sessionData = {
+      uid: userData.id,
+      email: userData.email,
+      name: userData.name,
+      role: userData.role,
+      lastVerified: new Date().toISOString()
+    };
+    
+    localStorage.setItem('userSession', JSON.stringify(sessionData));
+  } catch (error) {
+    console.error('Error updating session data:', error);
+  }
+}
+
+// Add this method to your component
+private verifySessionFreshness(): boolean {
+  try {
+    const sessionData = localStorage.getItem('userSession');
+    if (!sessionData) return false;
+    
+    const userData = JSON.parse(sessionData);
+    const lastVerified = new Date(userData.lastVerified || 0);
+    const now = new Date();
+    
+    // Session timeout after 2 hours (adjust as needed)
+    const SESSION_TIMEOUT_MS = 2 * 60 * 60 * 1000; 
+    
+    if (now.getTime() - lastVerified.getTime() > SESSION_TIMEOUT_MS) {
+      console.warn('Session has expired due to timeout');
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error verifying session freshness:', error);
+    return false;
+  }
+}
+
+// Generate a unique session identifier
+private generateSessionId(): string {
+  return `${this.currentUserId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+}
+
+// Start periodic session verification
+private startSessionVerification() {
+  // Check session every minute
+  this.sessionCheckInterval = setInterval(() => {
+    if (!this.verifySessionFreshness()) {
+      console.warn('Session verification failed during routine check');
+      this.handleInvalidSession('Session timeout');
+    }
+  }, 60000); // Every minute
+}
 }

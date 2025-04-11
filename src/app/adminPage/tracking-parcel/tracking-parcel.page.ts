@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, Injector, runInInjectionContext } from '@angular/core';
+import { Component, OnInit, inject, Injector, runInInjectionContext, ViewChild, ElementRef, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IonicModule, ToastController, LoadingController } from '@ionic/angular';
@@ -6,6 +6,8 @@ import { Router } from '@angular/router';
 import { AngularFirestore } from '@angular/fire/compat/firestore';
 import { firstValueFrom } from 'rxjs';
 import { TrackingHistoryService } from '../../services/tracking-history.service';
+import { GeocodingService } from '../../services/geocoding.service';
+declare const L: any;
 
 interface TrackingEvent {
   title: string;
@@ -27,7 +29,17 @@ interface AssignedParcelData {
   locationLat?: number;
   locationLng?: number;
   currentLocation?: string;
+  locationDescription?: string;
+  status?: string; // Add the status property
   // Add other properties as needed
+}
+
+interface EstimatedDelivery {
+  date: Date;
+  formattedDate: string;
+  dayOfWeek: string;
+  timeWindow?: string; // Make it optional
+  daysRemaining: number | null;
 }
 
 @Component({
@@ -37,13 +49,25 @@ interface AssignedParcelData {
   standalone: true,
   imports: [CommonModule, FormsModule, IonicModule]
 })
-export class TrackingParcelPage implements OnInit {
-  // Component properties remain unchanged
+export class TrackingParcelPage implements OnInit, AfterViewInit {
   trackingId: string = '';
   parcel: any = null;
   loading: boolean = false;
   searchPerformed: boolean = false;
   trackingEvents: TrackingEvent[] = [];
+  estimatedDelivery: EstimatedDelivery | null = null;
+
+  @ViewChild('mapElement') mapElement!: ElementRef;
+  mapLoaded: boolean = false;
+  map: any;
+  mapCoordinates: {
+    currentLat: number;
+    currentLng: number;
+    destLat: number;
+    destLng: number;
+    currentLocation: string;
+    distance?: string;
+  } | null = null;
 
   private firestore = inject(AngularFirestore);
   private router = inject(Router);
@@ -51,10 +75,34 @@ export class TrackingParcelPage implements OnInit {
   private loadingController = inject(LoadingController);
   private trackingHistoryService = inject(TrackingHistoryService);
   private injector = inject(Injector);
+  private geocodingService = inject(GeocodingService);
 
   constructor() {}
 
   ngOnInit() {}
+
+  ngAfterViewInit() {
+    console.log('View initialized, checking map requirements');
+    
+    // Handle case when coordinates are already set but map hasn't been initialized yet
+    if (this.mapCoordinates && this.mapElement && this.mapElement.nativeElement) {
+      console.log('Both coordinates and map element are available, initializing map');
+      
+      // Wait for DOM to be fully ready
+      setTimeout(() => {
+        if (!this.mapLoaded) {
+          console.log('Initializing map from afterViewInit');
+          this.initializeMap();
+        }
+      }, 500);
+    } else {
+      console.log('Missing requirements for map initialization:',
+        this.mapCoordinates ? 'Coordinates available' : 'No coordinates',
+        this.mapElement ? 'Map element reference exists' : 'No map element reference',
+        this.mapElement?.nativeElement ? 'Map DOM element exists' : 'No map DOM element'
+      );
+    }
+  }
 
   async trackParcel() {
     if (!this.trackingId || this.trackingId.trim() === '') {
@@ -80,214 +128,505 @@ export class TrackingParcelPage implements OnInit {
 
     try {
       await runInInjectionContext(this.injector, async () => {
-        // First get the main parcel data from parcels collection
-        const parcelSnapshot = await firstValueFrom(
-          this.firestore.collection('parcels', ref =>
-            ref.where('trackingId', '==', this.trackingId.trim())
-          ).get()
-        );
+        const snapshot = await this.firestore.collection('parcels', ref => 
+          ref.where('trackingId', '==', this.trackingId.trim())
+        ).get().toPromise();
 
-        if (!parcelSnapshot.empty) {
-          const doc = parcelSnapshot.docs[0];
-          const parcelData = { id: doc.id, ...(doc.data() as Record<string, any>) };
-
-          // Then get tracking history from tracking_history collection
-          this.trackingHistoryService.getTrackingHistory(this.trackingId.trim()).subscribe(
-            async (trackingHistory: any[]) => {
-              // If we have tracking history
-              if (trackingHistory && trackingHistory.length > 0) {
-                this.trackingEvents = this.mapTrackingEvents(trackingHistory);
-              } else {
-                // If no tracking history, try to build from different sources
-                await this.buildTrackingEvents(parcelData);
-              }
-
-              this.parcel = {
-                ...parcelData,
-                trackingEvents: this.trackingEvents
-              };
-
-              console.log('Parcel with tracking history:', this.parcel);
-              loading.dismiss();
-              this.loading = false;
-            },
-            (error) => {
-              console.error('Error getting tracking history:', error);
-              this.showErrorToast();
-              this.parcel = null;
-              loading.dismiss();
-              this.loading = false;
-            }
-          );
-        } else {
-          this.parcel = null;
+        if (!snapshot || snapshot.empty) {
+          console.log('No parcel found with ID:', this.trackingId);
           loading.dismiss();
           this.loading = false;
+          return;
         }
+
+        const parcelData = snapshot.docs[0].data() as Record<string, any>;
+        
+        if (!parcelData['status']) {
+          parcelData['status'] = 'Registered';
+        }
+        
+        parcelData['id'] = snapshot.docs[0].id;
+        
+        await this.buildTrackingEvents(parcelData);
+        
+        parcelData['trackingEvents'] = this.trackingEvents;
+        
+        await this.getParcelCoordinates(parcelData);
+        
+        console.log('Found parcel data:', parcelData);
+        
+        this.parcel = parcelData;
+
+        // Calculate estimated delivery time
+        this.calculateEstimatedDelivery(parcelData);
+        
+        loading.dismiss();
+        this.loading = false;
+
+        console.log('Parcel data loaded:', this.parcel);
+        console.log('Map coordinates:', this.mapCoordinates);
+        console.log('Map element available:', !!this.mapElement?.nativeElement);
+        console.log('Leaflet available:', typeof L !== 'undefined');
       });
     } catch (error) {
       console.error('Error searching for parcel:', error);
-      this.showErrorToast();
+      
+      // More specific error message
+      let errorMessage = 'An error occurred while searching. Please try again.';
+      
+      if (error instanceof Error) {
+        if (error.message.includes('map')) {
+          errorMessage = 'Error loading map. Please try again.';
+          console.error('Map specific error:', error.message);
+        } else if (error.message.includes('geocod')) {
+          errorMessage = 'Error finding address coordinates. Map may be limited.';
+          console.error('Geocoding error:', error.message);
+        }
+      }
+      
+      this.showErrorToast(errorMessage);
       this.parcel = null;
       loading.dismiss();
       this.loading = false;
     }
   }
 
-  // Enhanced method to build tracking events from multiple sources
-  async buildTrackingEvents(parcelData: any) {
+  async buildTrackingEvents(parcelData: Record<string, any>) {
     this.trackingEvents = [];
     
-    // 1. ALWAYS start with Pickup event from parcels collection (admin data)
-    console.log('Adding pickup event from parcels collection');
+    // Always add the registration event
     this.trackingEvents.push({
       title: 'Pickup',
       status: 'Registered',
-      description: `Parcel registered at ${parcelData.pickupLocation || 'origin'}`,
-      timestamp: parcelData.createdAt || parcelData.date || new Date(),
-      location: parcelData.pickupLocation || 'Origin Facility',
+      description: `Parcel registered at ${parcelData['pickupLocation'] || 'origin'}`,
+      timestamp: parcelData['createdAt'] || parcelData['date'] || new Date(),
+      location: parcelData['pickupLocation'] || 'Origin Facility',
       icon: 'create-outline',
       active: true,
       source: 'parcels'
     });
     
-    // 2. Get ALL assigned_parcels records for this tracking ID
+    // Load parcel handlers (deliverymen assigned to this parcel)
     try {
-      console.log('Fetching assigned_parcels history for:', this.trackingId);
-      const assignedSnapshot = await runInInjectionContext(this.injector, () => {
-        return firstValueFrom(
-          this.firestore.collection('assigned_parcels', ref =>
-            ref.where('trackingId', '==', this.trackingId)
-          ).get()
-        );
+      const handlersSnapshot = await runInInjectionContext(this.injector, () => {
+        return firstValueFrom(this.trackingHistoryService.getParcelHandlers(this.trackingId));
       });
       
-      if (!assignedSnapshot.empty) {
-        console.log(`Found ${assignedSnapshot.docs.length} assigned_parcels records`);
-        
-        // Manually sort the results in memory
-        const sortedDocs = assignedSnapshot.docs.sort((a, b) => {
-          const aData = a.data() as AssignedParcelData;
-          const bData = b.data() as AssignedParcelData;
-          const dateA = aData.addedDate?.seconds || 0;
-          const dateB = bData.addedDate?.seconds || 0;
-          return dateA - dateB; // ascending order
-        });
-        
-        // Process EACH assigned_parcels record
-        for (const doc of sortedDocs) {
-          const assignedData = doc.data() as any;
-          console.log('Processing assigned parcel data:', assignedData);
-          
-          // Prepare location string from coordinates
-          let locationStr = 'Transit Hub';
-          if (assignedData.locationLat !== undefined && assignedData.locationLng !== undefined) {
-            locationStr = `${assignedData.locationLat.toFixed(6)}, ${assignedData.locationLng.toFixed(6)}`;
+      if (handlersSnapshot && handlersSnapshot.length > 0) {
+        handlersSnapshot.forEach(handler => {
+          // Create an event that combines Handler Assigned with current status
+          const title = handler.status === 'Out for Delivery' ? 
+            'Out for Delivery' : 'Handler Assigned';
+          const icon = handler.status === 'Out for Delivery' ? 
+            'bicycle-outline' : 'person-outline';
+          const description = handler.status === 'Out for Delivery' ? 
+            'Parcel is out for delivery to recipient' : 
+            'Parcel assigned to delivery personnel';
             
-            // Try to get a readable address if available
-            if (assignedData.currentLocation) {
-              locationStr = assignedData.currentLocation;
-            }
-          }
-          
-          // Add an In Transit event for each deliveryman who handled the parcel
           this.trackingEvents.push({
-            title: assignedData.name ? `Handled by ${assignedData.name}` : 'In Transit',
-            status: 'In Transit',
-            description: assignedData.name ? 
-              `Parcel assigned to ${assignedData.name}` : 
-              'Parcel is being transported',
-            // Make sure timestamp is properly converted
-            timestamp: this.ensureTimestamp(assignedData.addedDate),
-            location: locationStr,
-            deliverymanName: assignedData.name,
-            icon: 'airplane-outline',
+            title: title,
+            status: handler.status,
+            description: description, 
+            timestamp: handler.assignedAt,
+            location: parcelData['locationDescription'] || parcelData['pickupLocation'] || 'Transit Facility',
+            deliverymanName: handler.deliverymanName,
+            icon: icon,
             active: true,
-            source: 'assigned_parcels'
+            source: 'handlers'
           });
-          
-          console.log('Added tracking event for deliveryman:', assignedData.name);
-        }
-      } else {
-        console.log('No assigned_parcels records found for tracking ID:', this.trackingId);
+        });
       }
     } catch (error) {
-      console.error('Error fetching assigned parcels history:', error);
+      console.error('Error fetching handler history:', error);
     }
     
-    // 3. Add delivery status events (Out for Delivery, Delivered)
-    console.log('Adding status-based events');
-    this.addStatusBasedEvents(parcelData);
+    // Only add a separate "Out for Delivery" event if there's no handler with that status
+    const hasOutForDeliveryHandler = this.trackingEvents.some(
+      event => event.status === 'Out for Delivery'
+    );
     
-    // 4. Sort all events chronologically (oldest first) for proper ordering
-    console.log('Sorting all events chronologically');
-    this.sortTrackingEvents();
-  }
-
-  // Add this helper method to ensure timestamps are properly handled
-  ensureTimestamp(timestamp: any): any {
-    if (!timestamp) return new Date();
-    
-    // If it's a Firebase timestamp with seconds
-    if (timestamp.seconds !== undefined) {
-      return timestamp;
-    }
-    
-    // If it's a Date object
-    if (timestamp instanceof Date) {
-      return timestamp;
-    }
-    
-    // If it's a string or number, convert to Date
-    if (typeof timestamp === 'string' || typeof timestamp === 'number') {
-      return new Date(timestamp);
-    }
-    
-    // Default fallback
-    return new Date();
-  }
-  
-  // Helper to add additional events based on current parcel status
-  addStatusBasedEvents(parcelData: any) {
-    if (!parcelData.status) return;
-    
-    const status = parcelData.status;
-    
-    // Add Out for Delivery if needed
-    if ((status === 'Out for Delivery' || status === 'Delivered') &&
-        !this.hasEventWithStatus('Out for Delivery')) {
-      
+    if (parcelData['status'] === 'Out for Delivery' && !hasOutForDeliveryHandler) {
+      // Only add this if we don't already have an Out for Delivery event from handlers
       this.trackingEvents.push({
         title: 'Out for Delivery',
         status: 'Out for Delivery',
-        description: 'Parcel is out for delivery',
-        timestamp: parcelData.outForDeliveryDate || parcelData.updatedAt || new Date(),
-        location: parcelData.receiverAddress || 'Delivery Area',
-        deliverymanName: parcelData.deliverymanName,
+        description: 'Parcel is out for delivery to recipient',
+        timestamp: parcelData['updatedAt'] || new Date(),
+        location: parcelData['locationDescription'] || 'Current Delivery Location',
+        deliverymanName: parcelData['deliverymanName'],
         icon: 'bicycle-outline',
         active: true,
         source: 'parcels'
       });
-    }
-    
-    // Add Delivered if needed
-    if (status === 'Delivered' && !this.hasEventWithStatus('Delivered')) {
+    } else if (parcelData['status'] === 'Delivered') {
+      // Always add the delivered event if the parcel is delivered
       this.trackingEvents.push({
         title: 'Delivered',
         status: 'Delivered',
-        description: 'Parcel Delivered Successfully',
-        timestamp: parcelData.deliveryCompletedDate || parcelData.updatedAt || new Date(),
-        location: parcelData.receiverAddress || 'Destination',
-        deliverymanName: parcelData.deliverymanName,
-        photoURL: parcelData.photoURL,
+        description: 'Parcel has been delivered successfully',
+        timestamp: parcelData['deliveryCompletedDate'] || parcelData['updatedAt'] || new Date(),
+        location: parcelData['locationDescription'] || parcelData['receiverAddress'] || 'Delivery Address',
+        deliverymanName: parcelData['deliverymanName'],
+        photoURL: parcelData['photoURL'],
         icon: 'checkmark-circle-outline',
         active: true,
         source: 'parcels'
       });
     }
+    
+    this.sortTrackingEvents();
+  }
+
+  async getParcelCoordinates(parcelData: any) {
+    // Default coordinates for Kuala Lumpur (fallback)
+    const KL_LAT = 3.1390;
+    const KL_LNG = 101.6869;
+    
+    let currentLat = KL_LAT;
+    let currentLng = KL_LNG;
+    let currentLocation = 'Origin';
+    
+    // For "Out for Delivery" status, prioritize the most recent location from tracking events
+    if (parcelData.status === 'Out for Delivery' && parcelData.locationLat && parcelData.locationLng) {
+      // Use the deliveryman's last known coordinates
+      currentLat = parcelData.locationLat;
+      currentLng = parcelData.locationLng;
+      currentLocation = parcelData.locationDescription || 'Current Delivery Location';
+      console.log('Using deliveryman location for Out for Delivery:', currentLocation, currentLat, currentLng);
+    } 
+    // Try to get current location from tracking events for other statuses
+    else if (this.trackingEvents.length > 0) {
+      // Get most recent event that might have location data
+      const latestEvent = [...this.trackingEvents]
+        .filter(e => e.location && e.location !== 'Unknown location' && e.location !== parcelData['receiverAddress'])
+        .sort((a, b) => {
+          const timeA = a.timestamp?.seconds ? a.timestamp.seconds : 
+                      (a.timestamp instanceof Date ? a.timestamp.getTime() / 1000 : 0);
+          const timeB = b.timestamp?.seconds ? b.timestamp.seconds : 
+                      (b.timestamp instanceof Date ? b.timestamp.getTime() / 1000 : 0);
+          return timeB - timeA; // Most recent first
+        })[0];
+      
+      if (latestEvent?.location) {
+        currentLocation = latestEvent.location;
+        
+        try {
+          // Try geocoding the location text
+          const geoData = await firstValueFrom(
+            this.geocodingService.getCoordinatesFromAddress(currentLocation)
+          );
+          
+          if (geoData?.lat && geoData?.lon) {
+            currentLat = parseFloat(geoData.lat);
+            currentLng = parseFloat(geoData.lon);
+            console.log('Using location from tracking events:', currentLocation, currentLat, currentLng);
+          }
+        } catch (error) {
+          console.warn('Could not geocode event location, using fallback');
+        }
+      }
+    }
+    
+    // Get destination coordinates - always needed
+    let destLat = currentLat + 0.02; // Default: slightly offset from current
+    let destLng = currentLng + 0.02;
+    const receiverAddress = parcelData['receiverAddress'];
+    
+    if (receiverAddress) {
+      try {
+        const geoData = await firstValueFrom(
+          this.geocodingService.getCoordinatesFromAddress(receiverAddress)
+        );
+        
+        if (geoData?.lat && geoData?.lon) {
+          destLat = parseFloat(geoData.lat);
+          destLng = parseFloat(geoData.lon);
+          console.log('Destination coordinates:', destLat, destLng);
+        }
+      } catch (error) {
+        console.warn('Could not geocode destination, using fallback');
+      }
+    }
+    
+    // Set coordinates, ensuring we always have valid numbers
+    this.mapCoordinates = {
+      currentLat: Number(currentLat) || KL_LAT,
+      currentLng: Number(currentLng) || KL_LNG,
+      destLat: Number(destLat) || (Number(currentLat) + 0.02 || KL_LAT + 0.02),
+      destLng: Number(destLng) || (Number(currentLng) + 0.02 || KL_LNG + 0.02),
+      currentLocation
+    };
+    
+    console.log('Final map coordinates:', this.mapCoordinates);
+    
+    // Initialize the map with a delay to ensure DOM is ready
+    setTimeout(() => {
+      if (this.mapElement && this.mapElement.nativeElement) {
+        this.initializeMap();
+      }
+    }, 300);
+  }
+
+  async initializeMap() {
+    console.log('Initializing map with coordinates:', this.mapCoordinates);
+    
+    // 1. Clear early if we don't have what we need
+    if (!this.mapCoordinates || !this.mapElement?.nativeElement) {
+      console.error('Missing map coordinates or element');
+      return;
+    }
+    
+    try {
+      const { currentLat, currentLng, destLat, destLng } = this.mapCoordinates;
+      
+      // 2. Verify Leaflet is loaded
+      if (typeof L === 'undefined') {
+        console.error('Leaflet library is not loaded');
+        // Instead of trying to load it dynamically (which often fails), show an error message
+        this.showErrorToast('Map library not loaded. Please refresh the page.');
+        return;
+      }
+      
+      console.log('Creating map with these coordinates:', { currentLat, currentLng, destLat, destLng });
+      
+      // 3. Create a new Leaflet map instance
+      if (!this.map) {
+        console.log('Creating new Leaflet map instance');
+        this.map = L.map(this.mapElement.nativeElement, {
+          center: [currentLat, currentLng],
+          zoom: 13,
+          attributionControl: true,
+          zoomControl: true
+        });
+        
+        // 4. Add tile layer
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        }).addTo(this.map);
+      } else {
+        // Reset view if map already exists
+        this.map.setView([currentLat, currentLng], 13);
+        
+        // Clear existing markers and lines
+        this.map.eachLayer((layer: any) => {
+          if (layer instanceof L.Marker || layer instanceof L.Polyline) {
+            this.map.removeLayer(layer);
+          }
+        });
+      }
+      
+      // 5. Add markers with more visible icons
+      // Add origin marker (delivery person location)
+      L.marker([currentLat, currentLng], {
+        icon: L.divIcon({
+          html: `
+            <div style="font-size: 14px; background: #FFDE59; border-radius: 50%; 
+                 box-shadow: 0 2px 8px rgba(0,0,0,0.4); width: 40px; height: 40px; 
+                 display: flex; align-items: center; justify-content: center; position: relative;">
+              <ion-icon name="bicycle-outline" style="font-size: 24px; color: #333;"></ion-icon>
+              <div style="position: absolute; bottom: -20px; white-space: nowrap; 
+                   background: rgba(0,0,0,0.7); color: white; padding: 2px 5px; 
+                   border-radius: 3px; font-size: 10px;">Current Location</div>
+            </div>
+          `,
+          className: '',
+          iconSize: [40, 40],
+          iconAnchor: [20, 20]
+        })
+      }).addTo(this.map)
+      .bindPopup(`Current Location: ${this.mapCoordinates.currentLocation}`);
+      
+      // Add destination marker
+      L.marker([destLat, destLng], {
+        icon: L.divIcon({
+          html: `
+            <div style="font-size: 14px; background: white; border-radius: 50%; 
+                 box-shadow: 0 2px 8px rgba(0,0,0,0.4); width: 40px; height: 40px; 
+                 display: flex; align-items: center; justify-content: center; position: relative;">
+              <ion-icon name="home-outline" style="font-size: 24px; color: #333;"></ion-icon>
+              <div style="position: absolute; bottom: -20px; white-space: nowrap; 
+                   background: rgba(0,0,0,0.7); color: white; padding: 2px 5px; 
+                   border-radius: 3px; font-size: 10px;">Destination</div>
+            </div>
+          `,
+          className: '',
+          iconSize: [40, 40],
+          iconAnchor: [20, 20]
+        })
+      }).addTo(this.map)
+      .bindPopup(`Destination: ${this.parcel?.receiverAddress || 'Delivery Address'}`);
+      
+      // 6. Draw a more visible route line between points
+      // IMPROVED: Thicker, more visible line with arrow decorations
+      const routeCoordinates = [
+        [currentLat, currentLng],
+        [destLat, destLng]
+      ];
+      
+      // Create a thick, highly visible main line
+      const mainRoute = L.polyline(routeCoordinates, {
+        color: '#FFDE59', // Bright yellow main color
+        weight: 6, // Thicker line
+        opacity: 0.9, // More opaque
+        lineCap: 'round',
+        lineJoin: 'round'
+      }).addTo(this.map);
+      
+      // Add a darker outline to the route for better visibility
+      const routeOutline = L.polyline(routeCoordinates, {
+        color: '#333333', // Dark outline
+        weight: 10, // Thicker than the main line
+        opacity: 0.3, // Semi-transparent
+        lineCap: 'round',
+        lineJoin: 'round'
+      }).addTo(this.map);
+      
+      // Make sure outline is behind the main route
+      routeOutline.bringToBack();
+      mainRoute.bringToFront();
+      
+      // Add animated arrow decoration along the route
+      if (L.polylineDecorator) {
+        const decorator = L.polylineDecorator(mainRoute, {
+          patterns: [
+            {
+              offset: '5%',
+              repeat: '15%',
+              symbol: L.Symbol.arrowHead({
+                pixelSize: 12,
+                polygon: true,
+                pathOptions: {
+                  color: '#333',
+                  fillOpacity: 0.8,
+                  weight: 1
+                }
+              })
+            }
+          ]
+        }).addTo(this.map);
+      }
+      
+      // 7. Calculate straight-line distance
+      const d = this.calculateDistance(currentLat, currentLng, destLat, destLng);
+      this.mapCoordinates.distance = d.toFixed(1);
+      
+      // 8. Make the map fit both points with padding
+      this.map.fitBounds(mainRoute.getBounds(), {
+        padding: [40, 40],
+        maxZoom: 15
+      });
+      
+      // 9. Force a map size recalculation
+      setTimeout(() => {
+        this.map.invalidateSize();
+        this.mapLoaded = true;
+      }, 250);
+      
+    } catch (error) {
+      console.error('Error in map initialization:', error);
+      this.mapLoaded = true;
+      this.showErrorToast('Map could not be displayed. Please try again.');
+    }
+  }
+
+  calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    // Simple haversine formula
+    const R = 6371; // Earth radius in km
+    const dLat = this.deg2rad(lat2 - lat1);
+    const dLon = this.deg2rad(lon2 - lon1);
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(this.deg2rad(lat1)) * Math.cos(this.deg2rad(lat2)) * 
+      Math.sin(dLon/2) * Math.sin(dLon/2); 
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+    const distance = R * c; // Distance in km
+    return distance;
+  }
+
+  deg2rad(deg: number): number {
+    return deg * (Math.PI/180);
+  }
+
+  async loadLeafletDynamically(): Promise<void> {
+    return new Promise((resolve) => {
+      // Skip if already loaded
+      if (typeof L !== 'undefined') {
+        console.log('Leaflet already loaded, skipping dynamic load');
+        resolve();
+        return;
+      }
+      
+      console.log('Attempting to load Leaflet dynamically');
+      
+      // Create link element for CSS
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+      document.head.appendChild(link);
+      
+      // Create script element
+      const script = document.createElement('script');
+      script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+      script.onload = () => {
+        console.log('Leaflet loaded dynamically');
+        resolve();
+      };
+      
+      script.onerror = () => {
+        console.error('Failed to load Leaflet dynamically');
+        resolve(); // Resolve anyway to continue execution
+      };
+      
+      document.head.appendChild(script);
+    });
+  }
+
+  openExternalMap() {
+    if (!this.mapCoordinates) return;
+    
+    const { destLat, destLng } = this.mapCoordinates;
+    const label = encodeURIComponent(this.parcel?.receiverAddress || 'Destination');
+    
+    let mapUrl = '';
+    
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    if (isIOS) {
+      mapUrl = `maps://?q=${label}&ll=${destLat},${destLng}`;
+    } else {
+      mapUrl = `https://www.openstreetmap.org/?mlat=${destLat}&mlon=${destLng}&zoom=15`;
+    }
+    
+    window.open(mapUrl, '_system');
+  }
+
+  getStatusDescription(status: string): string {
+    switch(status) {
+      case 'Registered': return 'Parcel has been registered';
+      case 'In Transit': return 'Parcel is in transit to delivery location';
+      case 'Out for Delivery': return 'Parcel is out for delivery to recipient';
+      case 'Delivered': return 'Parcel has been delivered successfully';
+      default: return `Status updated to: ${status}`;
+    }
+  }
+
+  ensureTimestamp(timestamp: any): any {
+    if (!timestamp) return new Date();
+    
+    if (timestamp.seconds !== undefined) {
+      return timestamp;
+    }
+    
+    if (timestamp instanceof Date) {
+      return timestamp;
+    }
+    
+    if (typeof timestamp === 'string' || typeof timestamp === 'number') {
+      return new Date(timestamp);
+    }
+    
+    return new Date();
   }
   
-  // Helper methods remain unchanged
   hasDeliverymanEvent(deliverymanName: string): boolean {
     return this.trackingEvents.some(event => 
       event.deliverymanName === deliverymanName
@@ -300,34 +639,29 @@ export class TrackingParcelPage implements OnInit {
     );
   }
   
-  // But keep internal sorting chronological (oldest first)
   sortTrackingEvents() {
     this.trackingEvents.sort((a, b) => {
       const timeA = a.timestamp?.seconds ? a.timestamp.seconds : 
                    (a.timestamp instanceof Date ? a.timestamp.getTime() / 1000 : 0);
       const timeB = b.timestamp?.seconds ? b.timestamp.seconds : 
                    (b.timestamp instanceof Date ? b.timestamp.getTime() / 1000 : 0);
-      return timeA - timeB; // OLDEST FIRST for internal ordering
+      return timeA - timeB;
     });
   }
 
-  // Getter for the view to display newest events at the top
   get sortedTrackingEvents(): TrackingEvent[] {
     if (!this.parcel?.trackingEvents) return [];
     
-    // Return a new array sorted in reverse chronological order (newest first for display)
     return [...this.parcel.trackingEvents].sort((a, b) => {
       const timeA = a.timestamp?.seconds ? a.timestamp.seconds : 
                    (a.timestamp instanceof Date ? a.timestamp.getTime() / 1000 : 0);
       const timeB = b.timestamp?.seconds ? b.timestamp.seconds : 
                    (b.timestamp instanceof Date ? b.timestamp.getTime() / 1000 : 0);
-      return timeB - timeA; // NEWEST FIRST for display
+      return timeB - timeA;
     });
   }
 
-  // The rest of the code remains unchanged
   mapTrackingEvents(trackingHistory: any[]): TrackingEvent[] {
-    // First ensure events are sorted chronologically
     const sortedEvents = [...trackingHistory].sort((a, b) => {
       const timeA = a.timestamp?.seconds || 0;
       const timeB = b.timestamp?.seconds || 0;
@@ -339,16 +673,13 @@ export class TrackingParcelPage implements OnInit {
       let description = data.description || this.getStatusDescription(data.status);
       let location = data.location || 'Unknown Location';
 
-      // Handle different event types with their specific data sources
       switch(data.status) {
         case 'Registered':
-          // Pickup data should be from admin adding parcel
           title = 'Pickup';
           description = `Parcel registered by admin at ${location}`;
           break;
           
         case 'In Transit':
-          // This should be from deliveryman assigning the parcel to themselves
           if (data.deliverymanName) {
             title = `Handled by ${data.deliverymanName}`;
             description = `Parcel is now being handled by ${data.deliverymanName}`;
@@ -385,16 +716,6 @@ export class TrackingParcelPage implements OnInit {
     });
   }
 
-  getStatusDescription(status: string): string {
-    switch (status) {
-      case 'Registered': return 'Parcel registered at origin';
-      case 'In Transit': return 'Parcel is being transported';
-      case 'Out for Delivery': return 'Parcel is out for delivery';
-      case 'Delivered': return 'Parcel delivered successfully';
-      default: return `Parcel status: ${status}`;
-    }
-  }
-
   getStatusIcon(status: string): string {
     switch (status) {
       case 'Registered': return 'create-outline';
@@ -407,11 +728,26 @@ export class TrackingParcelPage implements OnInit {
 
   isEventActive(status: string): boolean {
     if (!this.parcel?.status) return false;
-    const currentStatus = this.parcel.status;
+    
+    const currentStatus = this.parcel.status.toLowerCase();
+    
     if (status === 'Registered') return true;
-    if (status === 'In Transit') return currentStatus === 'In Transit' || currentStatus === 'Out for Delivery' || currentStatus === 'Delivered';
-    if (status === 'Out for Delivery') return currentStatus === 'Out for Delivery' || currentStatus === 'Delivered';
-    if (status === 'Delivered') return currentStatus === 'Delivered';
+    
+    if (status === 'In Transit') {
+      return currentStatus === 'in transit' || 
+             currentStatus === 'out for delivery' || 
+             currentStatus === 'delivered';
+    }
+    
+    if (status === 'Out for Delivery') {
+      return currentStatus === 'out for delivery' || 
+             currentStatus === 'delivered';
+    }
+    
+    if (status === 'Delivered') {
+      return currentStatus === 'delivered';
+    }
+    
     return false;
   }
 
@@ -432,13 +768,109 @@ export class TrackingParcelPage implements OnInit {
     }
   }
 
-  async showErrorToast() {
+  async showErrorToast(message: string = 'An error occurred. Please try again.') {
     const toast = await this.toastController.create({
-      message: 'An error occurred while searching. Please try again.',
+      message: message,
       duration: 3000,
       color: 'danger',
       position: 'top'
     });
     toast.present();
+  }
+
+  calculateEstimatedDelivery(parcelData: any) {
+    // Return if parcel is already delivered
+    if (parcelData.status === 'Delivered') {
+      return;
+    }
+    
+    // Get the parcel creation date or current date as fallback
+    const creationDate = parcelData.createdAt ? 
+      (parcelData.createdAt.toDate ? parcelData.createdAt.toDate() : new Date(parcelData.createdAt)) : 
+      new Date();
+    
+    const currentDate = new Date();
+    
+    // Determine the base delivery time estimate based on status
+    let estimatedDays = 0;
+    
+    // Different time estimates based on status
+    switch(parcelData.status) {
+      case 'Registered':
+        estimatedDays = 3; // 3 days for newly registered parcels
+        break;
+      case 'In Transit':
+        estimatedDays = 2; // 2 days if already in transit
+        break;
+      case 'Out for Delivery':
+        estimatedDays = 0; // Same day if out for delivery
+        break;
+      default:
+        estimatedDays = 3; // Default to 3 days
+    }
+    
+    // Add some logic based on distance if we have coordinates
+    if (this.mapCoordinates?.distance) {
+      const distanceKm = parseFloat(this.mapCoordinates.distance);
+      if (distanceKm > 50) {
+        estimatedDays += 1; // Add a day for long-distance deliveries
+      } else if (distanceKm > 100) {
+        estimatedDays += 2; // Add two days for very long distances
+      }
+    }
+    
+    // Calculate the estimated delivery date
+    let estimatedDate = new Date(creationDate);
+    let daysAdded = 0;
+    
+    while (daysAdded < estimatedDays) {
+      // Add one day
+      estimatedDate.setDate(estimatedDate.getDate() + 1);
+      
+      // Skip Sundays when the service is closed (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
+      if (estimatedDate.getDay() !== 0) {
+        daysAdded++;
+      }
+    }
+    
+    // Ensure that if the estimated date has passed but parcel isn't delivered,
+    // we set it to the next available working day
+    if (estimatedDate < currentDate && parcelData.status !== 'Delivered') {
+      estimatedDate = new Date(currentDate); // Start with now
+      
+      // If it's Sunday, move to Monday
+      if (estimatedDate.getDay() === 0) {
+        estimatedDate.setDate(estimatedDate.getDate() + 1);
+      }
+      
+      // If it's already past working hours (after 6 PM), move to next working day
+      const currentHour = estimatedDate.getHours();
+      if (currentHour >= 18) { // 6 PM
+        estimatedDate.setDate(estimatedDate.getDate() + 1);
+        // If that makes it Sunday, move to Monday
+        if (estimatedDate.getDay() === 0) {
+          estimatedDate.setDate(estimatedDate.getDate() + 1);
+        }
+      }
+    }
+    
+    // Format the date for display
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    
+    const formattedDate = `${estimatedDate.getDate()} ${monthNames[estimatedDate.getMonth()]} ${estimatedDate.getFullYear()}`;
+    const dayOfWeek = dayNames[estimatedDate.getDay()];
+    
+    // Calculate days remaining
+    const timeDiff = estimatedDate.getTime() - currentDate.getTime();
+    const daysRemaining = Math.ceil(timeDiff / (1000 * 3600 * 24));
+    
+    // Set the estimated delivery information - removed timeWindow
+    this.estimatedDelivery = {
+      date: estimatedDate,
+      formattedDate,
+      dayOfWeek,
+      daysRemaining: daysRemaining < 0 ? 0 : daysRemaining
+    };
   }
 }
