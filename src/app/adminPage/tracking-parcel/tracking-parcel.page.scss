@@ -634,3 +634,45 @@ ion-card-content {
     }
   }
 }
+
+/* Delivery confirmation styling */
+.delivery-confirmation {
+  margin: 20px 0;
+  padding: 20px;
+  background-color: #f0fff0;
+  border-radius: 12px;
+  text-align: center;
+  animation: fadeIn 0.5s ease;
+  border: 1px solid #d0e9d0;
+  
+  ion-icon {
+    font-size: 48px;
+    color: #4CAF50;
+    margin-bottom: 10px;
+  }
+  
+  h3 {
+    color: #2E7D32;
+    margin: 10px 0;
+    font-weight: 600;
+  }
+  
+  p {
+    color: #4c4c4c;
+    margin-bottom: 16px;
+  }
+  
+  .delivery-photo {
+    margin-top: 16px;
+    border-radius: 8px;
+    overflow: hidden;
+    max-width: 300px;
+    margin: 0 auto;
+    border: 1px solid #e0e0e0;
+    
+    img {
+      width: 100%;
+      height: auto;
+    }
+  }
+}

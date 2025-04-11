@@ -1,11 +1,23 @@
-import { Component, OnInit, inject, Injector, runInInjectionContext } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, Injector, runInInjectionContext } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IonicModule, AlertController, ToastController } from '@ionic/angular';
 import { Location } from '@angular/common';
 import { Router } from '@angular/router';
 import { AngularFirestore } from '@angular/fire/compat/firestore';
-import { firstValueFrom } from 'rxjs';
+import { Subscription } from 'rxjs';
+
+// Define interface for parcel type
+interface Parcel {
+  id?: string;
+  trackingId?: string;
+  senderName?: string;
+  date?: string;
+  status?: string;
+  photoURL?: string;
+  barcode?: string;
+  createdAt?: any;
+}
 
 @Component({
   selector: 'app-manage-parcel',
@@ -14,8 +26,10 @@ import { firstValueFrom } from 'rxjs';
   standalone: true,
   imports: [CommonModule, FormsModule, IonicModule]
 })
-export class ManageParcelPage implements OnInit {
-  parcels: any[] = [];
+export class ManageParcelPage implements OnInit, OnDestroy {
+  parcels: Parcel[] = [];
+  loading: boolean = true;
+  private parcelsSubscription: Subscription | null = null;
   
   // Add injector for Firebase operations
   private injector = inject(Injector);
@@ -32,24 +46,64 @@ export class ManageParcelPage implements OnInit {
     this.loadParcels();
   }
 
-  ionViewWillEnter() {
-    this.loadParcels();
+  ngOnDestroy() {
+    // Clean up subscription when component is destroyed
+    if (this.parcelsSubscription) {
+      this.parcelsSubscription.unsubscribe();
+    }
   }
 
-  async loadParcels() {
-    try {
-      // Use firstValueFrom instead of direct subscription
-      const parcelsSnapshot = await runInInjectionContext(this.injector, () => {
-        return firstValueFrom(
-          this.firestore.collection('parcels', ref => ref.orderBy('createdAt', 'desc'))
-            .valueChanges({ idField: 'id' })
-        );
-      });
-      
-      this.parcels = parcelsSnapshot;
-    } catch (error) {
-      console.error('Error loading parcels:', error);
+  ionViewWillEnter() {
+    // Only load if we don't already have an active subscription
+    if (!this.parcelsSubscription) {
+      this.loadParcels();
     }
+  }
+
+  loadParcels() {
+    // Clean up any existing subscription
+    if (this.parcelsSubscription) {
+      this.parcelsSubscription.unsubscribe();
+    }
+    
+    this.loading = true;
+    
+    // Use runInInjectionContext with a subscription to get real-time updates
+    runInInjectionContext(this.injector, () => {
+      this.parcelsSubscription = this.firestore
+        .collection<Parcel>('parcels', ref => ref.orderBy('createdAt', 'desc'))
+        .valueChanges({ idField: 'id' })
+        .subscribe({
+          next: (parcelsSnapshot) => {
+            console.log('Received parcels:', parcelsSnapshot.length);
+            
+            // Filter out parcels that are already delivered or have photo verification
+            const activeParcels = parcelsSnapshot.filter(parcel => 
+              parcel.status !== 'Delivered' && 
+              !parcel.photoURL
+            );
+            
+            console.log('Active parcels (excluding delivered):', activeParcels.length);
+            this.parcels = activeParcels;
+            this.loading = false;
+          },
+          error: (error) => {
+            console.error('Error loading parcels:', error);
+            this.loading = false;
+            this.showErrorToast('Failed to load parcels. Please try again.');
+          }
+        });
+    });
+  }
+
+  private async showErrorToast(message: string) {
+    const toast = await this.toastController.create({
+      message: message,
+      duration: 3000,
+      color: 'danger',
+      position: 'bottom'
+    });
+    toast.present();
   }
 
   addParcel() {
@@ -89,8 +143,7 @@ export class ManageParcelPage implements OnInit {
               });
               toast.present();
               
-              // Refresh the parcels list
-              this.loadParcels();
+              // No need to manually reload - the subscription will handle it
             } catch (error) {
               console.error('Error deleting parcel:', error);
               const toast = await this.toastController.create({

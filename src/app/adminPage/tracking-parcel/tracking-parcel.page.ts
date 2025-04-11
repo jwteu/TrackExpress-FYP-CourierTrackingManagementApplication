@@ -38,7 +38,7 @@ interface EstimatedDelivery {
   date: Date;
   formattedDate: string;
   dayOfWeek: string;
-  timeWindow?: string; // Make it optional
+  timeWindow: string; // Add this property
   daysRemaining: number | null;
 }
 
@@ -781,6 +781,7 @@ export class TrackingParcelPage implements OnInit, AfterViewInit {
   calculateEstimatedDelivery(parcelData: any) {
     // Return if parcel is already delivered
     if (parcelData.status === 'Delivered') {
+      this.estimatedDelivery = null;
       return;
     }
     
@@ -791,66 +792,104 @@ export class TrackingParcelPage implements OnInit, AfterViewInit {
     
     const currentDate = new Date();
     
-    // Determine the base delivery time estimate based on status
-    let estimatedDays = 0;
-    
-    // Different time estimates based on status
-    switch(parcelData.status) {
-      case 'Registered':
-        estimatedDays = 3; // 3 days for newly registered parcels
-        break;
-      case 'In Transit':
-        estimatedDays = 2; // 2 days if already in transit
-        break;
-      case 'Out for Delivery':
-        estimatedDays = 0; // Same day if out for delivery
-        break;
-      default:
-        estimatedDays = 3; // Default to 3 days
+    // Constants for company work policies
+    const WORKING_DAYS_PER_WEEK = 6; // Monday-Saturday
+    const WORK_HOURS_PER_DAY = 8; // Total work hours per day
+    const REST_HOURS = 1; // Rest hours per day
+    const EFFECTIVE_HOURS = WORK_HOURS_PER_DAY - REST_HOURS; // Effective delivery hours per day
+    const AVG_SPEED_KM_PER_HOUR = 35; // Average speed in km/h
+
+    // Calculate distance in kilometers if coordinates are available
+    let distanceKm = 0;
+    if (this.mapCoordinates) {
+      distanceKm = this.calculateDistance(
+        this.mapCoordinates.currentLat,
+        this.mapCoordinates.currentLng,
+        this.mapCoordinates.destLat,
+        this.mapCoordinates.destLng
+      );
+      console.log(`Calculated distance: ${distanceKm.toFixed(2)} km`);
     }
     
-    // Add some logic based on distance if we have coordinates
-    if (this.mapCoordinates?.distance) {
-      const distanceKm = parseFloat(this.mapCoordinates.distance);
-      if (distanceKm > 50) {
-        estimatedDays += 1; // Add a day for long-distance deliveries
-      } else if (distanceKm > 100) {
-        estimatedDays += 2; // Add two days for very long distances
+    // Base estimation in hours based on distance
+    let estimatedHours = 0;
+    
+    if (distanceKm > 0) {
+      // Calculate raw travel time based on distance and speed
+      const rawTravelHours = distanceKm / AVG_SPEED_KM_PER_HOUR;
+      
+      // Add processing time based on distance
+      if (distanceKm < 10) {
+        estimatedHours = rawTravelHours + 2; // Short distance: add 2 hours for processing
+      } else if (distanceKm < 50) {
+        estimatedHours = rawTravelHours + 4; // Medium distance: add 4 hours
+      } else if (distanceKm < 100) {
+        estimatedHours = rawTravelHours + 8; // Longer distance: add 8 hours
+      } else {
+        estimatedHours = rawTravelHours + 16; // Very long distance: add 16 hours
+      }
+    } else {
+      // Fallback if no coordinates: estimate based on status
+      switch(parcelData.status) {
+        case 'Registered':
+          estimatedHours = 48; // 2 days
+          break;
+        case 'In Transit':
+          estimatedHours = 24; // 1 day
+          break;
+        case 'Out for Delivery':
+          estimatedHours = 6; // Same day delivery (6 effective hours)
+          break;
+        default:
+          estimatedHours = 48; // Default to 2 days
       }
     }
+
+    console.log(`Initial estimated hours: ${estimatedHours}`);
     
-    // Calculate the estimated delivery date
+    // Convert hours to working days, considering our effective work hours per day
+    let totalWorkingDays = Math.ceil(estimatedHours / EFFECTIVE_HOURS);
+    
+    // Add an extra day for safety buffer
+    totalWorkingDays += 1;
+    
+    console.log(`Estimated working days needed: ${totalWorkingDays}`);
+    
+    // Calculate the estimated delivery date by accounting for working days
     let estimatedDate = new Date(creationDate);
-    let daysAdded = 0;
+    let workdaysAdded = 0;
     
-    while (daysAdded < estimatedDays) {
+    while (workdaysAdded < totalWorkingDays) {
       // Add one day
       estimatedDate.setDate(estimatedDate.getDate() + 1);
       
-      // Skip Sundays when the service is closed (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
+      // Skip Sundays (0 = Sunday in JavaScript Date)
       if (estimatedDate.getDay() !== 0) {
-        daysAdded++;
+        workdaysAdded++;
+      }
+    }
+    
+    // If current time is after working hours (after 5 PM), add one more day
+    const currentHour = currentDate.getHours();
+    if (currentHour >= 17) { // 5 PM
+      estimatedDate.setDate(estimatedDate.getDate() + 1);
+      
+      // Skip Sunday if needed
+      if (estimatedDate.getDay() === 0) {
+        estimatedDate.setDate(estimatedDate.getDate() + 1);
       }
     }
     
     // Ensure that if the estimated date has passed but parcel isn't delivered,
     // we set it to the next available working day
     if (estimatedDate < currentDate && parcelData.status !== 'Delivered') {
-      estimatedDate = new Date(currentDate); // Start with now
+      // Set to tomorrow or next Monday if tomorrow is Sunday
+      estimatedDate = new Date(currentDate);
+      estimatedDate.setDate(currentDate.getDate() + 1);
       
       // If it's Sunday, move to Monday
       if (estimatedDate.getDay() === 0) {
         estimatedDate.setDate(estimatedDate.getDate() + 1);
-      }
-      
-      // If it's already past working hours (after 6 PM), move to next working day
-      const currentHour = estimatedDate.getHours();
-      if (currentHour >= 18) { // 6 PM
-        estimatedDate.setDate(estimatedDate.getDate() + 1);
-        // If that makes it Sunday, move to Monday
-        if (estimatedDate.getDay() === 0) {
-          estimatedDate.setDate(estimatedDate.getDate() + 1);
-        }
       }
     }
     
@@ -865,12 +904,28 @@ export class TrackingParcelPage implements OnInit, AfterViewInit {
     const timeDiff = estimatedDate.getTime() - currentDate.getTime();
     const daysRemaining = Math.ceil(timeDiff / (1000 * 3600 * 24));
     
-    // Set the estimated delivery information - removed timeWindow
+    // Determine estimated delivery time window based on distance and work hours
+    let timeWindow = "9 AM - 5 PM"; // Default window
+    
+    if (daysRemaining === 0 && distanceKm < 30) {
+      // If delivery is today and close by, provide a narrower window
+      const currentHour = currentDate.getHours();
+      if (currentHour < 12) {
+        timeWindow = "1 PM - 5 PM";
+      } else {
+        timeWindow = "3 PM - 5 PM";
+      }
+    }
+    
+    // Set the estimated delivery information
     this.estimatedDelivery = {
       date: estimatedDate,
       formattedDate,
       dayOfWeek,
+      timeWindow,
       daysRemaining: daysRemaining < 0 ? 0 : daysRemaining
     };
+    
+    console.log('Estimated delivery:', this.estimatedDelivery);
   }
 }

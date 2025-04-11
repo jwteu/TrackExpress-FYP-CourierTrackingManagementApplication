@@ -10,9 +10,30 @@ import { switchMap, catchError, tap, delay } from 'rxjs/operators';
 import * as Quagga from 'quagga';
 import firebase from 'firebase/compat/app';
 import { RouterModule } from '@angular/router';
-import { ParcelService, Parcel } from '../../services/parcel.service';
+import { ParcelService } from '../../services/parcel.service';
 import { GeocodingService } from '../../services/geocoding.service';
-import { TrackingHistoryService, TrackingEvent, ParcelHandler } from '../../services/tracking-history.service';
+import { TrackingHistoryService } from '../../services/tracking-history.service';
+
+// Define a complete interface with all properties needed
+interface Parcel {
+  id?: string;
+  trackingId: string;
+  name: string;
+  locationLat: number;
+  locationLng: number;
+  addedDate: any;
+  receiverAddress?: string;
+  receiverName?: string;
+  status?: string;
+  selected?: boolean;
+  userId?: string;
+  userEmail?: string;
+  locationDescription?: string;
+  photoURL?: string;
+  completedAt?: any;
+  deliverymanName?: string;
+  deliverymanId?: string;
+}
 
 @Component({
   selector: 'app-view-assigned-parcels',
@@ -213,15 +234,20 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
               continue;
             }
             
-            const parcelDetails = await firstValueFrom(
-              this.parcelService.getParcelDetails(parcel.trackingId)
-            );
+            // Skip parcels that are already delivered or have a photo (completed)
+            if (parcel.status === 'Delivered' || 
+                parcel.status?.includes('photo') || 
+                parcel.status?.includes('Photo') ||
+                (parcel as any).photoURL) {  // Use type assertion to fix the error
+              console.log(`Skipping completed parcel ${parcel.trackingId}`);
+              continue;
+            }
             
-            // Convert coordinates to location description
+            // Get location description
             let locationDescription = "Unknown location";
             if (parcel.locationLat && parcel.locationLng) {
+              // Try to get address from coordinates
               try {
-                // Try to get address from geocoding service
                 const geoData = await firstValueFrom(
                   this.geocodingService.getAddressFromCoordinates(
                     parcel.locationLat, 
@@ -245,6 +271,11 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
               }
             }
             
+            // Get parcel details from the main collection
+            const parcelDetails = await firstValueFrom(
+              this.parcelService.getParcelDetails(parcel.trackingId)
+            );
+              
             if (parcelDetails) {
               parcelsWithAddresses.push({
                 ...parcel,

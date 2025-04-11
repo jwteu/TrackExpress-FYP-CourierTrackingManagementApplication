@@ -52,6 +52,9 @@ export class LoginPage implements OnInit {
       const { email, password, role } = this.loginForm.value;
 
       try {
+        // IMPORTANT: Clear all existing data first
+        localStorage.clear();
+        
         // Use runInInjectionContext to maintain proper injection context
         const userSnapshot = await runInInjectionContext(this.injector, () => {
           return firstValueFrom(
@@ -92,20 +95,26 @@ export class LoginPage implements OnInit {
           name: userData.name,
           role: userData.role,
           staffId: userData.staffId,
-          loggedInAt: new Date().toISOString()
+          loggedInAt: new Date().toISOString(),
+          sessionId: this.generateUniqueId() // Add a unique session ID
         };
 
         localStorage.setItem('userSession', JSON.stringify(sessionData));
 
         if (role === 'admin') {
-          this.navCtrl.navigateForward('/admin-home');
+          this.navCtrl.navigateRoot('/admin-home'); // Use navigateRoot instead of navigateForward
         } else {
-          this.navCtrl.navigateForward('/deliveryman-home');
+          this.navCtrl.navigateRoot('/deliveryman-home'); // Use navigateRoot instead of navigateForward
         }
       } catch (error) {
         console.error('Login error:', error);
         this.errorMessage = 'Your email or password is invalid';
       }
     }
+  }
+
+  // Generate a unique session ID
+  private generateUniqueId(): string {
+    return Date.now().toString(36) + Math.random().toString(36).substring(2);
   }
 }

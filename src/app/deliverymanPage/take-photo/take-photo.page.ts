@@ -22,6 +22,7 @@ interface Parcel {
   receiverAddress?: string;
   receiverName?: string;
   status?: string;
+  photoURL?: string;  // Add this property here too
 }
 
 @Component({
@@ -54,53 +55,39 @@ export class TakePhotoPage implements OnInit {
   constructor() { }
 
   ngOnInit() {
-    // Check local storage first to determine if session is valid
+    // Minimal initialization only
+    console.log('TakePhotoPage initialized');
+  }
+
+  ionViewWillEnter() {
+    console.log('TakePhotoPage will enter view');
+    
+    // Only check session when this page is actually being viewed
     const sessionData = localStorage.getItem('userSession');
     
     if (sessionData) {
       try {
-        const userSession = JSON.parse(sessionData);
+        const userData = JSON.parse(sessionData);
         
-        // Verify role to prevent unauthorized access
-        if (userSession.role !== 'deliveryman') {
-          console.error('Invalid role for this page');
-          this.handleInvalidSession('Invalid user role');
+        // IMPORTANT CHANGE: Don't trigger logout if not a deliveryman, just return
+        if (userData.role !== 'deliveryman') {
+          console.log('Not a deliveryman role, redirecting to login');
+          this.navCtrl.navigateRoot('/login');
           return;
         }
         
-        // Set session data from local storage first (faster load)
-        this.currentUserId = userSession.uid;
-        this.currentUserName = userSession.name;
+        this.currentUserId = userData.uid;
+        this.currentUserName = userData.name;
         
-        // Load parcels immediately using session data
+        // Now load data only if we have a valid session
         this.loadAssignedParcels();
       } catch (error) {
-        console.error('Error parsing session data:', error);
+        console.error('Session data parse error:', error);
+        this.navCtrl.navigateRoot('/login');
       }
-    }
-
-    // Subscribe to auth state at the top level for double verification
-    this.auth.authState.subscribe(user => {
-      if (user) {
-        if (this.currentUserId !== user.uid) {
-          // If the user ID from Firebase doesn't match our session, reset everything
-          console.warn('User ID mismatch between session and Firebase auth');
-          this.handleInvalidSession('User identity mismatch');
-          return;
-        }
-        
-        // Get user data to verify further
-        this.getUserData(user.uid);
-      } else {
-        this.handleInvalidSession('No authenticated user');
-      }
-    });
-  }
-
-  ionViewWillEnter() {
-    // Refresh data when the page becomes visible
-    if (this.currentUserId && this.currentUserName) {
-      this.loadAssignedParcels();
+    } else {
+      console.log('No session data found, redirecting to login');
+      this.navCtrl.navigateRoot('/login');
     }
   }
 
@@ -174,42 +161,21 @@ export class TakePhotoPage implements OnInit {
         this.currentUserId!
       ).subscribe({
         next: async (assignedParcelsSnapshot) => {
-          // Process the parcels as before
-          console.log('Received assigned parcels:', assignedParcelsSnapshot);
-          const parcelsWithDetails: Parcel[] = [];
+          console.log('Loaded parcels:', assignedParcelsSnapshot.length);
           
-          for (const parcel of assignedParcelsSnapshot) {
-            // Skip processing if the userId doesn't match (extra security)
-            if (parcel.userId && parcel.userId !== this.currentUserId) {
-              console.warn('Skipping parcel due to user ID mismatch');
-              continue;
-            }
-            
-            try {
-              const details = await firstValueFrom(
-                this.parcelService.getParcelDetails(parcel.trackingId)
-              );
-              
-              if (details) {
-                parcelsWithDetails.push({
-                  ...parcel,
-                  receiverAddress: details.receiverAddress || 'No address available',
-                  receiverName: details.receiverName || 'Unknown',
-                  status: parcel.status || details.status
-                });
-              }
-            } catch (error) {
-              console.error('Error fetching parcel details:', error);
-            }
-          }
+          // Filter out parcels that are already delivered
+          this.assignedParcels = assignedParcelsSnapshot.filter(parcel => 
+            parcel.status !== 'Delivered' && 
+            !parcel.status?.includes('photo')
+          );
           
-          this.assignedParcels = parcelsWithDetails;
+          console.log('After filtering delivered parcels:', this.assignedParcels.length);
           this.isLoadingParcels = false;
         },
         error: (error) => {
-          console.error('Error loading assigned parcels:', error);
+          console.error('Error loading parcels:', error);
           this.isLoadingParcels = false;
-          this.showToast('Failed to load assigned parcels');
+          this.showToast('Failed to load parcels. Please try again.');
         }
       });
     });
@@ -362,39 +328,49 @@ export class TakePhotoPage implements OnInit {
       // Use runInInjectionContext for the entire submit operation
       await runInInjectionContext(this.injector, async () => {
         try {
-          // Optimize image
-          console.log('Resizing image...');
-          const optimizedImage = await this.resizeImage(this.capturedImage!, 800);
-          const response = await fetch(optimizedImage);
-          const blob = await response.blob();
+          // Convert data URL to Blob for Cloudinary
+          const imageBlob = await this.dataURLtoBlob(this.capturedImage!);
           
-          const timestamp = new Date().getTime();
-          const trackingId = this.selectedParcel!.trackingId;
-          const fileName = `${trackingId}_${timestamp}`;
+          // Create a unique filename based on tracking ID and timestamp
+          const filename = `delivery_${this.selectedParcel!.trackingId}_${new Date().getTime()}`;
           
-          console.log('Uploading to Cloudinary...');
-          // Upload to Cloudinary using the service
+          // Upload to Cloudinary - now inside injection context
           const uploadResult = await firstValueFrom(
-            this.cloudinaryService.uploadImage(blob, fileName)
+            this.cloudinaryService.uploadImage(imageBlob, filename)
           );
           
-          console.log('Cloudinary upload complete. URL:', uploadResult.secure_url);
-          const downloadURL = uploadResult.secure_url;
+          console.log('Photo uploaded to Cloudinary:', uploadResult);
           
-          // Update parcel status
-          console.log('Updating parcel status...');
-          await this.updateParcelStatus(trackingId, downloadURL);
-          console.log('Parcel status updated successfully');
-          
-          // Show success
-          this.showSuccessAlert();
-          this.resetForm();
-          
-          // Reload parcels list
-          this.loadAssignedParcels();
+          if (uploadResult && uploadResult.secure_url) {
+            // We don't need to wrap this in runInInjectionContext anymore
+            // as updateParcelStatus now handles its own injection context
+            await this.updateParcelStatus(
+              this.selectedParcel!.trackingId,
+              uploadResult.secure_url
+            );
+            
+            console.log('Parcel status updated with photo URL');
+            
+            // Show success alert instead of toast for better visibility
+            if (loading) {
+              await loading.dismiss();
+              loading = null; // Set to null after dismissing
+            }
+            this.isLoading = false;
+            
+            await this.showSuccessAlert();
+            
+            // Reset the form after success
+            this.resetForm();
+            
+            // Reload assigned parcels to refresh the list
+            this.loadAssignedParcels();
+          } else {
+            throw new Error('Upload completed but no secure URL returned');
+          }
         } catch (innerError) {
-          console.error('Error inside injection context:', innerError);
-          throw innerError; // Re-throw to be caught by outer try/catch
+          console.error('Error in upload process:', innerError);
+          throw innerError;
         }
       });
     } catch (error) {
@@ -406,7 +382,7 @@ export class TakePhotoPage implements OnInit {
         try {
           await loading.dismiss();
         } catch (dismissError) {
-          console.log('Error dismissing loader:', dismissError);
+          console.error('Error dismissing loading:', dismissError);
         }
       }
       
@@ -415,63 +391,109 @@ export class TakePhotoPage implements OnInit {
     }
   }
 
+  // Helper method to convert data URL to Blob
+  private dataURLtoBlob(dataURL: string): Promise<Blob> {
+    return new Promise((resolve, reject) => {
+      try {
+        const arr = dataURL.split(',');
+        const mime = arr[0].match(/:(.*?);/)?.[1] || 'image/jpeg';
+        const bstr = atob(arr[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        
+        while (n--) {
+          u8arr[n] = bstr.charCodeAt(n);
+        }
+        
+        resolve(new Blob([u8arr], { type: mime }));
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
   // Update parcel status method
   async updateParcelStatus(trackingId: string, photoURL: string) {
-    return runInInjectionContext(this.injector, async () => {
-      try {
-        console.log('Getting parcel details for:', trackingId);
-        
-        // First get the parcel details using ParcelService
-        const parcelDetails = await firstValueFrom(
-          this.parcelService.getParcelDetails(trackingId)
-        );
-        
-        if (!parcelDetails) {
-          throw new Error('Parcel not found');
-        }
-        
-        console.log('Retrieved parcel details:', parcelDetails.id);
-        
-        // Update the parcel status using ParcelService
-        await firstValueFrom(
-          this.parcelService.updateParcelWithTracking(
-            parcelDetails.id,
-            {
-              status: 'Delivered',
-              photoURL: photoURL,
-              photoTimestamp: firebase.firestore.FieldValue.serverTimestamp(),
-              deliveryCompletedDate: firebase.firestore.FieldValue.serverTimestamp()
-            },
-            {
-              status: 'Delivered',
-              description: 'Parcel has been delivered successfully',
-              location: this.selectedParcel?.receiverAddress || '',
-              deliverymanName: this.currentUserName || '',
-              photoURL: photoURL
+    return new Promise<void>((resolve, reject) => {
+      runInInjectionContext(this.injector, async () => {
+        try {
+          console.log('Getting parcel details for:', trackingId);
+          
+          // Get parcel details - wrapped in its own injection context
+          let parcelDetails;
+          try {
+            parcelDetails = await runInInjectionContext(this.injector, async () => {
+              return await firstValueFrom(
+                this.parcelService.getParcelDetails(trackingId)
+              );
+            });
+          } catch (error) {
+            console.error('Error fetching parcel details:', error);
+            throw error;
+          }
+          
+          if (!parcelDetails) {
+            throw new Error(`Parcel with tracking ID ${trackingId} not found`);
+          }
+          
+          console.log('Retrieved parcel details:', parcelDetails.id);
+          
+          // Update the parcel status in main collection - wrapped in its own injection context
+          try {
+            await runInInjectionContext(this.injector, async () => {
+              await firstValueFrom(
+                this.parcelService.updateParcelWithTracking(
+                  parcelDetails.id,
+                  {
+                    status: 'Delivered',
+                    photoURL: photoURL,
+                    photoTimestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                    deliveryCompletedDate: firebase.firestore.FieldValue.serverTimestamp()
+                  },
+                  {
+                    status: 'Delivered',
+                    description: 'Parcel has been delivered successfully',
+                    location: this.selectedParcel?.receiverAddress || '',
+                    deliverymanName: this.currentUserName || '',
+                    photoURL: photoURL
+                  }
+                )
+              );
+            });
+          } catch (error) {
+            console.error('Error updating main parcel:', error);
+            throw error;
+          }
+          
+          console.log('Main parcel updated successfully');
+          
+          // If the parcel is in assigned_parcels, update it there as well
+          if (this.selectedParcel?.id) {
+            try {
+              await runInInjectionContext(this.injector, async () => {
+                await firstValueFrom(
+                  from(this.firestore.collection('assigned_parcels').doc(this.selectedParcel!.id).update({
+                    status: 'Delivered',
+                    photoURL: photoURL,
+                    completedAt: firebase.firestore.FieldValue.serverTimestamp()
+                  }))
+                );
+              });
+            } catch (error) {
+              console.error('Error updating assigned parcel:', error);
+              throw error;
             }
-          )
-        );
-        
-        console.log('Main parcel updated successfully');
-        
-        // If the parcel is in assigned_parcels, update it there as well
-        if (this.selectedParcel?.id) {
-          console.log('Updating assigned parcel record');
-          await firstValueFrom(
-            from(this.firestore.collection('assigned_parcels').doc(this.selectedParcel.id).update({
-              status: 'Delivered',
-              photoURL: photoURL,
-              deliveryCompletedDate: firebase.firestore.FieldValue.serverTimestamp()
-            }))
-          );
-          console.log('Assigned parcel record updated');
+            
+            console.log('Assigned parcel record updated successfully');
+          }
+          
+          console.log('All status updates completed successfully');
+          resolve();
+        } catch (error) {
+          console.error('Error updating parcel status:', error);
+          reject(error);
         }
-        
-        console.log('All status updates completed successfully');
-      } catch (error) {
-        console.error('Error updating parcel status:', error);
-        throw error;
-      }
+      });
     });
   }
 

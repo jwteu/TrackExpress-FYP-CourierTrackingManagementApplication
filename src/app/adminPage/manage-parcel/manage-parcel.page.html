@@ -14,8 +14,21 @@
     <ion-button (click)="addParcel()">Add Parcel</ion-button>
   </div>
 
-  <ion-list>
-    <ion-item *ngFor="let parcel of parcels" class="parcel-item" button (click)="viewParcelDetail(parcel.id)" detail="false">
+  <!-- Loading indicator -->
+  <div *ngIf="loading" class="loading-container">
+    <ion-spinner name="circles"></ion-spinner>
+    <p>Loading parcels...</p>
+  </div>
+
+  <!-- Empty state -->
+  <div *ngIf="!loading && parcels.length === 0" class="empty-state">
+    <ion-icon name="cube-outline" size="large"></ion-icon>
+    <h3>No Parcels Found</h3>
+    <p>Start by adding a new parcel using the button above.</p>
+  </div>
+
+  <ion-list *ngIf="!loading">
+    <ion-item *ngFor="let parcel of parcels" class="parcel-item" button (click)="viewParcelDetail(parcel.id!)" detail="false" [class.delivered-parcel]="parcel.status === 'Delivered'">
       <ion-thumbnail slot="start" class="barcode-thumbnail">
         <img [src]="parcel.barcode" alt="Barcode">
       </ion-thumbnail>
@@ -23,12 +36,13 @@
         <h2>Sender: {{ parcel.senderName }}</h2>
         <p>Date: {{ parcel.date }}</p>
         <p>Tracking ID: {{ parcel.trackingId }}</p>
+        <p>Status: <span class="status-badge" [ngClass]="'status-' + (parcel.status || 'pending').toLowerCase().replace(' ', '-')">{{ parcel.status || 'Pending' }}</span></p>
       </ion-label>
       <div class="action-buttons">
-        <ion-button fill="clear" (click)="editParcel(parcel.id); $event.stopPropagation()">
+        <ion-button fill="clear" (click)="editParcel(parcel.id!); $event.stopPropagation()">
           <ion-icon name="create-outline" color="primary"></ion-icon>
         </ion-button>
-        <ion-button fill="clear" (click)="deleteParcel(parcel.id); $event.stopPropagation()">
+        <ion-button fill="clear" (click)="deleteParcel(parcel.id!); $event.stopPropagation()">
           <ion-icon name="trash-outline" color="danger"></ion-icon>
         </ion-button>
       </div>

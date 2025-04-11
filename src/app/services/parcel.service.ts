@@ -268,52 +268,55 @@ export class ParcelService {
             .pipe(first())
             .subscribe({
               next: parcelDoc => {
-                if (!parcelDoc.exists) {
-                  observer.error(new Error('Parcel not found'));
-                  return;
-                }
+                // Wrap this callback in runInInjectionContext too
+                runInInjectionContext(this.injector, () => {
+                  if (!parcelDoc.exists) {
+                    observer.error(new Error('Parcel not found'));
+                    return;
+                  }
 
-                const parcelData = parcelDoc.data() as any;
-                const trackingId = parcelData.trackingId;
+                  const parcelData = parcelDoc.data() as any;
+                  const trackingId = parcelData.trackingId;
 
-                // Pre-compute the description
-                const statusDescription =
-                  trackingInfo.description || this.getStatusDescription(trackingInfo.status);
+                  // Pre-compute the description
+                  const statusDescription =
+                    trackingInfo.description || this.getStatusDescription(trackingInfo.status);
 
-                // Create the batch
-                const batch = firestoreInstance.batch();
+                  // Create the batch
+                  const batch = firestoreInstance.batch();
 
-                // Update the parcel document
-                const parcelRef = parcelsCollection.doc(parcelId).ref;
-                batch.update(parcelRef, {
-                  ...updateData,
-                  updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                });
-
-                // Create a tracking history document
-                const trackingHistoryRef = trackingHistoryCollection.doc().ref;
-                batch.set(trackingHistoryRef, {
-                  parcelId,
-                  trackingId,
-                  status: trackingInfo.status,
-                  description: statusDescription,
-                  location: trackingInfo.location,
-                  deliverymanName: trackingInfo.deliverymanName,
-                  photoURL: trackingInfo.photoURL,
-                  timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-                });
-
-                // Commit the batch
-                batch
-                  .commit()
-                  .then(() => {
-                    observer.next();
-                    observer.complete();
-                  })
-                  .catch(error => {
-                    console.error('Batch commit error:', error);
-                    observer.error(error);
+                  // Update the parcel document
+                  const parcelRef = parcelsCollection.doc(parcelId).ref;
+                  batch.update(parcelRef, {
+                    ...updateData,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
                   });
+
+                  // Create a tracking history document
+                  const trackingHistoryRef = trackingHistoryCollection.doc().ref;
+                  batch.set(trackingHistoryRef, {
+                    parcelId,
+                    trackingId,
+                    status: trackingInfo.status,
+                    description: statusDescription,
+                    location: trackingInfo.location,
+                    deliverymanName: trackingInfo.deliverymanName,
+                    photoURL: trackingInfo.photoURL,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                  });
+
+                  // Commit the batch
+                  batch
+                    .commit()
+                    .then(() => {
+                      observer.next();
+                      observer.complete();
+                    })
+                    .catch(error => {
+                      console.error('Batch commit error:', error);
+                      observer.error(error);
+                    });
+                });
               },
               error: err => {
                 console.error('Error fetching parcel document:', err);
