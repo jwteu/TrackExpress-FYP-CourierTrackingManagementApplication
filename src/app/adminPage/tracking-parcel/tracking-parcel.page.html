@@ -1,16 +1,18 @@
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+
 <ion-header>
   <ion-toolbar>
     <ion-buttons slot="start">
       <ion-back-button defaultHref="/admin-home"></ion-back-button>
     </ion-buttons>
-    <ion-title>Track Your Parcel</ion-title>
+    <ion-title>Track Parcel</ion-title>
   </ion-toolbar>
 </ion-header>
 
 <ion-content class="ion-padding">
   <div class="tracking-container">
-    <h1 class="ion-text-center tracking-title">Track Your Parcel</h1>
-    <p class="ion-text-center">Enter your tracking ID to see the current status and location</p>
+    <h1 class="tracking-title">Track Your Parcel</h1>
+    <p class="subtitle ion-text-center">Enter your tracking ID to check status and location</p>
 
     <div class="search-container">
       <ion-item class="search-bar">
@@ -19,135 +21,122 @@
           [(ngModel)]="trackingId"
           (keyup.enter)="trackParcel()"
         ></ion-input>
-        <ion-button slot="end" (click)="trackParcel()">
-          <ion-icon name="search-outline" slot="icon-only"></ion-icon>
+        <ion-button slot="end" class="search-button" (click)="trackParcel()">
+          <ion-icon name="search-outline"></ion-icon>
         </ion-button>
       </ion-item>
     </div>
 
-    <div *ngIf="loading" class="ion-text-center ion-padding">
+    <!-- Loading State -->
+    <div *ngIf="loading" class="loading-container">
       <ion-spinner name="circles"></ion-spinner>
       <p>Searching for your parcel...</p>
     </div>
 
-    <ion-card *ngIf="searchPerformed && !loading && !parcel">
+    <!-- Not Found State -->
+    <ion-card *ngIf="searchPerformed && !loading && !parcel" class="error-card">
       <ion-card-header>
         <ion-card-title color="danger">Parcel Not Found</ion-card-title>
       </ion-card-header>
       <ion-card-content>
-        <p>We couldn't find any parcel with the tracking ID: <strong>{{ trackingId }}</strong></p>
-        <p>Please verify the tracking ID and try again.</p>
+        <p>No parcel found with ID: <strong>{{ trackingId }}</strong></p>
+        <p>Please verify and try again.</p>
       </ion-card-content>
     </ion-card>
 
-    <ion-card *ngIf="parcel && !loading">
+    <!-- Parcel Details -->
+    <ion-card *ngIf="parcel && !loading" class="parcel-card">
       <ion-card-header>
         <ion-card-subtitle>Tracking Number</ion-card-subtitle>
         <ion-card-title>{{ parcel.trackingId }}</ion-card-title>
       </ion-card-header>
       <ion-card-content>
-        <!-- Horizontal Progress Indicator - Enhanced for better visibility -->
+        <!-- Progress Tracker -->
         <div class="progress-tracker">
-          <div class="progress-step" [ngClass]="{'active': isEventActive('Registered')}" data-step="1">
+          <div class="progress-step" [ngClass]="{'active': isEventActive('Registered')}">
             <div class="step-icon">
               <ion-icon name="create-outline"></ion-icon>
             </div>
             <div class="step-label">Pickup</div>
           </div>
           <div class="progress-line" [ngClass]="{'active': isEventActive('In Transit')}"></div>
-          <div class="progress-step" [ngClass]="{'active': isEventActive('In Transit')}" data-step="2">
+          <div class="progress-step" [ngClass]="{'active': isEventActive('In Transit')}">
             <div class="step-icon">
               <ion-icon name="airplane-outline"></ion-icon>
             </div>
             <div class="step-label">Delivering</div>
           </div>
           <div class="progress-line" [ngClass]="{'active': isEventActive('Delivered')}"></div>
-          <div class="progress-step" [ngClass]="{'active': isEventActive('Delivered')}" data-step="3">
+          <div class="progress-step" [ngClass]="{'active': isEventActive('Delivered')}">
             <div class="step-icon">
               <ion-icon name="checkmark-circle-outline"></ion-icon>
             </div>
-            <div class="step-label">Done</div>
+            <div class="step-label">Delivered</div>
           </div>
         </div>
 
-        <!-- Improved Sender/Receiver Info with contact details -->
+        <!-- Sender/Receiver Info -->
         <div class="sender-receiver-compact">
           <div class="info-pair">
             <div class="info-col">
               <h4 class="info-title">Sender</h4>
-              <p class="info-name">{{ parcel.senderName || 'Unknown Sender' }}</p>
+              <p class="info-name">{{ parcel.senderName || 'Unknown' }}</p>
               <p class="info-contact" *ngIf="parcel.senderContact">{{ parcel.senderContact }}</p>
             </div>
             <div class="info-divider"></div>
             <div class="info-col">
               <h4 class="info-title">Receiver</h4>
-              <p class="info-name">{{ parcel.receiverName || 'Unknown Receiver' }}</p>
+              <p class="info-name">{{ parcel.receiverName || 'Unknown' }}</p>
               <p class="info-contact" *ngIf="parcel.receiverContact">{{ parcel.receiverContact }}</p>
             </div>
           </div>
         </div>
 
-        <!-- Map Container - Only show if not delivered and no verification photo -->
+        <!-- Map (Hidden if Delivered or Photo Available) -->
         <div class="map-container" *ngIf="parcel && mapCoordinates && parcel.status !== 'Delivered' && !parcel.photoURL">
           <h3>Delivery Route</h3>
-          <div class="map-info">
-            <div class="map-status">
-              <!-- Map status content -->
-            </div>
-            <div class="map-actions">
-              <!-- Map actions content -->
-            </div>
-          </div>
-          
-          <!-- The map element -->
           <div class="map-wrapper">
             <div #mapElement class="map-element"></div>
             <div class="map-overlay" *ngIf="!mapLoaded">
-              <!-- Map overlay content -->
+              <ion-spinner name="dots"></ion-spinner>
+              <p>Loading map...</p>
             </div>
             <div class="map-error" *ngIf="mapLoaded && !map">
-              <!-- Map error content -->
+              <p>Unable to load map.</p>
             </div>
           </div>
-          
-          <!-- Destination info -->
           <div class="destination-info">
             <div class="destination-icon">
-              <!-- Destination icon content -->
+              <ion-icon name="location-outline"></ion-icon>
             </div>
             <div class="destination-details">
-              <!-- Destination details content -->
+              <p class="destination-title">Destination</p>
+              <p class="destination-address">{{ parcel.receiverAddress || 'Unknown' }}</p>
             </div>
           </div>
         </div>
 
-        <!-- Delivery confirmation notice - show when delivered -->
+        <!-- Delivery Confirmation -->
         <div class="delivery-confirmation" *ngIf="parcel && (parcel.status === 'Delivered' || parcel.photoURL)">
-          <div class="confirmation-content">
-            <ion-icon name="checkmark-circle" color="success"></ion-icon>
-            <h3>Delivery Verified</h3>
-            <p>This parcel has been successfully delivered and verified with photo confirmation.</p>
-            
-            <!-- Show delivery photo if available -->
-            <div class="delivery-photo" *ngIf="parcel.photoURL">
-              <img [src]="parcel.photoURL" alt="Delivery verification photo">
-            </div>
+          <ion-icon name="checkmark-circle" color="success"></ion-icon>
+          <h3>Delivered</h3>
+          <p>Parcel successfully delivered and verified.</p>
+          <div class="delivery-photo" *ngIf="parcel.photoURL">
+            <img [src]="parcel.photoURL" alt="Verification Photo">
           </div>
         </div>
 
         <!-- Delivery Estimation -->
-        <div class="delivery-estimation" *ngIf="parcel && estimatedDelivery">
+        <div class="delivery-estimation" *ngIf="parcel && estimatedDelivery && parcel.status !== 'Delivered'">
           <div class="estimation-header">
             <ion-icon name="time-outline"></ion-icon>
             <h3>Estimated Delivery</h3>
           </div>
-          
           <div class="estimation-content">
             <div class="estimated-date">
-              <div class="date-label">Expected delivery by:</div>
+              <div class="date-label">Expected by</div>
               <div class="date-value">{{ estimatedDelivery.formattedDate }}</div>
             </div>
-            
             <div class="estimation-details">
               <div class="detail-item">
                 <ion-icon name="calendar-outline"></ion-icon>
@@ -161,7 +150,7 @@
                 <ion-icon name="hourglass-outline"></ion-icon>
                 <span>{{ estimatedDelivery.daysRemaining === 0 ? 'Today' : 
                         estimatedDelivery.daysRemaining === 1 ? 'Tomorrow' : 
-                        estimatedDelivery.daysRemaining + ' days remaining' }}</span>
+                        estimatedDelivery.daysRemaining + ' days' }}</span>
               </div>
             </div>
           </div>
@@ -175,16 +164,12 @@
                  *ngFor="let event of sortedTrackingEvents; let i = index"
                  [ngClass]="{
                    'active': event.active !== false,
-                   'event-handler': event.title === 'Handler Assigned',
                    'event-pickup': event.title === 'Pickup',
                    'event-outfordelivery': event.title === 'Out for Delivery',
                    'event-delivered': event.title === 'Delivered'
                  }"
-                 [style.--animation-order]="i">
-              <div class="timeline-icon" [ngClass]="{
-                'active': event.active !== false,
-                'icon-delivered': event.title === 'Delivered'
-              }">
+                 style="--animation-order: {{i}};">
+              <div class="timeline-icon" [ngClass]="{'active': event.active !== false}">
                 <ion-icon [name]="getStatusIcon(event.status)"></ion-icon>
               </div>
               <div class="timeline-content">

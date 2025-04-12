@@ -37,7 +37,7 @@
           </div>
           <div class="detail-item">
             <ion-icon name="location-outline"></ion-icon>
-            <span>{{ selectedParcel.receiverAddress }}</span>
+            <span>{{ selectedParcel.receiverAddress || 'No address provided' }}</span>
           </div>
         </div>
         <div class="status-badge" [ngClass]="getStatusClass(selectedParcel.status)">
@@ -84,7 +84,7 @@
                 </div>
                 <div class="detail-item">
                   <ion-icon name="location-outline"></ion-icon>
-                  <span>{{ parcel.receiverAddress }}</span>
+                  <span>{{ parcel.receiverAddress || 'No address provided' }}</span>
                 </div>
                 <div class="detail-item">
                   <ion-icon name="calendar-outline"></ion-icon>

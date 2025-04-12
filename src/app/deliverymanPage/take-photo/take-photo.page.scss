@@ -1,6 +1,6 @@
 :host {
-  --theme-color: hsl(48, 95%, 49%);
-  --theme-dark: #e6c000;
+  --theme-color: #FFD700;
+  --theme-dark: #FFD700;
   --theme-light: rgba(255, 217, 0, 0.08);
   --card-bg: #ffffff;
   --card-radius: 18px;
@@ -499,7 +499,7 @@ ion-content {
           right: 15px;
           width: 10px;
           height: 10px;
-          background-color: #ffdd00;
+          background-color:#FFD700;
           border-radius: 50%;
           box-shadow: 0 0 5px 2px rgba(255,217,0,0.5);
           animation: flash 4s infinite;
@@ -685,11 +685,62 @@ ion-content {
 
   .alert-wrapper {
     border-radius: 16px;
+    overflow: hidden;
+  }
+
+  .success-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 10px 0;
+  }
+
+  .success-icon {
+    margin-bottom: 20px;
+    
+    ion-icon {
+      color: #4CAF50;
+      font-size: 60px;
+      animation: scaleIn 0.5s ease forwards;
+    }
+  }
+
+  .success-content {
+    text-align: center;
+    
+    h2 {
+      color: #333;
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+    
+    p {
+      color: #666;
+      font-size: 14px;
+      line-height: 1.5;
+      margin: 0;
+    }
   }
 
   .success-button {
     --background: var(--theme-color);
     --color: var(--text-dark);
     font-weight: 600;
+    margin-top: 10px;
+  }
+}
+
+@keyframes scaleIn {
+  0% {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
   }
 }

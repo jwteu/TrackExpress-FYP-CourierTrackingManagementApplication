@@ -8,106 +8,97 @@
 </ion-header>
 
 <ion-content [fullscreen]="true" class="ion-padding">
-  <div class="title-section">
-    <h1>Create Your Account</h1>
-    <p>Please fill in your details to register</p>
-  </div>
-  
-  <form [formGroup]="signupForm" (ngSubmit)="onSubmit()">
-    <ion-item>
-      <ion-label position="floating">Name</ion-label>
-      <ion-input formControlName="name" type="text"></ion-input>
-    </ion-item>
-    <ion-text color="danger" *ngIf="signupForm.get('name')?.touched && signupForm.get('name')?.invalid">
-      Name is required.
-    </ion-text>
-    <ion-text color="danger" *ngIf="nameError">
-      {{ nameError }}
-    </ion-text>
+  <div class="form-container">
+    <h1 class="form-title">Create Account</h1>
+    <p class="form-subtitle">Join TrackXpress today!</p>
+    <form [formGroup]="signupForm" (ngSubmit)="onSubmit()">
+      <ion-item class="input-item">
+        <ion-label position="floating">Name</ion-label>
+        <ion-input formControlName="name" type="text"></ion-input>
+      </ion-item>
+      <ion-text class="error-text" color="danger" *ngIf="signupForm.get('name')?.touched && signupForm.get('name')?.invalid">
+        Name is required.
+      </ion-text>
+      <ion-text class="error-text" color="danger" *ngIf="nameError">{{ nameError }}</ion-text>
 
-    <ion-item>
-      <ion-label position="floating">Email</ion-label>
-      <ion-input formControlName="email" type="email"></ion-input>
-    </ion-item>
-    <ion-text color="danger" *ngIf="signupForm.get('email')?.touched && signupForm.get('email')?.invalid">
-      Enter a valid email.
-    </ion-text>
-    <ion-text color="danger" *ngIf="emailError">
-      {{ emailError }}
-    </ion-text>
+      <ion-item class="input-item">
+        <ion-label position="floating">Email</ion-label>
+        <ion-input formControlName="email" type="email"></ion-input>
+      </ion-item>
+      <ion-text class="error-text" color="danger" *ngIf="signupForm.get('email')?.touched && signupForm.get('email')?.invalid">
+        Enter a valid email.
+      </ion-text>
+      <ion-text class="error-text" color="danger" *ngIf="emailError">{{ emailError }}</ion-text>
 
-    <ion-item>
-      <ion-label position="floating">IC Number</ion-label>
-      <ion-input formControlName="icNumber" type="text"></ion-input>
-    </ion-item>
-    <ion-text color="danger" *ngIf="signupForm.get('icNumber')?.touched && signupForm.get('icNumber')?.invalid">
-      IC Number must be 12 digits.
-    </ion-text>
+      <ion-item class="input-item">
+        <ion-label position="floating">IC Number</ion-label>
+        <ion-input formControlName="icNumber" type="text"></ion-input>
+      </ion-item>
+      <ion-text class="error-text" color="danger" *ngIf="signupForm.get('icNumber')?.touched && signupForm.get('icNumber')?.invalid">
+        IC Number must be 12 digits.
+      </ion-text>
 
-    <ion-item>
-      <ion-label position="floating">Phone</ion-label>
-      <ion-input formControlName="phone" type="tel"></ion-input>
-    </ion-item>
-    <ion-text color="danger" *ngIf="signupForm.get('phone')?.touched && signupForm.get('phone')?.invalid">
-      Enter a valid phone number.
-    </ion-text>
+      <ion-item class="input-item">
+        <ion-label position="floating">Phone</ion-label>
+        <ion-input formControlName="phone" type="tel"></ion-input>
+      </ion-item>
+      <ion-text class="error-text" color="danger" *ngIf="signupForm.get('phone')?.touched && signupForm.get('phone')?.invalid">
+        Enter a valid phone number.
+      </ion-text>
 
-    <ion-item>
-      <ion-label position="floating">Address</ion-label>
-      <ion-input formControlName="address" type="text"></ion-input>
-    </ion-item>
-    <ion-text color="danger" *ngIf="signupForm.get('address')?.touched && signupForm.get('address')?.invalid">
-      Address is required.
-    </ion-text>
+      <ion-item class="input-item">
+        <ion-label position="floating">Address</ion-label>
+        <ion-input formControlName="address" type="text"></ion-input>
+      </ion-item>
+      <ion-text class="error-text" color="danger" *ngIf="signupForm.get('address')?.touched && signupForm.get('address')?.invalid">
+        Address is required.
+      </ion-text>
 
-    <ion-item>
-      <ion-label position="floating">Role</ion-label>
-      <ion-select formControlName="role">
-        <ion-select-option value="admin">Admin</ion-select-option>
-        <ion-select-option value="deliveryman">Deliveryman</ion-select-option>
-      </ion-select>
-    </ion-item>
-    <ion-text color="danger" *ngIf="signupForm.get('role')?.touched && signupForm.get('role')?.invalid">
-      Role is required.
-    </ion-text>
+      <ion-item class="input-item">
+        <ion-label position="floating">Role</ion-label>
+        <ion-select formControlName="role">
+          <ion-select-option value="admin">Admin</ion-select-option>
+          <ion-select-option value="deliveryman">Deliveryman</ion-select-option>
+        </ion-select>
+      </ion-item>
+      <ion-text class="error-text" color="danger" *ngIf="signupForm.get('role')?.touched && signupForm.get('role')?.invalid">
+        Role is required.
+      </ion-text>
 
-    <ion-item>
-      <ion-label position="floating">Staff ID</ion-label>
-      <ion-input formControlName="staffId" type="text"></ion-input>
-    </ion-item>
-    <ion-text color="danger" *ngIf="signupForm.get('staffId')?.touched && signupForm.get('staffId')?.invalid">
-      Enter a valid staff ID.
-    </ion-text>
-    <ion-text color="danger" *ngIf="staffIdError">
-      {{ staffIdError }}
-    </ion-text>
+      <ion-item class="input-item">
+        <ion-label position="floating">Staff ID</ion-label>
+        <ion-input formControlName="staffId" type="text"></ion-input>
+      </ion-item>
+      <ion-text class="error-text" color="danger" *ngIf="signupForm.get('staffId')?.touched && signupForm.get('staffId')?.invalid">
+        Enter a valid staff ID.
+      </ion-text>
+      <ion-text class="error-text" color="danger" *ngIf="staffIdError">{{ staffIdError }}</ion-text>
 
-    <ion-item>
-      <ion-label position="floating">Password</ion-label>
-      <ion-input formControlName="password" type="password"></ion-input>
-    </ion-item>
-    <ion-text color="danger" *ngIf="signupForm.get('password')?.touched && signupForm.get('password')?.invalid">
-      Password is required and must be at least 8 characters.
-    </ion-text>
+      <ion-item class="input-item">
+        <ion-label position="floating">Password</ion-label>
+        <ion-input formControlName="password" type="password"></ion-input>
+      </ion-item>
+      <ion-text class="error-text" color="danger" *ngIf="signupForm.get('password')?.touched && signupForm.get('password')?.invalid">
+        Password must be at least 8 characters.
+      </ion-text>
 
-    <ion-item>
-      <ion-label position="floating">Confirm Password</ion-label>
-      <ion-input formControlName="confirmPassword" type="password"></ion-input>
-    </ion-item>
-    <ion-text color="danger" *ngIf="signupForm.get('confirmPassword')?.touched && signupForm.get('confirmPassword')?.invalid">
-      Confirm Password is required.
-    </ion-text>
-    <ion-text color="danger" *ngIf="signupForm.errors?.['mismatch']">
-      Passwords do not match.
-    </ion-text>
+      <ion-item class="input-item">
+        <ion-label position="floating">Confirm Password</ion-label>
+        <ion-input formControlName="confirmPassword" type="password"></ion-input>
+      </ion-item>
+      <ion-text class="error-text" color="danger" *ngIf="signupForm.get('confirmPassword')?.touched && signupForm.get('confirmPassword')?.invalid">
+        Confirm Password is required.
+      </ion-text>
+      <ion-text class="error-text" color="danger" *ngIf="signupForm.errors?.['mismatch']">
+        Passwords do not match.
+      </ion-text>
 
-    <ion-button expand="full" type="submit" [disabled]="signupForm.invalid">
-      <ion-icon name="person-add-outline" slot="start"></ion-icon>
-      Sign Up
-    </ion-button>
-  </form>
-  
-  <div class="login-link">
-    <p>Already have an account? <a routerLink="/login">Login</a></p>
+      <ion-button class="primary-button" expand="full" type="submit" [disabled]="signupForm.invalid">
+        Sign Up
+      </ion-button>
+    </form>
+    <p class="link-text">
+      Already have an account? <a [routerLink]="['/login']">Login</a>
+    </p>
   </div>
 </ion-content>

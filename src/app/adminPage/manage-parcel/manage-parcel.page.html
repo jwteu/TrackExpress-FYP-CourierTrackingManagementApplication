@@ -5,35 +5,36 @@
         <ion-icon name="arrow-back-outline"></ion-icon>
       </ion-button>
     </ion-buttons>
-    <ion-title>Manage Parcel Information</ion-title>
+    <ion-title>Manage Parcels</ion-title>
   </ion-toolbar>
 </ion-header>
 
-<ion-content>
+<ion-content class="ion-padding">
   <div class="button-group">
-    <ion-button (click)="addParcel()">Add Parcel</ion-button>
+    <ion-button class="primary-button" (click)="addParcel()">Add Parcel</ion-button>
   </div>
 
-  <!-- Loading indicator -->
+  <!-- Loading Indicator -->
   <div *ngIf="loading" class="loading-container">
     <ion-spinner name="circles"></ion-spinner>
     <p>Loading parcels...</p>
   </div>
 
-  <!-- Empty state -->
+  <!-- Empty State -->
   <div *ngIf="!loading && parcels.length === 0" class="empty-state">
-    <ion-icon name="cube-outline" size="large"></ion-icon>
+    <ion-icon name="cube-outline"></ion-icon>
     <h3>No Parcels Found</h3>
-    <p>Start by adding a new parcel using the button above.</p>
+    <p>Start by adding a new parcel.</p>
   </div>
 
-  <ion-list *ngIf="!loading">
+  <!-- Parcel List -->
+  <ion-list *ngIf="!loading && parcels.length">
     <ion-item *ngFor="let parcel of parcels" class="parcel-item" button (click)="viewParcelDetail(parcel.id!)" detail="false" [class.delivered-parcel]="parcel.status === 'Delivered'">
       <ion-thumbnail slot="start" class="barcode-thumbnail">
         <img [src]="parcel.barcode" alt="Barcode">
       </ion-thumbnail>
       <ion-label>
-        <h2>Sender: {{ parcel.senderName }}</h2>
+        <h3>{{ parcel.senderName }}</h3>
         <p>Date: {{ parcel.date }}</p>
         <p>Tracking ID: {{ parcel.trackingId }}</p>
         <p>Status: <span class="status-badge" [ngClass]="'status-' + (parcel.status || 'pending').toLowerCase().replace(' ', '-')">{{ parcel.status || 'Pending' }}</span></p>

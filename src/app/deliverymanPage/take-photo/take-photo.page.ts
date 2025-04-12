@@ -6,7 +6,7 @@ import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { NavController, LoadingController, ToastController, AlertController } from '@ionic/angular';
 import { AngularFirestore } from '@angular/fire/compat/firestore';
 import { AngularFireAuth } from '@angular/fire/compat/auth';
-import { firstValueFrom, from } from 'rxjs';
+import { firstValueFrom, from, map } from 'rxjs'; // Add map import here
 import firebase from 'firebase/compat/app';
 import 'firebase/compat/firestore';
 import { CloudinaryService } from '../../services/cloudinary.service';
@@ -153,9 +153,7 @@ export class TakePhotoPage implements OnInit {
     
     this.isLoadingParcels = true;
     
-    // Use runInInjectionContext for all operations
     runInInjectionContext(this.injector, () => {
-      // Use the secure method that requires both name AND ID
       this.parcelService.getAssignedParcelsSecure(
         this.currentUserName!, 
         this.currentUserId!
@@ -163,13 +161,45 @@ export class TakePhotoPage implements OnInit {
         next: async (assignedParcelsSnapshot) => {
           console.log('Loaded parcels:', assignedParcelsSnapshot.length);
           
-          // Filter out parcels that are already delivered
-          this.assignedParcels = assignedParcelsSnapshot.filter(parcel => 
-            parcel.status !== 'Delivered' && 
-            !parcel.status?.includes('photo')
-          );
+          // Create a new enriched parcels array with recipient details
+          const enrichedParcels: Parcel[] = [];
           
-          console.log('After filtering delivered parcels:', this.assignedParcels.length);
+          // Process each assigned parcel to get additional details
+          for (const parcel of assignedParcelsSnapshot) {
+            // Skip already delivered parcels
+            if (parcel.status === 'Delivered' || 
+                parcel.status?.includes('photo')) {
+              continue;
+            }
+            
+            try {
+              // Get parcel details from the main collection
+              const parcelDetails = await firstValueFrom(
+                this.parcelService.getParcelDetails(parcel.trackingId)
+              );
+              
+              if (parcelDetails) {
+                enrichedParcels.push({
+                  ...parcel,
+                  receiverAddress: parcelDetails.receiverAddress || 'No address available',
+                  receiverName: parcelDetails.receiverName || 'No recipient name',
+                  status: parcel.status || parcelDetails.status || 'Pending'
+                });
+              } else {
+                // If we can't find details, still include the parcel with fallbacks
+                enrichedParcels.push({
+                  ...parcel,
+                  receiverAddress: 'No address available',
+                  receiverName: 'No recipient name'
+                });
+              }
+            } catch (error) {
+              console.error('Error fetching parcel details:', error);
+            }
+          }
+          
+          this.assignedParcels = enrichedParcels;
+          console.log('Enriched parcels with recipient details:', this.assignedParcels.length);
           this.isLoadingParcels = false;
         },
         error: (error) => {
@@ -179,6 +209,15 @@ export class TakePhotoPage implements OnInit {
         }
       });
     });
+  }
+
+  // Example of fields to include in your query
+  private getAssignedParcelsSecure(deliverymanName: string, deliverymanId: string) {
+    return this.firestore.collection('assigned_parcels', ref => ref
+      .where('deliverymanName', '==', deliverymanName)
+      .where('deliverymanId', '==', deliverymanId))
+      .valueChanges({ idField: 'id' })
+      .pipe(map((parcels: any[]) => parcels as Parcel[]));
   }
 
   // Update the selectParcel method to ensure proper UI state
@@ -514,15 +553,17 @@ export class TakePhotoPage implements OnInit {
 
   async showSuccessAlert() {
     const alert = await this.alertCtrl.create({
-      header: 'Delivery Verified',
+      header: 'Delivery Confirmed',
       cssClass: 'success-alert',
       message: `
-        <div class="success-animation">
-          <ion-icon name="checkmark-circle-outline"></ion-icon>
-        </div>
-        <div class="success-message">
-          <h2>Photo verification uploaded!</h2>
-          <p>The parcel status has been updated to "Delivered" and the verification photo has been saved.</p>
+        <div class="success-container">
+          <div class="success-icon">
+            <ion-icon name="checkmark-circle"></ion-icon>
+          </div>
+          <div class="success-content">
+            <h2>Parcel #${this.selectedParcel?.trackingId} Delivered</h2>
+            <p>Delivery has been verified successfully with photo proof. The parcel status has been updated to "Delivered" in the system.</p>
+          </div>
         </div>
       `,
       buttons: [{

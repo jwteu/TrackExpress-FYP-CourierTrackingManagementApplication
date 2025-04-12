@@ -1,16 +1,17 @@
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
 
-<ion-header [translucent]="true"></ion-header>
+<ion-content [fullscreen]="true" class="ion-padding">
+  <div class="hero-section">
+    <h1 class="title">TrackXpress</h1>
+    <p class="subtitle">Track your parcels with ease, anytime, anywhere.</p>
+  </div>
 
-<ion-content [fullscreen]="true" class="body">
-  <div class="title">TrackXpress</div>
-
-  <ion-button class="button" expand="full" [routerLink]="['/tracking-parcel']">
-    Track Your Parcel
-  </ion-button>
-
-  <p class="worker-text">
-    <a [routerLink]="['/login']">Are you a worker?</a>
-  </p>
+  <div class="cta-section">
+    <ion-button class="primary-button" expand="full" [routerLink]="['/tracking-parcel']">
+      Track Your Parcel
+    </ion-button>
+    <p class="worker-text">
+      Are you a worker? <a [routerLink]="['/login']">Log in here</a>
+    </p>
+  </div>
 </ion-content>
-

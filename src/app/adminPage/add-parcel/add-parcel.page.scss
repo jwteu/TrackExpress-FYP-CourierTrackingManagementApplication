@@ -1,60 +1,93 @@
-/* Yellow theme for add-parcel page */
+:host {
+  --yellow: #FFD700;
+  --light-yellow: #FFECB3;
+  --dark-gray: #333333;
+  --white: #FFFFFF;
+  --soft-gray: #E0E0E0;
+}
+
 ion-content {
-  --padding-top: 16px;
-  --padding-bottom: 16px;
+  --background: var(--white);
+  font-family: 'Poppins', sans-serif;
 }
 
-ion-item {
-  --padding-start: 0;
-  margin-bottom: 8px;
-  --border-color: #adadad; // Light yellow border
-  --highlight-color-valid: #F6BE00; // Amber/gold color for valid inputs
+ion-toolbar {
+  --background: var(--yellow);
+  --color: var(--dark-gray);
 }
 
-ion-note {
-  padding-left: 16px;
-  margin-bottom: 8px;
+ion-card {
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  margin: 16px 0;
 }
 
-ion-button[type="submit"] {
-  margin-top: 16px;
-  --background: #FFDE59;
-  --background-activated: #F6BE00;
-  --background-focused: #F6BE00;
-  --background-hover: #FFE066;
-  --color: #333;
+ion-card-header {
+  background: var(--light-yellow);
+  padding: 16px;
 }
 
-// Custom styling for location input with inline button
-.location-item {
-  --inner-padding-end: 0;
+ion-card-subtitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--dark-gray);
+  text-transform: uppercase;
+}
+
+ion-card-content {
+  padding: 16px;
+}
+
+.input-item {
+  --border-radius: 10px;
+  --padding-start: 16px;
+  --background: var(--soft-gray);
+  margin-bottom: 12px;
+
+  ion-label {
+    color: var(--dark-gray);
+    font-weight: 500;
+  }
+
+  ion-input, ion-textarea {
+    --color: var(--dark-gray);
+    font-size: 16px;
+  }
 }
 
 .input-with-button {
   display: flex;
   align-items: center;
   width: 100%;
+
+  .location-input {
+    flex-grow: 1;
+  }
+
+  ion-button {
+    --padding-start: 8px;
+    --padding-end: 8px;
+  }
 }
 
-.location-input {
-  flex-grow: 1;
+.error-text {
+  font-size: 12px;
+  margin: 8px 16px;
 }
 
-.location-button {
-  margin: 0;
-  height: 100%;
-  --padding-start: 4px;
-  --padding-end: 4px;
-  --background: transparent;
-}
+.primary-button {
+  --background: var(--yellow);
+  --color: var(--dark-gray);
+  --border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  height: 50px;
+  margin: 20px 16px;
+  transition: transform 0.2s ease;
 
-// Yellow theme for toolbar
-ion-toolbar {
-  --background: #FFDE59;
-  --color: #333;
-}
-
-// Yellow highlight for focused inputs
-ion-input:focus, ion-textarea:focus {
-  --highlight-color-focused: #F6BE00;
+  &:active {
+    --background: var(--white);
+    --color: var(--yellow);
+    transform: scale(0.95);
+  }
 }

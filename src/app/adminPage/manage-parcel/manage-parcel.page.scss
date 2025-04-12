@@ -1,72 +1,60 @@
-/* Yellow theme for manage-parcel page */
+:host {
+  --yellow: #FFD700;
+  --light-yellow: #FFECB3;
+  --dark-gray: #333333;
+  --white: #FFFFFF;
+  --soft-gray: #E0E0E0;
+}
+
+ion-content {
+  --background: var(--white);
+  font-family: 'Poppins', sans-serif;
+}
+
+ion-toolbar {
+  --background: var(--yellow);
+  --color: var(--dark-gray);
+}
+
 .button-group {
   display: flex;
-  justify-content: space-around;
-  margin: 20px 0;
+  justify-content: center;
+  padding: 16px;
 }
 
-.parcel-item {
-  cursor: pointer;
-  margin-bottom: 8px;
-  border-radius: 8px;
-  --background: #ffffff; // Very light yellow background
-  --border-color: #ffcc00;
-  --border-width: 1px;
-  --border-style: solid;
+.primary-button {
+  --background: var(--yellow);
+  --color: var(--dark-gray);
+  --border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  height: 50px;
+  width: 200px;
+  transition: transform 0.2s ease;
+
+  &:active {
+    --background: var(--white);
+    --color: var(--yellow);
+    transform: scale(0.95);
+  }
 }
 
-.parcel-item:hover {
-  --background: #FFF5CC; // Slightly darker yellow on hover
-}
-
-.barcode-thumbnail {
-  --size: 80px;
-  margin-right: 10px;
-  border: 1px solid #FFE066;
-}
-
-.action-buttons {
-  display: flex;
-  align-items: center;
-}
-
-/* Yellow theme for ion components */
-ion-toolbar {
-  --background: #FFDE59;
-  --color: #333;
-}
-
-ion-button {
-  --background: #FFDE59;
-  --background-activated: #F6BE00;
-  --background-focused: #F6BE00;
-  --background-hover: #FFE066;
-  --color: #333;
-}
-
-/* Override for action buttons to keep them clear */
-.action-buttons ion-button {
-  --background: transparent;
-}
-
-/* Add these styles to your existing SCSS */
 .loading-container {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 40px 20px;
-  
+  padding: 40px;
+  text-align: center;
+
   ion-spinner {
-    width: 48px;
-    height: 48px;
+    --color: var(--yellow);
     margin-bottom: 16px;
-    color: #FFDE59;
   }
-  
+
   p {
-    color: #666;
     font-size: 16px;
+    color: var(--dark-gray);
   }
 }
 
@@ -75,58 +63,95 @@ ion-button {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 40px 20px;
+  padding: 40px;
   text-align: center;
-  
+
   ion-icon {
     font-size: 64px;
-    color: #FFDE59;
+    color: var(--yellow);
     margin-bottom: 16px;
   }
-  
+
   h3 {
-    margin: 0 0 8px;
-    color: #333;
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--dark-gray);
+    margin-bottom: 8px;
   }
-  
+
   p {
-    color: #666;
-    margin: 0;
+    font-size: 16px;
+    color: var(--dark-gray);
+    opacity: 0.7;
   }
 }
 
-.delivered-parcel {
-  --background: #f8fff8; // Lighter green background for delivered parcels
-  opacity: 0.9;
+.parcel-item {
+  --border-radius: 12px;
+  --background: var(--white);
+  margin: 8px 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+  }
+
+  &.delivered-parcel {
+    --background: #F8FFF8;
+    opacity: 0.9;
+  }
+
+  ion-label {
+    h3 {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--dark-gray);
+    }
+
+    p {
+      font-size: 14px;
+      color: var(--dark-gray);
+      opacity: 0.7;
+    }
+  }
+}
+
+.barcode-thumbnail {
+  --size: 60px;
+  border-radius: 8px;
+  overflow: hidden;
 }
 
 .status-badge {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
-  text-transform: uppercase;
   padding: 4px 8px;
   border-radius: 12px;
-  line-height: 1;
   display: inline-block;
-  margin-left: 5px;
+
+  &.status-delivered {
+    background: #E8F5E9;
+    color: #2E7D32;
+  }
+
+  &.status-transit, &.status-in-transit {
+    background: #E3F2FD;
+    color: #1976D2;
+  }
+
+  &.status-out-for-delivery {
+    background: #FFF3E0;
+    color: #EF6C00;
+  }
+
+  &.status-pending {
+    background: var(--soft-gray);
+    color: var(--dark-gray);
+  }
 }
 
-.status-delivered {
-  background-color: #e8f5e9;
-  color: #2e7d32;
-}
-
-.status-transit, .status-in-transit {
-  background-color: #e3f2fd;
-  color: #1976d2;
-}
-
-.status-out-for-delivery {
-  background-color: #fff3e0;
-  color: #ef6c00;
-}
-
-.status-pending {
-  background-color: #f5f5f5;
-  color: #757575;
+.action-buttons {
+  display: flex;
+  align-items: center;
 }

@@ -117,4 +117,9 @@ export class LoginPage implements OnInit {
   private generateUniqueId(): string {
     return Date.now().toString(36) + Math.random().toString(36).substring(2);
   }
+
+  // Add this method to handle back button clicks manually if needed
+  goToLanding() {
+    this.navCtrl.navigateBack('/landing');
+  }
 }
