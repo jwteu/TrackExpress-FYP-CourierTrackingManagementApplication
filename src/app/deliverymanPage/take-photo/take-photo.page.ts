@@ -390,6 +390,31 @@ export class TakePhotoPage implements OnInit {
             
             console.log('Parcel status updated with photo URL');
             
+            // Add this block to send email notification to the receiver
+            try {
+              // Get parcel details to get receiver email
+              const parcelDetails = await firstValueFrom(
+                this.parcelService.getParcelDetails(this.selectedParcel!.trackingId)
+              );
+              
+              if (parcelDetails && parcelDetails.receiverEmail) {
+                // Send email notification
+                await firstValueFrom(
+                  this.parcelService.sendEmailNotification(
+                    parcelDetails.receiverEmail,
+                    parcelDetails.receiverName || 'Valued Customer',
+                    this.selectedParcel!.trackingId,
+                    'Delivered - Photo Verification Complete',
+                    this.selectedParcel?.receiverAddress || 'Delivery address'
+                  )
+                );
+                console.log('Delivery confirmation email sent to receiver');
+              }
+            } catch (emailError) {
+              console.error('Error sending delivery confirmation email:', emailError);
+              // Don't throw error here, as the main function succeeded
+            }
+            
             // Show success alert instead of toast for better visibility
             if (loading) {
               await loading.dismiss();
@@ -556,15 +581,9 @@ export class TakePhotoPage implements OnInit {
       header: 'Delivery Confirmed',
       cssClass: 'success-alert',
       message: `
-        <div class="success-container">
-          <div class="success-icon">
-            <ion-icon name="checkmark-circle"></ion-icon>
-          </div>
-          <div class="success-content">
-            <h2>Parcel #${this.selectedParcel?.trackingId} Delivered</h2>
-            <p>Delivery has been verified successfully with photo proof. The parcel status has been updated to "Delivered" in the system.</p>
-          </div>
-        </div>
+        Parcel #${this.selectedParcel?.trackingId} Delivered
+        Delivery has been verified successfully with photo proof. The parcel status has been updated to "Delivered" in the system.
+        
       `,
       buttons: [{
         text: 'Done',

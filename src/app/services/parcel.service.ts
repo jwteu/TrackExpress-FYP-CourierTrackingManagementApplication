@@ -215,12 +215,13 @@ export class ParcelService {
       user_id: 'ghZzg_nWOdHQY6Krj',
       template_params: {
         tracking_id: trackingId,
-        status,
+        parcel_status: status, // Changed to match template variable
         to_name: name,
         location_info: location,
         to_email: email,
         from_name: 'TrackExpress',
-        reply_to: 'noreply@trackexpress.com'
+        reply_to: 'noreply@trackexpress.com',
+        date: new Date().toLocaleDateString() // Added date parameter
       }
     };
     
