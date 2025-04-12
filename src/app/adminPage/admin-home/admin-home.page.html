@@ -1,25 +1,44 @@
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
 
-<ion-menu contentId="main-content" side="start">
-  <ion-header>
-    <ion-toolbar>
-      <ion-title>Admin Panel</ion-title>
-    </ion-toolbar>
-  </ion-header>
-  <ion-content>
-    <div class="menu-header">
-      <div class="avatar">
-        <ion-icon name="person"></ion-icon>
+<ion-menu contentId="main-content" side="start" class="modern-menu">
+  <ion-content class="menu-content">
+    <!-- Enhanced User Profile Section - The HTML remains the same -->
+    <div class="user-profile-section">
+      <div class="background-decoration"></div>
+      <div class="user-avatar-container">
+        <div class="user-avatar">
+          <!-- Updated icon with explicit size and color -->
+          <ion-icon name="person" size="large"></ion-icon>
+        </div>
+        <div class="avatar-border"></div>
       </div>
-      <h3>{{ userName }}</h3>
-      <p>Administrator</p>
+      <h3 class="user-name">{{ userName }}</h3>
+      <div class="user-role">Administrator</div>
     </div>
-    <ion-list lines="none">
-      <ion-item button (click)="navigateTo('profile')">
-        <ion-icon slot="start" name="person-circle-outline"></ion-icon>
-        <ion-label>Profile</ion-label>
-      </ion-item>
-      <ion-item button (click)="navigateTo('manage-parcel')">
+    
+    <!-- Menu Options -->
+    <div class="menu-options">
+      <ion-list lines="none">
+        <ion-item button detail="false" (click)="navigateTo('profile')" class="menu-item">
+          <ion-icon slot="start" name="person-circle-outline"></ion-icon>
+          <ion-label>Profile</ion-label>
+        </ion-item>
+        <ion-item button detail="false" (click)="logout()" class="menu-item">
+          <ion-icon slot="start" name="log-out-outline"></ion-icon>
+          <ion-label>Logout</ion-label>
+        </ion-item>
+      </ion-list>
+    </div>
+    
+    <!-- Footer -->
+    <div class="menu-footer">
+      <img src="assets/icon/logo-removebg-preview.png" alt="TrackXpress" class="menu-logo">
+      <div class="app-name">TrackXpress</div>
+    </div>
+  </ion-content>
+</ion-menu>
+
+<!-- Main Content -->
 <div class="ion-page" id="main-content">
   <ion-header>
     <ion-toolbar>
