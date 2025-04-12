@@ -1,11 +1,16 @@
-<ion-header [translucent]="true">
-  
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
+
+<ion-header [translucent]="true"></ion-header>
+
 <ion-content [fullscreen]="true" class="body">
-  <P class="title">TrackXpress</P>
-  
-    <ion-button class="button" expand="full" [routerLink]="['/home']">Get Started</ion-button>
-    <p class="worker-text">
-      <a class="worker-text" [routerLink]="['/login']">Are you worker?</a>
-    </p>
+  <div class="title">TrackXpress</div>
+
+  <ion-button class="button" expand="full" [routerLink]="['/tracking-parcel']">
+    Track Your Parcel
+  </ion-button>
+
+  <p class="worker-text">
+    <a [routerLink]="['/login']">Are you a worker?</a>
+  </p>
 </ion-content>
 
