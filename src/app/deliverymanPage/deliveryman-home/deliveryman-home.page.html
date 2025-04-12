@@ -10,7 +10,7 @@
   <ion-content>
     <ion-list>
       <ion-item button (click)="navigateTo('profile')">
-        <ion-icon slot="start" name="person-outline"></ion-icon>
+        <ion-icon slot="start" name="person-circle-outline"></ion-icon>
         <ion-label>Profile</ion-label>
       </ion-item>
       <ion-item button (click)="logout()">
@@ -33,21 +33,17 @@
   </ion-header>
 
   <ion-content [fullscreen]="true">
-    <div class="home-container">
-      <div class="welcome-section">
-        <h1>Welcome, {{ userName }}</h1>
-        <p>Ready to manage your deliveries?</p>
+    <div class="container">
+      <div class="welcome-message">
+        <h2>Hi, {{ userName }}</h2>
+        <p class="subtitle">Manage your deliveries with ease.</p>
       </div>
-      <div class="action-buttons">
-        <ion-button expand="block" class="action-button" (click)="navigateTo('view-assigned-parcels')">
-          <ion-icon name="cube-outline" slot="start"></ion-icon>
-          Assigned Parcels
-        </ion-button>
-        <ion-button expand="block" class="action-button" (click)="navigateTo('take-photo')">
-          <ion-icon name="camera-outline" slot="start"></ion-icon>
-          Verify Delivery
-        </ion-button>
-      </div>
+      <ion-button expand="block" class="primary-button" (click)="navigateTo('view-assigned-parcels')">
+        Assigned Parcels
+      </ion-button>
+      <ion-button expand="block" class="primary-button" (click)="navigateTo('take-photo')">
+        Verify Delivery
+      </ion-button>
     </div>
   </ion-content>
 </div>

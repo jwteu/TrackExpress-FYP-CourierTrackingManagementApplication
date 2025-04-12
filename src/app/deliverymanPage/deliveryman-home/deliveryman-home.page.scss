@@ -41,18 +41,45 @@ ion-menu {
     --padding-top: 12px;
     --padding-bottom: 12px;
     --background: transparent;
-    --color: var(--dark-gray);
     font-size: 16px;
+    color: var(--dark-gray);
 
     ion-icon {
-      font-size: 20px;
       color: var(--yellow);
+      font-size: 24px;
       margin-right: 8px;
     }
 
     &:hover {
       --background: var(--light-yellow);
     }
+  }
+}
+
+.container {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100%;
+  animation: fadeIn 0.5s ease-in;
+}
+
+.welcome-message {
+  text-align: center;
+  margin: 20px 0;
+
+  h2 {
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--dark-gray);
+    margin-bottom: 8px;
+  }
+
+  .subtitle {
+    font-size: 16px;
+    color: var(--dark-gray);
+    opacity: 0.7;
   }
 }
 
@@ -120,8 +147,27 @@ ion-menu {
   }
 }
 
+.primary-button {
+  --background: var(--yellow);
+  --color: var(--dark-gray);
+  --border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  height: 50px;
+  width: 90%;
+  max-width: 400px;
+  margin: 10px 0;
+  transition: transform 0.2s ease;
+
+  &:active {
+    --background: var(--white);
+    --color: var(--yellow);
+    transform: scale(0.95);
+  }
+}
+
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
+  from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }
 }
 

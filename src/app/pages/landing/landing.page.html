@@ -1,17 +1,36 @@
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
 
-<ion-content [fullscreen]="true" class="ion-padding">
-  <div class="hero-section">
-    <h1 class="title">TrackXpress</h1>
-    <p class="subtitle">Track your parcels with ease, anytime, anywhere.</p>
-  </div>
+<ion-content [fullscreen]="true">
+  <div class="landing-container">
+    <div class="hero-section">
+      <img src="assets/icon/logo-removebg-preview.png" alt="TrackXpress" class="hero-image">
+      
+      
+      <div class="primary-cta">
+        <ion-button class="track-button" expand="block" [routerLink]="['/tracking-parcel']">
+          <ion-icon name="search-outline" slot="start"></ion-icon>
+          Track Your Parcel
+        </ion-button>
+        
+        <div class="worker-login-text">
+          Are you worker? <a [routerLink]="['/login']">Login here</a>
+        </div>
+      </div>
+    </div>
 
-  <div class="cta-section">
-    <ion-button class="primary-button" expand="full" [routerLink]="['/tracking-parcel']">
-      Track Your Parcel
-    </ion-button>
-    <p class="worker-text">
-      Are you a worker? <a [routerLink]="['/login']">Log in here</a>
-    </p>
+    <div class="mini-features">
+      <div class="feature-item">
+        <ion-icon name="locate-outline"></ion-icon>
+        <span>Real-time Tracking</span>
+      </div>
+      <div class="feature-item">
+        <ion-icon name="notifications-outline"></ion-icon>
+        <span>Instant Updates</span>
+      </div>
+      <div class="feature-item">
+        <ion-icon name="shield-checkmark-outline"></ion-icon>
+        <span>Secure Delivery</span>
+      </div>
+    </div>
   </div>
 </ion-content>

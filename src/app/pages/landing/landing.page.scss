@@ -7,68 +7,159 @@
 }
 
 ion-content {
-  --background: linear-gradient(180deg, var(--light-yellow) 0%, var(--white) 100%);
+  --background: linear-gradient(135deg, var(--light-yellow) 0%, var(--white) 100%);
   font-family: 'Poppins', sans-serif;
 }
 
+.landing-container {
+  display: flex;
+  flex-direction: column;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 8px 16px;
+  min-height: 100%;
+}
+
+// Update the hero section styling
 .hero-section {
   text-align: center;
-  padding: 40px 20px;
-  animation: fadeIn 0.5s ease-in;
+  padding: 8px;
+  
+  .hero-image {
+    max-width: 280px; // Increased from 220px to make logo bigger
+    height: auto;
+    margin-bottom: 8px;
+  }
 
-  .title {
-    font-size: 36px;
+  .company-name {
+    font-size: 32px;
     font-weight: 700;
     color: var(--dark-gray);
-    margin-bottom: 10px;
+    margin: 0 0 16px;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.1);
   }
 
   .subtitle {
-    font-size: 16px;
-    font-weight: 400;
-    color: var(--dark-gray);
-    opacity: 0.7;
-  }
-}
-
-.cta-section {
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-
-  .primary-button {
-    --background: var(--yellow);
-    --color: var(--dark-gray);
-    --border-radius: 12px;
-    --padding-start: 20px;
-    --padding-end: 20px;
-    font-size: 18px;
-    font-weight: 600;
-    height: 50px;
-    margin-bottom: 20px;
-    transition: transform 0.2s ease;
-
-    &:active {
-      --background: var(--white);
-      --color: var(--yellow);
-      transform: scale(0.95);
-    }
-  }
-
-  .worker-text {
     font-size: 14px;
     color: var(--dark-gray);
     opacity: 0.8;
+    margin: 0 auto 12px;
+  }
+}
 
-    a {
+.primary-cta {
+  width: 100%;
+  margin: 0 auto 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  
+  .track-button {
+    --background: var(--yellow);
+    --color: var(--dark-gray);
+    --border-radius: 8px;
+    --padding-start: 16px;
+    --padding-end: 16px;
+    font-size: 16px;
+    font-weight: 600;
+    height: 44px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.12);
+    margin: 0;
+
+    ion-icon {
+      font-size: 18px;
+      margin-right: 8px;
+    }
+  }
+  
+  .login-button {
+    --border-color: var(--dark-gray);
+    --color: var(--dark-gray);
+    --border-radius: 8px;
+    --padding-start: 16px;
+    --padding-end: 16px;
+    font-size: 14px;
+    font-weight: 600;
+    height: 40px;
+    margin: 0;
+    
+    ion-icon {
+      font-size: 16px;
+      margin-right: 8px;
+    }
+  }
+}
+
+/* Modified for vertical layout with separated box items */
+.mini-features {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 10px;
+  
+  .feature-item {
+    display: flex;
+    align-items: center;
+    padding: 14px 12px;
+    border-radius: 10px;
+    background-color: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    
+    &:hover {
+      background-color: rgba(255, 255, 255, 1);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+    
+    ion-icon {
+      font-size: 32px;
       color: var(--yellow);
-      text-decoration: none;
-      font-weight: 600;
-      transition: color 0.2s ease;
+      margin-right: 16px;
+      flex-shrink: 0;
+      background-color: rgba(255, 215, 0, 0.1);
+      padding: 8px;
+      border-radius: 8px;
+    }
+    
+    span {
+      font-size: 16px;
+      font-weight: 500;
+      color: var(--dark-gray);
+      text-align: left;
+      line-height: 1.3;
+    }
+  }
+}
 
-      &:hover {
-        color: darken(#FFD700, 10%);
+.worker-login-text {
+  text-align: center;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--dark-gray);
+  
+  a {
+    color: var(--dark-gray);
+    font-weight: 600;
+    text-decoration: none;
+    position: relative;
+    
+    &::after {
+      content: '';
+      position: absolute;
+      width: 100%;
+      height: 2px;
+      bottom: -2px;
+      left: 0;
+      background-color: var(--yellow);
+      transition: all 0.2s ease;
+    }
+    
+    &:hover {
+      color: var(--yellow);
+      
+      &::after {
+        background-color: var(--yellow);
       }
     }
   }
@@ -77,4 +168,70 @@ ion-content {
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+  100% { transform: translateY(0px); }
+}
+
+// Update media queries for responsive design
+@media (max-width: 576px) {
+  .hero-section {
+    padding: 15px 10px;
+    
+    .title {
+      font-size: 28px;
+    }
+    
+    .subtitle {
+      font-size: 14px;
+    }
+    
+    .hero-image {
+      max-width: 220px;
+    }
+
+    .company-name {
+      font-size: 28px;
+    }
+  }
+  
+  .features-section {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
+
+@media (max-width: 320px) {
+  .hero-section {
+    .hero-image {
+      max-width: 180px;
+    }
+    
+    .title {
+      font-size: 24px;
+    }
+    
+    .subtitle {
+      font-size: 12px;
+    }
+
+    .company-name {
+      font-size: 24px;
+    }
+  }
+  
+  .mini-features {
+    .feature-item {
+      ion-icon {
+        font-size: 20px;
+      }
+      
+      span {
+        font-size: 12px;
+      }
+    }
+  }
 }
