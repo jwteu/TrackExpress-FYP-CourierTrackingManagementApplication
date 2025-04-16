@@ -114,6 +114,13 @@
               <p class="destination-address">{{ parcel.receiverAddress || 'Unknown' }}</p>
             </div>
           </div>
+          <div class="tracking-status" *ngIf="isLocationTracking && lastLocationUpdate">
+            <ion-icon name="sync-outline" class="pulse"></ion-icon>
+            <div class="tracking-status-text">
+              <p class="status-title">Real-time tracking active</p>
+              <p class="status-time">Last updated: {{ formatDate(lastLocationUpdate) }}</p>
+            </div>
+          </div>
         </div>
 
         <!-- Delivery Confirmation -->
@@ -161,13 +168,8 @@
           <h3>Location History</h3>
           <div class="timeline">
             <div class="timeline-event" 
-                 *ngFor="let event of sortedTrackingEvents; let i = index"
-                 [ngClass]="{
-                   'active': event.active !== false,
-                   'event-pickup': event.title === 'Pickup',
-                   'event-outfordelivery': event.title === 'Out for Delivery',
-                   'event-delivered': event.title === 'Delivered'
-                 }"
+                 *ngFor="let event of trackingEvents; let i = index"
+                 [ngClass]="{'active': event.active !== false}"
                  style="--animation-order: {{i}};">
               <div class="timeline-icon" [ngClass]="{'active': event.active !== false}">
                 <ion-icon [name]="getStatusIcon(event.status)"></ion-icon>
@@ -177,12 +179,13 @@
                   <h4>{{ event.title }}</h4>
                   <span class="event-time">{{ formatDate(event.timestamp) }}</span>
                 </div>
-                <p class="event-desc">{{ event.description }}</p>
+                
+                <!-- Only show location and handler information -->
                 <p class="event-location" *ngIf="event.location">
                   <ion-icon name="location-outline"></ion-icon> {{ event.location }}
                 </p>
                 <p class="event-agent" *ngIf="event.deliverymanName">
-                  <ion-icon name="person-outline"></ion-icon> {{ event.deliverymanName }}
+                  <ion-icon name="person-outline"></ion-icon> Handled by: {{ event.deliverymanName }}
                 </p>
               </div>
             </div>

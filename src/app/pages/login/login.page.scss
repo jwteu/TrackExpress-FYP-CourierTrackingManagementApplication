@@ -1,71 +1,108 @@
 :host {
-  --yellow: #FFD700;
-  --light-yellow: #FFECB3;
-  --dark-gray: #333333;
+  --yellow: #FFD700; // Keep vibrant yellow
+  --light-yellow: #FFF9E5; // Softer light yellow like landing
+  --dark-gray: #222831; // Darker gray like landing
   --white: #FFFFFF;
-  --soft-gray: #E0E0E0;
+  --soft-gray: #F5F6FA; // Lighter soft gray like landing
+  --medium-gray: #BDC3C7; // Added for borders/subtle elements
+  --danger-red: #E74C3C; // For error messages
 }
 
 ion-content {
-  --background: var(--white);
+  // Subtle gradient background
+  --background: linear-gradient(135deg, var(--light-yellow) 0%, var(--white) 60%, var(--soft-gray) 100%);
   font-family: 'Poppins', sans-serif;
 }
 
 ion-toolbar {
-  --background: var(--yellow);
+  // Make toolbar blend better, maybe slightly transparent or lighter
+  --background: rgba(255, 255, 255, 0.8); // Slightly transparent white
+  backdrop-filter: blur(10px); // Blur effect for modern feel
   --color: var(--dark-gray);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05); // Subtle shadow
 }
 
 .form-container {
-  padding: 20px;
+  padding: 25px;
   max-width: 400px;
-  margin: 0 auto;
-  animation: slideUp 0.5s ease-in;
+  margin: 20px auto; // Add some top margin
+  background: rgba(255, 255, 255, 0.7); // Glassmorphism background
+  backdrop-filter: blur(15px); // Blur effect
+  border-radius: 20px; // More rounded corners
+  box-shadow: 0 8px 32px rgba(34, 40, 49, 0.1); // Softer shadow
+  border: 1px solid rgba(255, 255, 255, 0.4); // Subtle border
+  animation: slideUp 0.6s ease-out; // Slightly longer, ease-out
 
   .form-title {
-    font-size: 28px;
-    font-weight: 600;
+    font-size: 26px; // Slightly smaller
+    font-weight: 700; // Bolder
     color: var(--dark-gray);
     text-align: center;
-    margin-bottom: 20px;
+    margin-bottom: 25px; // More space
+    letter-spacing: 0.5px; // Add letter spacing
   }
 
   .input-item {
-    --border-radius: 10px;
-    --padding-start: 16px;
-    --background: var(--soft-gray);
-    margin-bottom: 16px;
+    --border-radius: 12px; // More rounded
+    --padding-start: 18px;
+    --background: var(--soft-gray); // Use the lighter soft gray
+    margin-bottom: 18px;
+    --border-color: transparent; // Remove default border
+    --highlight-color-focused: var(--yellow); // Highlight with yellow
+    box-shadow: 0 2px 5px rgba(0,0,0,0.04); // Subtle shadow for depth
+    transition: box-shadow 0.3s ease, transform 0.3s ease; // Smooth transitions
+
+    &:focus-within {
+      box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3); // Glow effect on focus
+      transform: translateY(-2px); // Slight lift on focus
+    }
 
     ion-label {
       color: var(--dark-gray);
       font-weight: 500;
+      font-size: 13px; // Slightly smaller label
     }
 
     ion-input, ion-select {
       --color: var(--dark-gray);
       font-size: 16px;
+      --padding-top: 10px; // Adjust padding for floating label
+      --padding-bottom: 10px;
     }
   }
 
   .error-text {
-    font-size: 12px;
-    margin: 8px 16px;
+    font-size: 13px;
+    margin: -10px 0 15px 18px; // Adjust position
+    color: var(--danger-red); // Use danger red
+    font-weight: 500;
+    display: block; // Ensure it takes space
   }
 
   .primary-button {
-    --background: var(--yellow);
+    // Gradient background for button
+    --background: linear-gradient(90deg, var(--yellow) 0%, #FFC300 100%);
     --color: var(--dark-gray);
     --border-radius: 12px;
-    font-size: 16px;
+    font-size: 17px; // Slightly larger font
     font-weight: 600;
-    height: 48px;
-    margin-top: 20px;
-    transition: transform 0.2s ease;
+    height: 50px; // Slightly taller
+    margin-top: 25px;
+    text-transform: none; // Normal case text
+    letter-spacing: 0.3px;
+    box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3); // Yellowish shadow
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.3s ease;
+
+    &:hover { // Add hover effect for web/desktop
+       --background: linear-gradient(90deg, #FFC300 0%, var(--yellow) 100%);
+       box-shadow: 0 6px 20px rgba(255, 215, 0, 0.4);
+       transform: translateY(-2px);
+    }
 
     &:active {
-      --background: var(--white);
-      --color: var(--yellow);
-      transform: scale(0.95);
+      // More pronounced active state
+      transform: scale(0.96) translateY(1px);
+      box-shadow: 0 2px 10px rgba(255, 215, 0, 0.2);
     }
   }
 
@@ -73,18 +110,25 @@ ion-toolbar {
     text-align: center;
     font-size: 14px;
     color: var(--dark-gray);
-    margin-top: 16px;
+    margin-top: 20px; // More space
 
     a {
-      color: var(--yellow);
+      color: var(--yellow); // Use main yellow
       text-decoration: none;
       font-weight: 600;
-      margin: 0 4px;
+      margin: 0 5px;
+      transition: color 0.2s ease;
+
+      &:hover {
+        color: #FFC300; // Darker yellow on hover
+        text-decoration: underline;
+      }
     }
   }
 }
 
+// Keep the slideUp animation, maybe adjust timing/easing if needed
 @keyframes slideUp {
-  from { opacity: 0; transform: translateY(30px); }
+  from { opacity: 0; transform: translateY(40px); }
   to { opacity: 1; transform: translateY(0); }
 }

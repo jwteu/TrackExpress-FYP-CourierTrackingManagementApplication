@@ -1,19 +1,28 @@
 :host {
   --yellow: #FFD700;
-  --light-yellow: #FFECB3;
-  --dark-gray: #333333;
+  --light-yellow: #FFF9E5; // Updated to match manage-parcel for consistency
+  --dark-gray: #333333; // Keep existing dark gray or use #222831 from manage-parcel? Keeping existing for now.
   --white: #FFFFFF;
-  --soft-gray: #E0E0E0;
+  --soft-gray: #F5F6FA; // Updated to match manage-parcel for consistency
 }
 
 ion-content {
-  --background: var(--white);
+  // Use a similar gradient background as manage-parcel
+  --background: linear-gradient(135deg, var(--light-yellow) 0%, var(--white) 70%, var(--soft-gray) 100%);
   font-family: 'Poppins', sans-serif;
 }
 
 ion-toolbar {
-  --background: var(--yellow);
+  // Use the semi-transparent, blurred style from manage-parcel
+  --background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
   --color: var(--dark-gray);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+
+  ion-title {
+    font-weight: 600; // Added for consistency
+  }
 }
 
 .tracking-container {
@@ -91,14 +100,18 @@ ion-toolbar {
 }
 
 .error-card, .parcel-card {
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  margin: 16px 0;
+  border-radius: 16px; // Increased border-radius
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.07); // Softer, deeper shadow
+  margin: 20px 0; // Increased vertical margin
+  background: rgba(255, 255, 255, 0.9); // Subtle transparency
+  backdrop-filter: blur(5px); // Subtle blur effect
+  border: 1px solid rgba(0, 0, 0, 0.05); // Subtle border
 }
 
 ion-card-header {
   background: var(--light-yellow);
-  padding: 16px;
+  padding: 18px 20px; // Slightly increased padding
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05); // Add separator
 }
 
 ion-card-subtitle {
@@ -115,14 +128,14 @@ ion-card-title {
 }
 
 ion-card-content {
-  padding: 16px;
+  padding: 20px; // Increased padding
 }
 
 .progress-tracker {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin: 24px 0;
+  margin: 20px 0 30px 0; // Adjusted margin
   position: relative;
 }
 
@@ -191,8 +204,9 @@ ion-card-content {
   background: var(--white);
   border-radius: 12px;
   padding: 16px;
-  margin: 16px 0;
+  margin: 24px 0; // Increased margin
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--soft-gray); // Added subtle border
 
   .info-pair {
     display: flex;
@@ -232,7 +246,7 @@ ion-card-content {
 }
 
 .map-container {
-  margin: 20px 0;
+  margin: 24px 0; // Consistent margin
   background: var(--white);
   border-radius: 12px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
@@ -321,7 +335,7 @@ ion-card-content {
 }
 
 .delivery-confirmation {
-  margin: 20px 0;
+  margin: 24px 0; // Consistent margin
   padding: 20px;
   background: #F8FFF8;
   border-radius: 12px;
@@ -364,7 +378,7 @@ ion-card-content {
 }
 
 .delivery-estimation {
-  margin: 20px 0;
+  margin: 24px 0; // Consistent margin
   background: var(--white);
   border-radius: 12px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
@@ -431,24 +445,24 @@ ion-card-content {
 }
 
 .delivery-timeline {
-  margin: 20px 0;
+  margin: 24px 0; // Consistent margin
 
   h3 {
     font-size: 16px;
     font-weight: 600;
     color: var(--dark-gray);
-    margin-bottom: 12px;
+    margin-bottom: 16px; // Increased space below title
   }
 
   .timeline {
     position: relative;
     padding-left: 24px;
-    border-left: 2px solid var(--soft-gray);
+    border-left: 2px solid #E0E0E0; // Slightly darker line
   }
 
   .timeline-event {
     position: relative;
-    margin-bottom: 16px;
+    margin-bottom: 20px; // Increased space between events
     animation: fadeIn 0.4s ease forwards;
     animation-delay: calc(0.1s * var(--animation-order));
 
@@ -456,42 +470,37 @@ ion-card-content {
       .timeline-content {
         border-left-color: var(--yellow);
       }
+      .timeline-icon.active {
+        box-shadow: 0 0 10px rgba(255, 215, 0, 0.4); // Add glow to active icon
+      }
     }
 
     .timeline-icon {
       position: absolute;
-      left: -32px;
+      left: -34px; // Adjust position based on border-left width + padding
       top: 4px;
-      width: 24px;
-      height: 24px;
+      width: 28px; // Slightly larger icon circle
+      height: 28px;
       background: var(--white);
-      border: 2px solid var(--soft-gray);
+      border: 2px solid #E0E0E0; // Match line color
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
 
       ion-icon {
-        font-size: 12px;
+        font-size: 14px; // Slightly larger icon
         color: var(--dark-gray);
-      }
-
-      &.active {
-        background: var(--yellow);
-        border-color: var(--yellow);
-
-        ion-icon {
-          color: var(--dark-gray);
-        }
       }
     }
 
     .timeline-content {
       background: var(--white);
       border-radius: 8px;
-      padding: 12px;
+      padding: 14px 16px; // Adjust padding
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-      border-left: 3px solid var(--soft-gray);
+      border-left: 4px solid #E0E0E0; // Thicker inactive border
+      transition: border-left-color 0.3s ease;
 
       .event-header {
         display: flex;
@@ -526,6 +535,45 @@ ion-card-content {
       }
     }
   }
+}
+
+.tracking-status {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  background: #f1f8e9;
+  border-top: 1px solid var(--soft-gray);
+
+  ion-icon {
+    font-size: 20px;
+    margin-right: 12px;
+    color: #4caf50;
+  }
+
+  .tracking-status-text {
+    .status-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-dark);
+      margin: 0;
+    }
+
+    .status-time {
+      font-size: 12px;
+      color: var(--text-medium);
+      margin: 2px 0 0 0;
+    }
+  }
+}
+
+.pulse {
+  animation: pulse-animation 2s infinite;
+}
+
+@keyframes pulse-animation {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.2); opacity: 0.8; }
+  100% { transform: scale(1); opacity: 1; }
 }
 
 @keyframes fadeIn {

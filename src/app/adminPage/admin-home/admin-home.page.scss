@@ -1,19 +1,60 @@
 :host {
+  // Pinnacle Palette & Effects - Adjusted for Cream Beige Tone
   --yellow: #FFD700;
-  --light-yellow: #FFECB3;
-  --dark-gray: #333333;
+  --light-yellow: #FFF9E5;
+  --gold-accent: #FFC300;
+  --dark-gray: #1A1F26;
+  --medium-gray: #909AAD;
+  --soft-gray: #F5F6FA;
   --white: #FFFFFF;
-  --soft-gray: #E0E0E0;
+  --glass-bg: rgba(255, 255, 255, 0.78); // Slightly more opaque glass
+  --glass-border: rgba(255, 255, 255, 0.6); // Adjusted border
+  --shadow-light: rgba(50, 60, 80, 0.08); // Slightly increased light shadow
+  --shadow-medium: rgba(50, 60, 80, 0.12); // Slightly increased medium shadow
+  --shadow-strong: rgba(50, 60, 80, 0.18); // Slightly increased strong shadow
+  --primary-gradient: linear-gradient(115deg, var(--yellow) 0%, var(--gold-accent) 100%);
+  --primary-gradient-hover: linear-gradient(115deg, var(--gold-accent) 0%, #FFE57A 100%);
+  --font-primary: 'Poppins', sans-serif;
+  --ease-out-quint: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out-cubic: cubic-bezier(0.645, 0.045, 0.355, 1);
 }
 
+// Main Content Area Styling
 ion-content {
-  --background: var(--white);
-  font-family: 'Poppins', sans-serif;
+  // Apply gradient similar to login page for the cream beige feel
+  --background: linear-gradient(135deg, var(--light-yellow) 0%, var(--white) 60%, var(--soft-gray) 100%);
+  font-family: var(--font-primary);
+  // Optional: Subtle background pattern
+  // --background: linear-gradient(135deg, var(--light-yellow) 0%, var(--white) 60%, var(--soft-gray) 100%),
+  //               url('/assets/patterns/subtle-dots.svg'); // Replace with your pattern path
+  // --background-blend-mode: overlay;
+  // --background-size: auto, 100px 100px;
 }
 
 ion-toolbar {
   --background: var(--yellow);
   --color: var(--dark-gray);
+}
+
+ion-header ion-toolbar {
+  // Refined, almost floating toolbar
+  --background: rgba(255, 255, 255, 0.88); // Keep slightly opaque
+  backdrop-filter: blur(16px); // Adjust blur
+  --color: var(--dark-gray);
+  --border-width: 0 0 1px 0;
+  --border-color: rgba(0, 0, 0, 0.06); // Slightly more visible border
+  --padding-start: 12px;
+  --padding-end: 12px;
+
+  ion-title {
+    font-weight: 600;
+    font-size: 19px;
+    letter-spacing: 0.2px;
+  }
+
+  ion-menu-button {
+    --color: var(--dark-gray);
+  }
 }
 
 ion-menu {
@@ -48,103 +89,222 @@ ion-menu {
 }
 
 .container {
-  padding: 20px;
+  padding: 25px 20px 40px; // Adjust padding, more bottom padding
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-height: 100%;
-  animation: fadeIn 0.5s ease-in;
+  min-height: calc(100% - 56px);
+  justify-content: flex-start;
+  animation: fadeInScaleUp 1s var(--ease-out-quint) forwards;
+  gap: 30px; // Add gap between major sections (welcome, stats, actions)
 }
 
 .welcome-message {
   text-align: center;
-  margin: 20px 0;
+  margin-bottom: 0; // Remove bottom margin, use container gap instead
+  width: 100%;
 
   h2 {
-    font-size: 28px;
-    font-weight: 600;
+    font-size: 32px; // Slightly smaller
+    font-weight: 700;
     color: var(--dark-gray);
-    margin-bottom: 8px;
+    margin-bottom: 8px; // Reduced margin
+    letter-spacing: 0.3px;
+    background: linear-gradient(95deg, var(--dark-gray), #5A677B);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: slideDown 1.1s var(--ease-out-quint) 0.1s backwards;
   }
 
   .subtitle {
-    font-size: 16px;
+    font-size: 17px; // Slightly smaller
+    color: var(--medium-gray);
+    animation: slideDown 1.1s var(--ease-out-quint) 0.25s backwards;
+  }
+}
+
+// NEW: Stats Card Styling
+.stats-card {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); // Responsive grid
+  gap: 15px; // Gap between stat items
+  width: 100%;
+  max-width: 500px; // Max width for stats section
+  padding: 20px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(18px); // Slightly more blur for stats
+  border-radius: 18px;
+  box-shadow: 0 6px 25px var(--shadow-light); // Lighter shadow for stats
+  border: 1px solid var(--glass-border);
+  animation: popIn 0.8s var(--ease-in-out-cubic) 0.2s backwards; // Stagger animation
+
+  .stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 10px 5px;
+    background: rgba(255, 255, 255, 0.3); // Subtle inner background
+    border-radius: 12px;
+    transition: transform 0.2s ease, background 0.2s ease;
+
+    &:hover {
+      transform: translateY(-3px);
+      background: rgba(255, 255, 255, 0.5);
+    }
+
+    .stat-icon {
+      font-size: 28px; // Icon size
+      color: var(--gold-accent); // Use accent color
+      margin-bottom: 8px;
+      opacity: 0.9;
+    }
+
+    .stat-value {
+      font-size: 24px; // Value size
+      font-weight: 700;
+      color: var(--dark-gray);
+      line-height: 1.2;
+    }
+
+    .stat-label {
+      font-size: 12px; // Label size
+      color: var(--medium-gray);
+      font-weight: 500;
+    }
+  }
+}
+
+// Card styling for action buttons
+.action-card {
+  width: 100%;
+  max-width: 450px;
+  padding: 25px;
+  margin-top: 0; // Remove top margin, use container gap
+  background: var(--glass-bg);
+  backdrop-filter: blur(15px);
+  border-radius: 20px;
+  box-shadow: 0 8px 32px var(--shadow-medium);
+  border: 1px solid var(--glass-border);
+  animation: popIn 0.8s var(--ease-in-out-cubic) 0.4s backwards; // Delay animation
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+
+  .card-title { // Style for the added title
+    font-size: 18px;
+    font-weight: 600;
     color: var(--dark-gray);
-    opacity: 0.7;
+    text-align: center;
+    margin: -5px 0 5px 0; // Adjust spacing around title
+    opacity: 0.9;
   }
 }
 
 .primary-button {
-  --background: var(--yellow);
+  // Styles remain largely the same
+  --background: var(--primary-gradient);
   --color: var(--dark-gray);
-  --border-radius: 12px;
-  font-size: 16px;
+  --border-radius: 16px;
+  font-size: 17px;
   font-weight: 600;
-  height: 50px;
-  width: 90%;
-  max-width: 400px;
-  margin: 10px 0;
-  transition: transform 0.2s ease;
+  height: 58px;
+  width: 100%;
+  margin: 0;
+  text-transform: none;
+  letter-spacing: 0.5px;
+  box-shadow: 0 6px 20px rgba(255, 215, 0, 0.25);
+  transition: transform 0.3s var(--ease-in-out-cubic), box-shadow 0.3s ease, background 0.3s ease;
+
+  ion-icon {
+    font-size: 22px;
+    margin-right: 10px; // Slightly more space for icon
+  }
+
+  &:hover {
+     --background: var(--primary-gradient-hover);
+     box-shadow: 0 9px 28px rgba(255, 215, 0, 0.35);
+     transform: translateY(-3px) scale(1.02);
+  }
 
   &:active {
-    --background: var(--white);
-    --color: var(--yellow);
-    transform: scale(0.95);
+    transform: scale(0.97) translateY(0px);
+    box-shadow: 0 4px 15px rgba(255, 215, 0, 0.2);
   }
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(20px); }
+// Animations
+@keyframes fadeInScaleUp {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-25px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
-// Modern Menu Styling
+@keyframes popIn {
+  from { opacity: 0; transform: scale(0.9) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+// --- Modern Menu Styling Enhancements ---
 .modern-menu {
-  --width: 280px;
+  --width: 310px;
   --background: transparent;
-  
+
   ion-content.menu-content {
-    --background: #ffffff;
+    --background: rgba(255, 255, 255, 0.82);
+    backdrop-filter: blur(24px);
+    border-right: 1px solid var(--glass-border); // Use updated variable
     --padding-start: 0;
     --padding-end: 0;
     --padding-top: 0;
     --padding-bottom: 0;
+    box-shadow: 8px 0 35px var(--shadow-medium); // Use updated variable
+    border-image: linear-gradient(to bottom, rgba(255,255,255,0.8), rgba(255,255,255,0.2)) 1 100%;
   }
 }
 
 .user-profile-section {
   position: relative;
-  padding: 35px 15px 25px;
+  padding: 50px 20px 40px; // Adjusted padding
   text-align: center;
-  margin-bottom: 15px;
+  margin-bottom: 30px; // Increased space
   overflow: hidden;
-  
+
   .background-decoration {
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 140px;
-    background: linear-gradient(135deg, var(--yellow) 0%, #FFEA80 100%);
-    z-index: -1;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.07);
+    top: -40px; // Extend further
+    left: -40px;
+    right: -40px;
+    height: 220px; // Taller
+    // Adjust gradient if needed to complement the new page background
+    background: linear-gradient(145deg, var(--light-yellow) 0%, var(--yellow) 50%, var(--gold-accent) 100%);
+    z-index: 1;
+    border-bottom-left-radius: 50px; // Dramatic curve
+    border-bottom-right-radius: 50px;
+    box-shadow: 0 6px 25px rgba(0, 0, 0, 0.08); // Softer shadow
+    opacity: 0.9; // Slightly more transparent
   }
-  
+
   .user-avatar-container {
     position: relative;
-    width: 110px;  // Slightly larger
+    width: 110px; // Larger container
     height: 110px;
-    margin: 0 auto 15px;
-    transition: transform 0.3s ease;
-    
+    margin: 0 auto 22px; // Increased margin
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); // Consistent bounce
+    z-index: 3;
+
     &:hover {
-      transform: scale(1.03);  // Add subtle hover effect
+      transform: scale(1.1); // Larger hover scale
     }
-    
+
     .user-avatar {
-      width: 100px;  // Keeping existing size
+      width: 100px; // Larger avatar
       height: 100px;
-      background-color: white;
+      background-color: var(--white);
       border-radius: 50%;
       position: absolute;
       top: 50%;
@@ -153,62 +313,57 @@ ion-menu {
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.18);
-      border: 4px solid white;
+      box-shadow: 0 10px 30px var(--shadow-strong); // Stronger shadow
+      border: 4px solid var(--white); // Thicker border
       z-index: 2;
-      overflow: hidden; // Ensure content stays within circular boundary
-      
+      overflow: hidden;
+
       ion-icon {
-        font-size: 46px;
+        font-size: 50px; // Larger icon
         color: var(--dark-gray);
-        opacity: 1; // Ensure visibility
-        transform: translateY(0); // Reset any transformations
-        visibility: visible; // Force visibility
+        opacity: 0.85;
       }
     }
-    
+
     .avatar-border {
       position: absolute;
-      width: 110px;  // Match container size
+      width: 110px; // Match container
       height: 110px;
       border-radius: 50%;
-      background: conic-gradient(from 45deg, var(--yellow), #FFEA80, var(--yellow), #FFEA80, var(--yellow));
-      animation: spin 8s linear infinite;
+      // Brighter, smoother conic gradient
+      background: conic-gradient(from 120deg, var(--yellow), #FFF0B3, var(--gold-accent), #FFF0B3, var(--yellow));
+      animation: spin 6s linear infinite; // Faster spin
       z-index: 1;
-    }
-    
-    &:after {
-      content: '';
-      position: absolute;
-      bottom: -12px;
-      left: 20px;
-      right: 20px;
-      height: 12px;
-      background: rgba(0, 0, 0, 0.1);
-      filter: blur(8px);
-      border-radius: 50%;
-      z-index: 0;
+      filter: blur(1.5px); // More blur
+      opacity: 0.9;
     }
   }
-  
+
   .user-name {
     margin: 0;
-    font-size: 20px;
-    font-weight: 600;
+    font-size: 22px; // Larger name
+    font-weight: 700;
     color: var(--dark-gray);
     text-transform: capitalize;
+    position: relative;
+    z-index: 3;
+    letter-spacing: 0.4px;
   }
-  
+
   .user-role {
     display: inline-block;
-    background-color: rgba(255, 215, 0, 0.15);
+    background-color: rgba(255, 255, 255, 0.5); // More transparent
     color: var(--dark-gray);
-    padding: 5px 14px;
-    border-radius: 20px;
-    font-size: 13px;
-    font-weight: 500;
-    margin-top: 8px;
-    border: 1px solid rgba(255, 215, 0, 0.3);
+    padding: 8px 20px; // Adjusted padding
+    border-radius: 30px; // Fully rounded pill
+    font-size: 14px; // Slightly larger
+    font-weight: 600;
+    margin-top: 14px; // Increased space
+    border: 1px solid rgba(255, 255, 255, 0.7); // More visible border
+    position: relative;
+    z-index: 3;
+    backdrop-filter: blur(4px); // More blur on the badge
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05); // Subtle shadow on badge
   }
 }
 
@@ -218,35 +373,52 @@ ion-menu {
 }
 
 .menu-options {
-  padding: 0 10px;
-  
+  padding: 0 20px; // Increased padding
+  position: relative;
+  z-index: 2;
+
   ion-list {
     background: transparent;
-    
+    padding-top: 20px; // More space
+
     .menu-item {
-      --padding-start: 16px;
-      --padding-end: 16px;
-      --border-radius: 12px;
-      margin-bottom: 5px;
+      --padding-start: 24px; // More padding
+      --padding-end: 24px;
+      --border-radius: 14px; // More rounded
+      margin-bottom: 12px; // Increased spacing
       --background: transparent;
-      --background-hover: rgba(255, 215, 0, 0.08);
-      --ripple-color: rgba(255, 215, 0, 0.1);
-      transition: all 0.2s ease;
-      
+      --background-hover: rgba(255, 215, 0, 0.1); // Kept subtle hover bg
+      --ripple-color: rgba(255, 215, 0, 0.15);
+      transition: background 0.3s ease, transform 0.25s ease, box-shadow 0.25s ease; // Smoother transitions
+
+      &:hover {
+         transform: translateX(6px) scale(1.01); // Adjusted hover transform
+         box-shadow: 0 4px 12px rgba(255, 215, 0, 0.12); // Slightly stronger glow
+         --background: rgba(255, 215, 0, 0.05); // Very faint bg on hover
+      }
+
       &:active {
         --background: rgba(255, 215, 0, 0.15);
-        transform: scale(0.98);
+        transform: scale(0.98) translateX(3px); // Adjusted active scale/move
+        box-shadow: none;
       }
-      
+
       ion-icon {
         color: var(--dark-gray);
-        font-size: 22px;
-        margin-right: 12px;
+        font-size: 24px; // Larger icon
+        margin-right: 20px; // More space
+        opacity: 0.8; // Adjusted opacity
+        transition: transform 0.3s ease, color 0.3s ease;
       }
-      
+
+      &:hover ion-icon {
+        transform: scale(1.15) rotate(-5deg); // More dynamic icon hover
+        color: var(--gold-accent); // Change icon color on hover
+      }
+
       ion-label {
-        font-weight: 500;
-        font-size: 15px;
+        font-weight: 600;
+        font-size: 16px; // Larger label
         color: var(--dark-gray);
       }
     }
@@ -258,22 +430,27 @@ ion-menu {
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 20px;
+  padding: 35px 20px; // Increased padding
   display: flex;
   align-items: center;
   justify-content: center;
-  opacity: 0.7;
-  border-top: 1px solid rgba(0,0,0,0.05);
-  
+  border-top: 1px solid var(--shadow-light); // Consistent light border
+  background: rgba(255, 255, 255, 0.82); // Match menu background
+  backdrop-filter: blur(24px); // Match menu blur
+  z-index: 2;
+
   .menu-logo {
-    width: 20px;
-    height: 20px;
-    margin-right: 8px;
+    width: 28px; // Larger logo
+    height: 28px;
+    margin-right: 14px; // More space
+    opacity: 0.9;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.1)); // Subtle shadow on logo
   }
-  
+
   .app-name {
-    font-size: 14px;
-    font-weight: 600;
+    font-size: 17px; // Larger app name
+    font-weight: 700;
     color: var(--dark-gray);
+    opacity: 0.9;
   }
 }

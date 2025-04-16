@@ -1,157 +1,287 @@
 :host {
   --yellow: #FFD700;
-  --light-yellow: #FFECB3;
-  --dark-gray: #333333;
+  --light-yellow: #FFF9E5;
+  --dark-gray: #222831;
   --white: #FFFFFF;
-  --soft-gray: #E0E0E0;
+  --soft-gray: #F5F6FA;
+  --medium-gray: #95A5A6; // Slightly adjusted medium gray for better contrast
+  --success-green-bg: #E8F5E9;
+  --success-green-text: #2E7D32;
+  --info-blue-bg: #E3F2FD;
+  --info-blue-text: #1976D2;
+  --warning-orange-bg: #FFF3E0;
+  --warning-orange-text: #EF6C00;
+  --pending-gray-bg: #EEEEEE;
+  --pending-gray-text: #616161;
+  --danger-red: #E74C3C;
+  --danger-red-bg: #FDEDED; // Background for danger actions/hover
 }
 
 ion-content {
-  --background: var(--white);
+  --background: linear-gradient(135deg, var(--light-yellow) 0%, var(--white) 70%, var(--soft-gray) 100%);
   font-family: 'Poppins', sans-serif;
+  --padding-top: 10px; // Add some top padding to content
+  --padding-bottom: 20px; // Ensure space at the bottom
 }
 
 ion-toolbar {
-  --background: var(--yellow);
+  --background: rgba(255, 255, 255, 0.85); // Slightly less transparent
+  backdrop-filter: blur(12px); // Slightly more blur
   --color: var(--dark-gray);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.06); // Slightly stronger shadow
+  // Add a subtle bottom border
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+
+  ion-title {
+    font-weight: 600; // Bolder title
+  }
 }
 
 .button-group {
   display: flex;
   justify-content: center;
-  padding: 16px;
+  padding: 16px 16px 24px 16px; // Adjust padding
 }
 
 .primary-button {
-  --background: var(--yellow);
+  --background: linear-gradient(90deg, var(--yellow) 0%, #FFC300 100%);
   --color: var(--dark-gray);
   --border-radius: 12px;
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 600;
   height: 50px;
-  width: 200px;
-  transition: transform 0.2s ease;
+  width: auto;
+  min-width: 240px; // Slightly wider
+  text-transform: none;
+  letter-spacing: 0.4px; // Slightly more spacing
+  box-shadow: 0 5px 18px rgba(255, 215, 0, 0.35); // Enhanced shadow
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.3s ease;
+
+  &:hover {
+     --background: linear-gradient(90deg, #FFC300 0%, var(--yellow) 100%);
+     box-shadow: 0 7px 22px rgba(255, 215, 0, 0.45); // Enhanced hover shadow
+     transform: translateY(-2px);
+  }
 
   &:active {
-    --background: var(--white);
-    --color: var(--yellow);
-    transform: scale(0.95);
+    transform: scale(0.96) translateY(1px);
+    box-shadow: 0 3px 12px rgba(255, 215, 0, 0.25); // Adjusted active shadow
   }
 }
 
-.loading-container {
+.loading-container, .empty-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 40px;
+  padding: 45px 30px; // Increased padding
   text-align: center;
+  max-width: 420px; // Slightly wider
+  margin: 50px auto; // More vertical margin
+  background: rgba(255, 255, 255, 0.75); // Adjusted transparency
+  backdrop-filter: blur(18px); // More blur
+  border-radius: 24px; // More rounded
+  box-shadow: 0 10px 35px rgba(34, 40, 49, 0.12); // Softer, larger shadow
+  border: 1px solid rgba(255, 255, 255, 0.5); // Adjusted border
 
   ion-spinner {
     --color: var(--yellow);
-    margin-bottom: 16px;
+    margin-bottom: 25px;
+    width: 55px;
+    height: 55px;
   }
-
-  p {
-    font-size: 16px;
-    color: var(--dark-gray);
-  }
-}
-
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 40px;
-  text-align: center;
 
   ion-icon {
-    font-size: 64px;
+    font-size: 75px;
     color: var(--yellow);
-    margin-bottom: 16px;
+    margin-bottom: 25px;
+    filter: drop-shadow(0 5px 12px rgba(255, 215, 0, 0.35));
   }
 
   h3 {
-    font-size: 20px;
-    font-weight: 600;
+    font-size: 24px;
+    font-weight: 700;
     color: var(--dark-gray);
-    margin-bottom: 8px;
+    margin-bottom: 12px;
   }
 
   p {
     font-size: 16px;
     color: var(--dark-gray);
-    opacity: 0.7;
+    opacity: 0.85; // More opaque
+    line-height: 1.6; // Increased line height
   }
 }
 
+ion-list {
+  background: transparent;
+  padding: 0 10px; // Slightly more horizontal padding for the list container
+  margin-top: 0; // Remove default list margin if any
+}
+
 .parcel-item {
-  --border-radius: 12px;
-  --background: var(--white);
-  margin: 8px 0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  transition: transform 0.2s ease;
+  --border-radius: 18px; // More rounded
+  --padding-start: 18px; // More padding
+  --padding-end: 12px;
+  --inner-padding-top: 14px; // Add vertical padding inside item
+  --inner-padding-bottom: 14px;
+  --inner-padding-end: 12px;
+  background: rgba(255, 255, 255, 0.85); // Less transparent glass
+  backdrop-filter: blur(14px); // Adjusted blur
+  margin: 10px 6px; // Adjusted margin (more vertical, less horizontal)
+  box-shadow: 0 5px 20px rgba(34, 40, 49, 0.08); // Adjusted shadow
+  border: 1px solid rgba(255, 255, 255, 0.6); // Slightly more visible border
+  transition: transform 0.25s ease, box-shadow 0.25s ease, background-color 0.25s ease;
+  animation: slideInUp 0.55s ease-out forwards;
+  opacity: 0;
+  animation-delay: calc(var(--ion-item-index, 0) * 45ms); // Slightly adjusted stagger
 
   &:hover {
-    transform: translateY(-2px);
+    transform: translateY(-4px) scale(1.02); // Enhanced hover effect
+    box-shadow: 0 10px 25px rgba(34, 40, 49, 0.12);
+    background-color: rgba(255, 255, 255, 0.95); // Lighten slightly on hover
   }
 
   &.delivered-parcel {
-    --background: #F8FFF8;
-    opacity: 0.9;
+    background: rgba(232, 245, 233, 0.85); // Adjusted delivered bg
+    border-color: rgba(46, 125, 50, 0.35);
+    opacity: 0.9; // Slightly less prominent when delivered
+
+    &:hover {
+       background-color: rgba(232, 245, 233, 0.95);
+    }
   }
 
   ion-label {
     h3 {
-      font-size: 16px;
-      font-weight: 600;
+      font-size: 17px; // Larger sender name
+      font-weight: 700; // Bolder
       color: var(--dark-gray);
+      margin-bottom: 8px; // More space below title
     }
 
     p {
-      font-size: 14px;
+      font-size: 13px;
       color: var(--dark-gray);
-      opacity: 0.7;
+      opacity: 0.8; // Slightly more opaque text
+      margin-bottom: 5px;
+      line-height: 1.45;
+
+      strong { // Style parts of the text if needed
+        font-weight: 600;
+        color: var(--dark-gray); // Ensure strong text is dark
+      }
+
+      &:last-child {
+        margin-bottom: 0;
+      }
     }
   }
 }
 
 .barcode-thumbnail {
-  --size: 60px;
-  border-radius: 8px;
+  --size: 64px; // Slightly larger thumbnail
+  border-radius: 12px; // More rounded
   overflow: hidden;
+  margin-right: 18px; // More space next to thumbnail
+  border: 1px solid rgba(0,0,0,0.06);
+  box-shadow: 0 3px 6px rgba(0,0,0,0.05);
+  align-self: center; // Vertically center thumbnail
 }
 
 .status-badge {
-  font-size: 12px;
+  font-size: 12px; // Slightly larger badge text
   font-weight: 600;
-  padding: 4px 8px;
-  border-radius: 12px;
+  padding: 5px 10px; // More padding
+  border-radius: 10px; // More rounded badge
   display: inline-block;
+  text-transform: capitalize;
+  margin-top: 2px; // Add slight margin if needed
+
+  // Add subtle borders to badges for definition
+  border: 1px solid transparent;
 
   &.status-delivered {
-    background: #E8F5E9;
-    color: #2E7D32;
+    background: var(--success-green-bg);
+    color: var(--success-green-text);
+    border-color: rgba(46, 125, 50, 0.2);
   }
 
   &.status-transit, &.status-in-transit {
-    background: #E3F2FD;
-    color: #1976D2;
+    background: var(--info-blue-bg);
+    color: var(--info-blue-text);
+    border-color: rgba(25, 118, 210, 0.2);
   }
 
   &.status-out-for-delivery {
-    background: #FFF3E0;
-    color: #EF6C00;
+    background: var(--warning-orange-bg);
+    color: var(--warning-orange-text);
+    border-color: rgba(239, 108, 0, 0.2);
   }
 
   &.status-pending {
-    background: var(--soft-gray);
-    color: var(--dark-gray);
+    background: var(--pending-gray-bg);
+    color: var(--pending-gray-text);
+    border-color: rgba(97, 97, 97, 0.2);
   }
 }
 
 .action-buttons {
   display: flex;
+  flex-direction: column; // Stack buttons vertically
   align-items: center;
+  justify-content: center; // Center buttons vertically in their space
+  gap: 4px; // Space between buttons
+  margin-left: 8px; // Space between label and buttons
+
+  ion-button {
+    --padding-start: 6px; // Adjust padding for icon-only
+    --padding-end: 6px;
+    height: 38px; // Slightly larger tap target
+    width: 38px; // Make it square
+    --color: var(--medium-gray);
+    transition: color 0.2s ease, background-color 0.2s ease, transform 0.15s ease;
+    --border-radius: 10px; // Rounded buttons
+
+    &:hover {
+      --color: var(--dark-gray); // Darken icon on hover
+      background-color: rgba(0, 0, 0, 0.05); // Subtle background on hover
+      transform: scale(1.1); // Slight scale on hover
+    }
+
+    ion-icon {
+      font-size: 20px; // Ensure icon size is appropriate
+    }
+
+    &[color="primary"] { // Keep color prop for semantics if needed
+       &:hover {
+         --color: var(--info-blue-text);
+         background-color: var(--info-blue-bg);
+       }
+    }
+    &[color="danger"] {
+       &:hover {
+         --color: var(--danger-red);
+         background-color: var(--danger-red-bg);
+       }
+    }
+  }
+}
+
+// Animation for items sliding in
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.98); // Start slightly scaled down
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+// Ensure the index variable is set in the HTML template
+// e.g., <ion-item [style.--ion-item-index]="i" ...>
+ion-list ion-item {
+  --ion-item-index: initial;
 }

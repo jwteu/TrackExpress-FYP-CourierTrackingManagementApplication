@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, Injector, runInInjectionContext } from '@angular/core';
+import { Component, OnInit, inject, Injector, runInInjectionContext, ChangeDetectorRef, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IonicModule } from '@ionic/angular';
@@ -40,6 +40,7 @@ export class TakePhotoPage implements OnInit {
   assignedParcels: Parcel[] = [];
   selectedParcel: Parcel | null = null;
   isLoadingParcels: boolean = false;
+  showDebugInfo: boolean = false; // Add this to your component
 
   // Angular 19 injection pattern - keep field injection
   private navCtrl = inject(NavController);
@@ -51,6 +52,8 @@ export class TakePhotoPage implements OnInit {
   private injector = inject(Injector);
   private cloudinaryService = inject(CloudinaryService);
   private parcelService = inject(ParcelService);
+  private cdr = inject(ChangeDetectorRef);
+  private zone = inject(NgZone);
 
   constructor() { }
 
@@ -151,7 +154,18 @@ export class TakePhotoPage implements OnInit {
       return;
     }
     
+    console.log(`Loading parcels for user: ${this.currentUserName} with ID: ${this.currentUserId}`);
     this.isLoadingParcels = true;
+    console.log(`Loading parcels for: ${this.currentUserName} (${this.currentUserId})`);
+    
+    // Add a safety timeout to prevent endless loading
+    const loadingTimeout = setTimeout(() => {
+      if (this.isLoadingParcels) {
+        console.log('Loading timeout reached');
+        this.isLoadingParcels = false;
+        this.showToast('Loading took too long. Please try refreshing.');
+      }
+    }, 15000); // 15 second timeout
     
     runInInjectionContext(this.injector, () => {
       this.parcelService.getAssignedParcelsSecure(
@@ -159,65 +173,74 @@ export class TakePhotoPage implements OnInit {
         this.currentUserId!
       ).subscribe({
         next: async (assignedParcelsSnapshot) => {
+          clearTimeout(loadingTimeout); // Clear timeout on success
           console.log('Loaded parcels:', assignedParcelsSnapshot.length);
           
-          // Create a new enriched parcels array with recipient details
-          const enrichedParcels: Parcel[] = [];
-          
-          // Process each assigned parcel to get additional details
-          for (const parcel of assignedParcelsSnapshot) {
-            // Skip already delivered parcels
-            if (parcel.status === 'Delivered' || 
-                parcel.status?.includes('photo')) {
-              continue;
-            }
-            
-            try {
-              // Get parcel details from the main collection
-              const parcelDetails = await firstValueFrom(
-                this.parcelService.getParcelDetails(parcel.trackingId)
-              );
-              
-              if (parcelDetails) {
-                enrichedParcels.push({
-                  ...parcel,
-                  receiverAddress: parcelDetails.receiverAddress || 'No address available',
-                  receiverName: parcelDetails.receiverName || 'No recipient name',
-                  status: parcel.status || parcelDetails.status || 'Pending'
-                });
-              } else {
-                // If we can't find details, still include the parcel with fallbacks
-                enrichedParcels.push({
-                  ...parcel,
-                  receiverAddress: 'No address available',
-                  receiverName: 'No recipient name'
-                });
-              }
-            } catch (error) {
-              console.error('Error fetching parcel details:', error);
-            }
+          if (assignedParcelsSnapshot.length === 0) {
+            this.isLoadingParcels = false;
+            return;
           }
           
+          // Filter out delivered parcels first to reduce network requests
+          const undeliveredParcels = assignedParcelsSnapshot.filter(
+            parcel => parcel.status !== 'Delivered' && !parcel.status?.includes('photo')
+          );
+          
+          // Process all parcels in parallel
+          const parcelDetailPromises = undeliveredParcels.map(parcel =>
+            firstValueFrom(this.parcelService.getParcelDetails(parcel.trackingId))
+          );
+
+          const parcelDetails = await Promise.all(parcelDetailPromises);
+          
+          // Build enriched parcels using the result arrays
+          const enrichedParcels: Parcel[] = [];
+          
+          undeliveredParcels.forEach((parcel, index) => {
+            const details = parcelDetails[index];
+            
+            if (details) {
+              enrichedParcels.push({
+                ...parcel,
+                receiverAddress: details.receiverAddress || 'No address available',
+                receiverName: details.receiverName || 'No recipient name',
+                status: parcel.status || details.status || 'Pending'
+              });
+            } else {
+              enrichedParcels.push({
+                ...parcel,
+                receiverAddress: 'No address available',
+                receiverName: 'No recipient name'
+              });
+            }
+          });
+          
           this.assignedParcels = enrichedParcels;
-          console.log('Enriched parcels with recipient details:', this.assignedParcels.length);
-          this.isLoadingParcels = false;
+          this.zone.run(() => {
+            this.isLoadingParcels = false;
+            console.log('Forcing zone update');
+          });
+          
+          // Force change detection to update the UI
+          this.cdr.detectChanges();
+          console.log('UI should update now with parcels');
         },
         error: (error) => {
+          clearTimeout(loadingTimeout); // Clear timeout on error
           console.error('Error loading parcels:', error);
           this.isLoadingParcels = false;
           this.showToast('Failed to load parcels. Please try again.');
         }
       });
     });
-  }
 
-  // Example of fields to include in your query
-  private getAssignedParcelsSecure(deliverymanName: string, deliverymanId: string) {
-    return this.firestore.collection('assigned_parcels', ref => ref
-      .where('deliverymanName', '==', deliverymanName)
-      .where('deliverymanId', '==', deliverymanId))
-      .valueChanges({ idField: 'id' })
-      .pipe(map((parcels: any[]) => parcels as Parcel[]));
+    setTimeout(() => {
+      if (this.isLoadingParcels && this.assignedParcels.length > 0) {
+        console.log('Forcing loading state end via timeout');
+        this.isLoadingParcels = false;
+        this.cdr.detectChanges();
+      }
+    }, 2000); // 2 seconds fallback
   }
 
   // Update the selectParcel method to ensure proper UI state

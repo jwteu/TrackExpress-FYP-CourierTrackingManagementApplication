@@ -2,20 +2,19 @@
 
 <ion-menu contentId="main-content" side="start" class="modern-menu">
   <ion-content class="menu-content">
-    <!-- Enhanced User Profile Section - The HTML remains the same -->
+    <!-- Enhanced User Profile Section -->
     <div class="user-profile-section">
       <div class="background-decoration"></div>
       <div class="user-avatar-container">
         <div class="user-avatar">
-          <!-- Updated icon with explicit size and color -->
-          <ion-icon name="person" size="large"></ion-icon>
+          <ion-icon name="person-sharp"></ion-icon> <!-- Using sharp variant -->
         </div>
         <div class="avatar-border"></div>
       </div>
       <h3 class="user-name">{{ userName }}</h3>
       <div class="user-role">Administrator</div>
     </div>
-    
+
     <!-- Menu Options -->
     <div class="menu-options">
       <ion-list lines="none">
@@ -27,9 +26,10 @@
           <ion-icon slot="start" name="log-out-outline"></ion-icon>
           <ion-label>Logout</ion-label>
         </ion-item>
+        <!-- Add more menu items as needed -->
       </ion-list>
     </div>
-    
+
     <!-- Footer -->
     <div class="menu-footer">
       <img src="assets/icon/logo-removebg-preview.png" alt="TrackXpress" class="menu-logo">
@@ -40,27 +40,64 @@
 
 <!-- Main Content -->
 <div class="ion-page" id="main-content">
-  <ion-header>
+  <ion-header class="ion-no-border"> <!-- Remove default border -->
     <ion-toolbar>
       <ion-buttons slot="start">
-        <ion-menu-button></ion-menu-button>
+        <ion-menu-button auto-hide="false"></ion-menu-button> <!-- Ensure button is always visible -->
       </ion-buttons>
-      <ion-title>TrackXpress</ion-title>
+      <ion-title>Dashboard</ion-title> <!-- Changed title for context -->
     </ion-toolbar>
   </ion-header>
 
   <ion-content [fullscreen]="true">
     <div class="container">
       <div class="welcome-message">
-        <h2>Hi, {{ userName }}</h2>
-        <p class="subtitle">Manage your parcels with ease.</p>
+        <h2>Welcome back, {{ userName }}!</h2>
+        <p class="subtitle">Here's a quick overview of today.</p> <!-- Updated subtitle -->
       </div>
-      <ion-button expand="block" class="primary-button" (click)="navigateTo('manage-parcel')">
-        Manage Parcels
-      </ion-button>
-      <ion-button expand="block" class="primary-button" (click)="navigateTo('tracking-parcel')">
-        Track Parcels
-      </ion-button>
+
+      <!-- Stats Card Section -->
+      <div class="stats-card">
+        <div class="stat-item">
+          <ion-icon name="cube-outline" class="stat-icon"></ion-icon>
+          <div class="stat-value">
+            <ion-spinner *ngIf="loadingPending" name="dots" color="medium"></ion-spinner>
+            <span *ngIf="!loadingPending">{{ pendingParcelsCount }}</span>
+          </div>
+          <div class="stat-label">Pending Parcels</div>
+        </div>
+        <div class="stat-item">
+          <ion-icon name="checkmark-done-outline" class="stat-icon"></ion-icon>
+          <div class="stat-value">
+            <ion-spinner *ngIf="loadingDelivered" name="dots" color="medium"></ion-spinner>
+            <span *ngIf="!loadingDelivered">{{ deliveredTodayCount }}</span>
+          </div>
+          <div class="stat-label">Delivered Today</div>
+        </div>
+        <div class="stat-item">
+          <ion-icon name="people-outline" class="stat-icon"></ion-icon>
+          <div class="stat-value">
+            <ion-spinner *ngIf="loadingDeliverymen" name="dots" color="medium"></ion-spinner>
+            <span *ngIf="!loadingDeliverymen">{{ activeDeliverymenCount }}</span>
+          </div>
+          <div class="stat-label">Active Deliverymen</div>
+        </div>
+      </div>
+
+      <!-- Action Buttons Card -->
+      <div class="action-card">
+         <h3 class="card-title">Quick Actions</h3> <!-- Add title to action card -->
+        <ion-button expand="block" class="primary-button" (click)="navigateTo('manage-parcel')">
+          <ion-icon slot="start" name="create-outline"></ion-icon> <!-- Changed icon -->
+          Manage Parcels
+        </ion-button>
+        <ion-button expand="block" class="primary-button" (click)="navigateTo('tracking-parcel')">
+          <ion-icon slot="start" name="search-outline"></ion-icon> <!-- Changed icon -->
+          Track Parcels
+        </ion-button>
+        <!-- Add more buttons inside this card if needed -->
+      </div>
+
     </div>
   </ion-content>
 </div>

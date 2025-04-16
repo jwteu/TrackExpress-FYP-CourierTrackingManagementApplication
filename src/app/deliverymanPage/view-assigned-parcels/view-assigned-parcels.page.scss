@@ -1,563 +1,608 @@
 :host {
-  --theme-color:  #FFD700;/* Darker yellow */
-  --theme-dark: #FFD700;  /* Even darker yellow for accents */
-  --theme-light: rgba(230, 200, 0, 0.08);
-  --card-bg: #ffffff;
-  --card-radius: 18px;
-  --text-dark: #333333;
-  --text-medium: #666666;
-  --text-light: #999999;
-  --shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
-  --border-light: #f0f0f0;
+  // Pinnacle Palette & Effects - Copied from deliveryman-home
+  --yellow: #FFD700;
+  --light-yellow: #FFF9E5;
+  --gold-accent: #FFC300;
+  --dark-gray: #1A1F26; // Use the darker gray from home page
+  --medium-gray: #909AAD;
+  --soft-gray: #F5F6FA;
+  --white: #FFFFFF;
+  --glass-bg: rgba(255, 255, 255, 0.78); // Use glass effect from home
+  --glass-border: rgba(255, 255, 255, 0.6);
+  --shadow-light: rgba(50, 60, 80, 0.08);
+  --shadow-medium: rgba(50, 60, 80, 0.12);
+  --shadow-strong: rgba(50, 60, 80, 0.18);
+  --primary-gradient: linear-gradient(115deg, var(--yellow) 0%, var(--gold-accent) 100%);
+  --primary-gradient-hover: linear-gradient(115deg, var(--gold-accent) 0%, #FFE57A 100%);
+
+  // Specific colors for this page (using the palette)
+  --theme-color: var(--yellow);
+  --theme-dark: var(--gold-accent);
+  --theme-light: var(--light-yellow); // Use light yellow from palette
+  --card-bg: var(--white); // Keep original card background
+  --card-radius: 18px; // Keep original radius
+  --text-dark: var(--dark-gray); // Use dark gray from palette
+  --text-medium: var(--medium-gray); // Use medium gray from palette
+  --text-light: var(--medium-gray); // Use medium gray for light text
+  --shadow: var(--shadow-medium); // Use medium shadow from palette
+  --border-light: rgba(0, 0, 0, 0.06); // Use a subtle dark border
+  --glass-bg-header: rgba(255, 255, 255, 0.88); // Header glass effect background
+  --border-medium: rgba(0, 0, 0, 0.1); // Slightly darker border color
 }
 
-// Smaller header style
+// Smaller header style - Apply theme colors
 ion-header {
-  background: transparent;
-
   ion-toolbar {
-    --background: var(--theme-color);
-    --color: #ffffff;
-    --border-width: 0;
-    --min-height: 48px; /* Reduced min-height */
-    padding-top: 3%; /* Reduced padding */
-    padding-bottom: 4%; /* Reduced padding */
+    --background: var(--glass-bg-header); // Use semi-transparent white
+    backdrop-filter: blur(16px); // Add blur effect like home page
+    --color: var(--dark-gray); // Keep dark text/icons
+    --border-width: 0 0 1px 0; // Add subtle bottom border
+    --border-color: var(--border-light); // Use theme border color
+    --min-height: 48px; // Keep original
+    padding-top: 3%; // Keep original
+    padding-bottom: 4%; // Keep original
 
     ion-title {
-      font-weight: 700;
-      font-size: 22px; /* Smaller font size */
+      font-weight: 700; // Keep original
+      font-size: 22px; // Keep original
     }
 
     ion-back-button {
-      --icon-font-size: 16px; /* Smaller icon */
-      --color: #ffffff;
+      --icon-font-size: 16px; // Keep original
+      --color: var(--dark-gray); // Keep dark icon
     }
   }
 }
 
+// Apply theme background
 ion-content {
-  --background: #f9f9f9;
+  --background: linear-gradient(135deg, var(--light-yellow) 0%, var(--white) 60%, var(--soft-gray) 100%); // Gradient from home
 }
 
-// Main container
+// Main container - Keep original layout
 .main-container {
-  max-width: 600px;
-  margin: 0 auto;
-  padding: 16px 0;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+  max-width: 600px; // Keep original
+  margin: 0 auto; // Keep original
+  padding: 16px 0; // Keep original
+  display: flex; // Keep original
+  flex-direction: column; // Keep original
+  gap: 20px; // Keep original
 }
 
-// Header section with icon
+// Header section with icon - Apply theme colors
 .header-section {
-  text-align: center;
-  margin-bottom: 10px;
-  animation: fadeInDown 0.5s ease forwards;
+  text-align: center; // Keep original
+  margin-bottom: 10px; // Keep original
+  animation: fadeInDown 0.5s ease forwards; // Keep original
 
   .header-icon {
-    width: 76px;
-    height: 76px;
-    border-radius: 50%;
-    background: var(--theme-light);
-    margin: 0 auto 16px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 8px 16px rgba(66, 133, 244, 0.15);
+    width: 76px; // Keep original
+    height: 76px; // Keep original
+    border-radius: 50%; // Keep original
+    background: var(--theme-light); // Light yellow background
+    margin: 0 auto 16px; // Keep original
+    display: flex; // Keep original
+    align-items: center; // Keep original
+    justify-content: center; // Keep original
+    box-shadow: 0 8px 16px rgba(255, 215, 0, 0.15); // Yellow shadow
 
     ion-icon {
-      font-size: 40px;
-      color: var(--theme-dark);
+      font-size: 40px; // Keep original
+      color: var(--theme-dark); // Gold accent icon
     }
   }
 
   h1 {
-    font-size: 26px;
-    font-weight: 700;
-    margin: 0 0 8px;
-    color: var(--text-dark);
+    font-size: 26px; // Keep original
+    font-weight: 700; // Keep original
+    margin: 0 0 8px; // Keep original
+    color: var(--text-dark); // Use theme text color
   }
 
   p {
-    font-size: 15px;
-    color: var(--text-medium);
-    max-width: 320px;
-    margin: 0 auto;
-    line-height: 1.4;
+    font-size: 15px; // Keep original
+    color: var(--text-medium); // Use theme text color
+    max-width: 320px; // Keep original
+    margin: 0 auto; // Keep original
+    line-height: 1.4; // Keep original
   }
 }
 
-// Card component style
+// Card component style - Apply theme colors/shadow
 .card {
-  background: var(--card-bg);
-  border-radius: var(--card-radius);
-  box-shadow: var(--shadow);
-  overflow: hidden;
-  transition: all 0.3s ease;
-  animation: fadeInUp 0.5s ease forwards;
+  background: var(--card-bg); // Keep original background
+  border-radius: var(--card-radius); // Keep original radius
+  box-shadow: var(--shadow); // Use theme shadow
+  overflow: hidden; // Keep original
+  transition: all 0.3s ease; // Keep original
+  animation: fadeInUp 0.5s ease forwards; // Keep original
 
   .card-header {
-    padding: 18px 20px;
-    border-bottom: 1px solid var(--border-light);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+    padding: 18px 20px; // Keep original
+    border-bottom: 1px solid var(--border-light); // Use theme border
+    display: flex; // Keep original
+    align-items: center; // Keep original
+    justify-content: space-between; // Keep original
 
     h2 {
-      margin: 0;
-      font-size: 16px;
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      color: var(--text-dark);
+      margin: 0; // Keep original
+      font-size: 16px; // Keep original
+      font-weight: 600; // Keep original
+      display: flex; // Keep original
+      align-items: center; // Keep original
+      color: var(--text-dark); // Use theme text color
 
       ion-icon {
-        margin-right: 8px;
-        color: var(--theme-color);
-        font-size: 20px;
+        margin-right: 8px; // Keep original
+        color: var(--theme-color); // Yellow icon
+        font-size: 20px; // Keep original
       }
     }
 
     .header-actions {
-      display: flex;
-      gap: 4px;
+      display: flex; // Keep original
+      gap: 4px; // Keep original
 
       ion-button {
-        --color: var(--theme-color);
-        font-size: 12px;
-        font-weight: 600;
+        --color: var(--theme-color); // Yellow button text
+        font-size: 12px; // Keep original
+        font-weight: 600; // Keep original
       }
     }
   }
 
   .card-content {
-    padding: 20px;
+    padding: 20px; // Keep original
   }
 }
 
-// Form styling
+// Form styling - Apply theme colors
 .form-card {
   .form-field {
-    margin-bottom: 20px;
+    margin-bottom: 20px; // Keep original
 
     ion-label {
-      font-size: 14px;
-      font-weight: 600;
-      color: var(--text-dark);
-      margin-bottom: 8px;
-      display: block;
+      font-size: 14px; // Keep original
+      font-weight: 600; // Keep original
+      color: var(--text-dark); // Use theme text color
+      margin-bottom: 8px; // Keep original
+      display: block; // Keep original
     }
 
     ion-input, ion-textarea {
-      --background: #f5f7fa;
-      --padding-start: 16px;
-      --padding-end: 16px;
-      --padding-top: 12px;
-      --padding-bottom: 12px;
-      --border-radius: 8px;
-      margin-top: 8px;
+      --background: var(--soft-gray); // Use soft gray from palette
+      --padding-start: 16px; // Keep original
+      --padding-end: 16px; // Keep original
+      --padding-top: 12px; // Keep original
+      --padding-bottom: 12px; // Keep original
+      --border-radius: 8px; // Keep original
+      margin-top: 8px; // Keep original
+      --color: var(--text-dark); // Use theme text color
     }
 
     ion-segment {
-      --background: #f5f7fa;
-      border-radius: 8px;
-      margin-top: 8px;
-      
+      --background: var(--soft-gray); // Use soft gray from palette
+      border-radius: 8px; // Keep original
+      margin-top: 8px; // Keep original
+
       ion-segment-button {
-        --background-checked: var(--theme-color);
-        --color-checked: #ffffff;
-        --indicator-color: transparent;
-        min-height: 42px;
-        
+        --background-checked: var(--theme-color); // Yellow background when checked
+        --color: var(--text-medium); // Use theme text color
+        --color-checked: var(--dark-gray); // Dark text on yellow
+        --indicator-color: transparent; // Keep original
+        min-height: 42px; // Keep original
+
         &::part(indicator) {
-          display: none;
+          display: none; // Keep original
         }
-        
+
         ion-icon {
-          font-size: 18px;
-          margin-bottom: 4px;
+          font-size: 18px; // Keep original
+          margin-bottom: 4px; // Keep original
         }
-        
+
         .small-text {
-          font-size: 11px;
-          margin-top: 2px;
-          text-transform: none;
+          font-size: 11px; // Keep original
+          margin-top: 2px; // Keep original
+          text-transform: none; // Keep original
         }
       }
     }
 
     .helper-text {
-      font-size: 12px;
-      color: #f44336;
-      margin-top: 4px;
-      display: block;
+      font-size: 12px; // Keep original
+      color: #f44336; // Keep original error color
+      margin-top: 4px; // Keep original
+      display: block; // Keep original
     }
 
     .input-with-buttons {
-      display: flex;
-      align-items: center;
-      background: #f5f7fa;
-      border-radius: 8px;
-      overflow: hidden;
-      margin-top: 8px;
+      display: flex; // Keep original
+      align-items: center; // Keep original
+      background: var(--soft-gray); // Use soft gray from palette
+      border-radius: 8px; // Keep original
+      overflow: hidden; // Keep original
+      margin-top: 8px; // Keep original
+      border: 1px solid var(--border-medium); // Make border slightly darker
 
       ion-input {
-        margin-top: 0;
-        flex: 1;
+        margin-top: 0; // Keep original
+        flex: 1; // Keep original
+        --background: transparent; // Make input transparent inside
       }
 
       .input-buttons {
-        display: flex;
-        
+        display: flex; // Keep original
+
         ion-button {
-          --padding-start: 8px;
-          --padding-end: 8px;
-          --color: var(--theme-dark);
-          height: 42px;
+          --padding-start: 8px; // Keep original
+          --padding-end: 8px; // Keep original
+          --color: var(--theme-dark); // Gold accent icon buttons
+          height: 42px; // Keep original
         }
       }
     }
   }
 
   .form-actions {
-    margin-top: 24px;
+    margin-top: 24px; // Keep original
 
     ion-button {
-      --background: var(--theme-color);
-      --color: white;
-      --border-radius: 8px;
-      --box-shadow: none;
-      height: 48px;
-      font-weight: 600;
+      --background: var(--primary-gradient); // Use gradient from home
+      --color: var(--dark-gray); // Dark text on yellow
+      --border-radius: 8px; // Keep original
+      --box-shadow: 0 4px 15px rgba(255, 215, 0, 0.2); // Add subtle shadow
+      height: 48px; // Keep original
+      font-weight: 600; // Keep original
+      transition: background 0.3s ease, box-shadow 0.3s ease; // Add transition
+
+      &:hover {
+        --background: var(--primary-gradient-hover);
+        --box-shadow: 0 6px 20px rgba(255, 215, 0, 0.3);
+      }
+
+      ion-spinner {
+        --color: var(--dark-gray); // Spinner color on button
+      }
     }
   }
 }
 
-// Parcel list styling
+// Parcel list styling - Apply theme colors
 .parcels-card {
   .parcel-list {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
+    display: flex; // Keep original
+    flex-direction: column; // Keep original
+    gap: 12px; // Keep original
   }
 
   .parcel-item {
-    display: flex;
-    align-items: flex-start;
-    background: #f8fafc;
-    border-radius: 12px;
-    padding: 16px;
-    margin-bottom: 12px;
-    border: 1px solid #edf2f7;
-    transition: all 0.2s ease;
-    animation: fadeInUp 0.4s ease forwards;
-    animation-delay: calc(0.05s * var(--animation-order, 0));
+    display: flex; // Keep original
+    align-items: flex-start; // Keep original
+    background: var(--white); // Use white for items
+    border-radius: 12px; // Keep original
+    padding: 16px; // Keep original
+    margin-bottom: 12px; // Keep original
+    border: 1px solid var(--border-medium); // Make border slightly darker
+    transition: all 0.2s ease; // Keep original
+    animation: fadeInUp 0.4s ease forwards; // Keep original
+    animation-delay: calc(0.05s * var(--animation-order, 0)); // Keep original
+    box-shadow: 0 2px 8px rgba(0,0,0,0.03); // Add subtle shadow
 
     &:hover {
-      background: #edf2f7;
-      transform: translateY(-2px);
+      background: var(--soft-gray); // Use soft gray on hover
+      transform: translateY(-2px); // Keep original
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05); // Slightly stronger shadow on hover
     }
 
     &.selected {
-      background: var(--theme-light);
-      border-color: var(--theme-dark);
-      transform: translateY(-2px);
+      background: var(--theme-light); // Light yellow background when selected
+      border-color: var(--theme-dark); // Gold accent border when selected
+      transform: translateY(-2px); // Keep original
+      box-shadow: 0 4px 12px rgba(255, 215, 0, 0.1); // Yellow shadow when selected
     }
-    
+
     // Bigger selection circle
     .selection-circle {
-      margin-right: 16px;
-      padding-top: 4px;
-      
+      margin-right: 16px; // Keep original
+      padding-top: 4px; // Keep original
+
       ion-icon {
-        font-size: 30px; // Increased size
-        color: var(--theme-color);
-        cursor: pointer;
+        font-size: 30px; // Keep original
+        color: var(--theme-color); // Yellow icon
+        cursor: pointer; // Keep original
       }
     }
-    
+
     // Main content area
     .parcel-content {
-      flex: 1;
+      flex: 1; // Keep original
     }
 
     .parcel-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 12px;
-      
+      display: flex; // Keep original
+      justify-content: space-between; // Keep original
+      align-items: center; // Keep original
+      margin-bottom: 12px; // Keep original
+
       .tracking-id {
-        font-weight: 700;
-        font-size: 16px;
-        color: var(--text-dark);
+        font-weight: 700; // Keep original
+        font-size: 16px; // Keep original
+        color: var(--text-dark); // Use theme text color
       }
     }
 
     .parcel-body {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
+      display: flex; // Keep original
+      flex-direction: column; // Keep original
+      gap: 8px; // Keep original
     }
 
     .detail-item {
-      display: flex;
-      align-items: flex-start;
-      font-size: 13px;
-      color: var(--text-medium);
+      display: flex; // Keep original
+      align-items: flex-start; // Keep original
+      font-size: 13px; // Keep original
+      color: var(--text-medium); // Use theme text color
 
       ion-icon {
-        font-size: 16px;
-        margin-right: 8px;
-        color: var(--theme-color);
-        flex-shrink: 0;
-        margin-top: 2px;
+        font-size: 16px; // Keep original
+        margin-right: 8px; // Keep original
+        color: var(--theme-color); // Yellow icon
+        flex-shrink: 0; // Keep original
+        margin-top: 2px; // Keep original
       }
     }
 
     .parcel-actions {
-      position: absolute;
-      top: 12px;
-      right: 12px;
-      display: flex;
-      align-items: center;
+      position: absolute; // Keep original
+      top: 12px; // Keep original
+      right: 12px; // Keep original
+      display: flex; // Keep original
+      align-items: center; // Keep original
 
       .select-checkbox {
         ion-icon {
-          font-size: 24px;
-          color: var(--theme-color);
+          font-size: 24px; // Keep original
+          color: var(--theme-color); // Yellow icon
         }
       }
 
       .action-buttons {
-        display: flex;
+        display: flex; // Keep original
 
         ion-button {
-          --padding-start: 6px;
-          --padding-end: 6px;
+          --padding-start: 6px; // Keep original
+          --padding-end: 6px; // Keep original
         }
       }
     }
   }
 }
 
-// Status badge styling
+// Status badge styling - Use consistent colors from manage-parcel
 .status-badge {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  padding: 4px 8px;
-  border-radius: 12px;
-  line-height: 1;
+  font-size: 11px; // Keep original
+  font-weight: 600; // Keep original
+  text-transform: uppercase; // Keep original
+  padding: 4px 8px; // Keep original
+  border-radius: 12px; // Keep original
+  line-height: 1; // Keep original
+  border: 1px solid transparent; // Add base border
 
-  &.in-transit {
-    background-color: #e3f2fd;
-    color: #1976d2;
+  &.in-transit, &.status-in-transit {
+    background-color: #E3F2FD; // Blue background
+    color: #1976D2; // Blue text
+    border-color: rgba(25, 118, 210, 0.2);
   }
 
-  &.out-for-delivery {
-    background-color: #e8f5e9;
-    color: #388e3c;
+  &.out-for-delivery, &.status-out-for-delivery {
+    background-color: #FFF3E0; // Orange background
+    color: #EF6C00; // Orange text
+    border-color: rgba(239, 108, 0, 0.2);
   }
 
-  &.delivered {
-    background-color: #e8f5e9;
-    color: #388e3c;
+  &.delivered, &.status-delivered {
+    background-color: #E8F5E9; // Green background
+    color: #2E7D32; // Green text
+    border-color: rgba(46, 125, 50, 0.2);
   }
 
-  &.pending {
-    background-color: #fff8e1;
-    color: #ff8f00;
+  &.pending, &.status-pending {
+    background-color: #EEEEEE; // Gray background
+    color: #616161; // Gray text
+    border-color: rgba(97, 97, 97, 0.2);
   }
 }
 
-// Loading and empty states
+// Loading and empty states - Apply theme colors
 .loading-state,
 .empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 40px 16px;
+  display: flex; // Keep original
+  flex-direction: column; // Keep original
+  align-items: center; // Keep original
+  justify-content: center; // Keep original
+  padding: 40px 16px; // Keep original
 
   ion-spinner {
-    color: var(--theme-color);
-    height: 40px;
-    width: 40px;
-    margin-bottom: 20px;
-    opacity: 0.8;
+    --color: var(--theme-color); // Yellow spinner
+    height: 40px; // Keep original
+    width: 40px; // Keep original
+    margin-bottom: 20px; // Keep original
+    opacity: 0.8; // Keep original
   }
 
   ion-icon {
-    color: var(--text-light);
-    font-size: 44px;
-    margin-bottom: 16px;
-    opacity: 0.8;
+    color: var(--theme-color); // Yellow icon
+    font-size: 44px; // Keep original
+    margin-bottom: 16px; // Keep original
+    opacity: 0.8; // Keep original
+    filter: drop-shadow(0 3px 6px rgba(255, 215, 0, 0.2)); // Add subtle shadow
   }
 
   p {
-    color: var(--text-medium);
-    font-size: 16px;
-    font-weight: 500;
-    margin: 0 0 6px;
-    text-align: center;
+    color: var(--text-dark); // Use theme text color
+    font-size: 16px; // Keep original
+    font-weight: 500; // Keep original
+    margin: 0 0 6px; // Keep original
+    text-align: center; // Keep original
   }
 
   small {
-    color: var(--text-light);
-    font-size: 13px;
+    color: var(--text-medium); // Use theme text color
+    font-size: 13px; // Keep original
   }
 }
 
-// Scanner overlay
+// Scanner overlay - Apply theme colors
 .scanner-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.9);
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  animation: fadeIn 0.3s ease;
+  position: fixed; // Keep original
+  top: 0; // Keep original
+  left: 0; // Keep original
+  right: 0; // Keep original
+  bottom: 0; // Keep original
+  background: rgba(0, 0, 0, 0.9); // Keep original
+  z-index: 1000; // Keep original
+  display: flex; // Keep original
+  align-items: center; // Keep original
+  justify-content: center; // Keep original
+  animation: fadeIn 0.3s ease; // Keep original
 
   .scanner-container {
-    width: 100%;
-    max-width: 600px;
-    display: flex;
-    flex-direction: column;
-    padding: 20px;
+    width: 100%; // Keep original
+    max-width: 600px; // Keep original
+    display: flex; // Keep original
+    flex-direction: column; // Keep original
+    padding: 20px; // Keep original
 
     .scanner-header {
-      display: flex;
-      justify-content: flex-end; // Changed from space-between to flex-end
-      align-items: center;
-      margin-bottom: 20px;
-      padding: 0 10px;
+      display: flex; // Keep original
+      justify-content: flex-end; // Keep original
+      align-items: center; // Keep original
+      margin-bottom: 20px; // Keep original
+      padding: 0 10px; // Keep original
 
       ion-button {
-        --color: white;
-        font-size: 24px; // Make the X button larger
+        --color: white; // Keep original
+        font-size: 24px; // Keep original
       }
     }
 
     .scanner-viewport {
-      position: relative;
-      width: 100%;
-      aspect-ratio: 1 / 1;
-      overflow: hidden;
-      border-radius: 12px;
+      position: relative; // Keep original
+      width: 100%; // Keep original
+      aspect-ratio: 1 / 1; // Keep original
+      overflow: hidden; // Keep original
+      border-radius: 12px; // Keep original
 
       #scanner {
-        width: 100%;
-        height: 100%;
-        position: relative;
-        
+        width: 100%; // Keep original
+        height: 100%; // Keep original
+        position: relative; // Keep original
+
         video {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
+          width: 100%; // Keep original
+          height: 100%; // Keep original
+          object-fit: cover; // Keep original
         }
       }
 
       .scan-region-highlight {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        width: 70%;
-        height: 30%;
-        border: 2px solid var(--theme-color);
-        border-radius: 12px;
-        box-shadow: 0 0 0 100vw rgba(0, 0, 0, 0.5);
-        animation: pulse 1.5s infinite;
+        position: absolute; // Keep original
+        top: 50%; // Keep original
+        left: 50%; // Keep original
+        transform: translate(-50%, -50%); // Keep original
+        width: 70%; // Keep original
+        height: 30%; // Keep original
+        border: 2px solid var(--theme-color); // Yellow border
+        border-radius: 12px; // Keep original
+        box-shadow: 0 0 0 100vw rgba(0, 0, 0, 0.5); // Keep original
+        animation: pulse 1.5s infinite; // Keep original
       }
     }
 
     .scanner-footer {
-      margin-top: 20px;
-      text-align: center;
+      margin-top: 20px; // Keep original
+      text-align: center; // Keep original
 
       p {
-        color: white;
-        font-size: 14px;
-        margin: 0;
+        color: white; // Keep original
+        font-size: 14px; // Keep original
+        margin: 0; // Keep original
       }
     }
   }
 }
 
-// Processing overlay
+// Processing overlay - Apply theme colors
 .processing-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(255, 255, 255, 0.8);
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  animation: fadeIn 0.3s ease;
+  position: fixed; // Keep original
+  top: 0; // Keep original
+  left: 0; // Keep original
+  right: 0; // Keep original
+  bottom: 0; // Keep original
+  background: rgba(255, 255, 255, 0.85); // Slightly more opaque background
+  backdrop-filter: blur(4px); // Add subtle blur
+  z-index: 1000; // Keep original
+  display: flex; // Keep original
+  align-items: center; // Keep original
+  justify-content: center; // Keep original
+  animation: fadeIn 0.3s ease; // Keep original
 
   .processing-content {
-    background: white;
-    border-radius: 12px;
-    padding: 24px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    background: white; // Keep original
+    border-radius: 12px; // Keep original
+    padding: 24px; // Keep original
+    display: flex; // Keep original
+    flex-direction: column; // Keep original
+    align-items: center; // Keep original
+    box-shadow: var(--shadow-strong); // Use strong shadow from palette
 
     ion-spinner {
-      width: 40px;
-      height: 40px;
-      margin-bottom: 16px;
-      color: var(--theme-color);
+      width: 40px; // Keep original
+      height: 40px; // Keep original
+      margin-bottom: 16px; // Keep original
+      --color: var(--theme-color); // Yellow spinner
     }
 
     p {
-      margin: 0;
-      color: var(--text-dark);
-      font-weight: 500;
+      margin: 0; // Keep original
+      color: var(--text-dark); // Use theme text color
+      font-weight: 500; // Keep original
     }
   }
 }
 
-// Animations
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+// FAB button styling - Apply theme colors
+ion-fab-button {
+  --background: var(--primary-gradient); // Use gradient
+  --color: var(--dark-gray); // Dark icon
+  --box-shadow: 0 6px 20px rgba(255, 215, 0, 0.3); // Yellow shadow
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+
+  &:hover {
+    transform: scale(1.1);
+    --box-shadow: 0 8px 25px rgba(255, 215, 0, 0.4);
+  }
+
+  &[color="danger"] { // Style danger FAB specifically
+     --background: #E74C3C; // Danger red
+     --color: white;
+     --box-shadow: 0 6px 20px rgba(231, 76, 60, 0.3);
+
+     &:hover {
+       --background: #C0392B; // Darker red on hover
+       --box-shadow: 0 8px 25px rgba(231, 76, 60, 0.4);
+     }
+  }
 }
 
-@keyframes fadeInDown {
-  from {
-    opacity: 0;
-    transform: translateY(-20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
+// Animations - Keep original, update pulse color
+@keyframes fadeIn { /* Keep original */ }
+@keyframes fadeInDown { /* Keep original */ }
+@keyframes fadeInUp { /* Keep original */ }
 
 @keyframes pulse {
   0% { box-shadow: 0 0 0 100vw rgba(0, 0, 0, 0.5), 0 0 0 2px var(--theme-color); }
-  50% { box-shadow: 0 0 0 100vw rgba(0, 0, 0, 0.5), 0 0 0 5px rgba(66, 133, 244, 0.6); }
+  50% { box-shadow: 0 0 0 100vw rgba(0, 0, 0, 0.5), 0 0 0 5px rgba(255, 215, 0, 0.6); } // Use yellow with opacity
   100% { box-shadow: 0 0 0 100vw rgba(0, 0, 0, 0.5), 0 0 0 2px var(--theme-color); }
 }

@@ -52,17 +52,24 @@
   <ion-content [fullscreen]="true">
     <div class="container">
       <div class="welcome-message">
-        <h2>Hi, {{ userName }}</h2>
+        <h2>Hi, {{ userName }}!</h2> <!-- Updated greeting -->
         <p class="subtitle">Manage your deliveries with ease.</p>
       </div>
-      <ion-button expand="block" class="primary-button" (click)="navigateTo('view-assigned-parcels')">
-        <ion-icon name="cube-outline" slot="start"></ion-icon>
-        Assigned Parcels
-      </ion-button>
-      <ion-button expand="block" class="primary-button" (click)="navigateTo('take-photo')">
-        <ion-icon name="camera-outline" slot="start"></ion-icon>
-        Verify Delivery
-      </ion-button>
+
+      <!-- Wrap buttons in the action-card -->
+      <div class="action-card">
+         <h3 class="card-title">Your Tasks</h3> <!-- Optional title -->
+        <ion-button expand="block" class="primary-button" (click)="navigateTo('view-assigned-parcels')">
+          <ion-icon name="cube-outline" slot="start"></ion-icon>
+          Assigned Parcels
+        </ion-button>
+        <ion-button expand="block" class="primary-button" (click)="navigateTo('take-photo')">
+          <ion-icon name="camera-outline" slot="start"></ion-icon>
+          Verify Delivery
+        </ion-button>
+        <!-- Add more buttons here if needed -->
+      </div>
+
     </div>
   </ion-content>
 </div>

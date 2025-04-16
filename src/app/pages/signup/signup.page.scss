@@ -1,91 +1,146 @@
 :host {
+  // Consistent color palette with login/reset page
   --yellow: #FFD700;
-  --light-yellow: #FFECB3;
-  --dark-gray: #333333;
+  --light-yellow: #FFF9E5;
+  --dark-gray: #222831;
   --white: #FFFFFF;
-  --soft-gray: #E0E0E0;
+  --soft-gray: #F5F6FA;
+  --medium-gray: #BDC3C7;
+  --danger-red: #E74C3C;
 }
 
 ion-content {
-  --background: var(--white);
+  // Consistent gradient background
+  --background: linear-gradient(135deg, var(--light-yellow) 0%, var(--white) 60%, var(--soft-gray) 100%);
   font-family: 'Poppins', sans-serif;
 }
 
 ion-toolbar {
-  --background: var(--yellow);
+  // Consistent modern toolbar style
+  --background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
   --color: var(--dark-gray);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
 }
 
 .form-container {
-  padding: 20px;
+  // Apply glassmorphism and styling similar to login/reset
+  padding: 25px;
   max-width: 400px;
-  margin: 0 auto;
+  margin: 20px auto;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(15px);
+  border-radius: 20px;
+  box-shadow: 0 8px 32px rgba(34, 40, 49, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  animation: slideUp 0.6s ease-out; // Add animation
 
   .form-title {
-    font-size: 28px;
-    font-weight: 600;
+    font-size: 26px; // Consistent title size
+    font-weight: 700;
     color: var(--dark-gray);
     text-align: center;
-    margin-bottom: 8px;
+    margin-bottom: 10px; // Adjust spacing
+    letter-spacing: 0.5px;
   }
 
   .form-subtitle {
-    font-size: 14px;
+    font-size: 14px; // Consistent subtitle size
     color: var(--dark-gray);
-    opacity: 0.7;
+    opacity: 0.8;
     text-align: center;
-    margin-bottom: 20px;
+    margin-bottom: 25px; // More space before form
+    line-height: 1.5;
   }
 
   .input-item {
-    --border-radius: 10px;
-    --padding-start: 16px;
+    // Consistent input styling
+    --border-radius: 12px;
+    --padding-start: 18px;
     --background: var(--soft-gray);
-    margin-bottom: 16px;
+    margin-bottom: 18px; // Consistent margin
+    --border-color: transparent;
+    --highlight-color-focused: var(--yellow);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.04);
+    transition: box-shadow 0.3s ease, transform 0.3s ease;
+
+    &:focus-within {
+      box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+      transform: translateY(-2px);
+    }
 
     ion-label {
       color: var(--dark-gray);
       font-weight: 500;
+      font-size: 13px; // Consistent label size
     }
 
     ion-input, ion-select {
       --color: var(--dark-gray);
-      font-size: 16px;
+      font-size: 16px; // Consistent input font size
+      --padding-top: 10px; // Adjust padding for floating label
+      --padding-bottom: 10px;
     }
   }
 
   .error-text {
-    font-size: 12px;
-    margin: 8px 16px;
+    font-size: 13px; // Consistent error text size
+    margin: -10px 0 15px 18px; // Adjust position like login/reset error
+    color: var(--danger-red);
+    font-weight: 500;
+    display: block; // Ensure it takes space
   }
 
   .primary-button {
-    --background: var(--yellow);
+    // Consistent button styling
+    --background: linear-gradient(90deg, var(--yellow) 0%, #FFC300 100%);
     --color: var(--dark-gray);
     --border-radius: 12px;
-    font-size: 16px;
+    font-size: 17px;
     font-weight: 600;
-    height: 48px;
-    margin-top: 20px;
-    transition: transform 0.2s ease;
+    height: 50px;
+    margin-top: 25px; // Consistent margin
+    text-transform: none;
+    letter-spacing: 0.3px;
+    box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.3s ease;
+
+    &:hover {
+       --background: linear-gradient(90deg, #FFC300 0%, var(--yellow) 100%);
+       box-shadow: 0 6px 20px rgba(255, 215, 0, 0.4);
+       transform: translateY(-2px);
+    }
 
     &:active {
-      --background: var(--white);
-      --color: var(--yellow);
-      transform: scale(0.95);
+      transform: scale(0.96) translateY(1px);
+      box-shadow: 0 2px 10px rgba(255, 215, 0, 0.2);
     }
   }
 
   .link-text {
+    // Consistent link text styling
     text-align: center;
     font-size: 14px;
     color: var(--dark-gray);
-    margin-top: 16px;
+    margin-top: 20px; // Consistent margin
 
     a {
       color: var(--yellow);
       text-decoration: none;
       font-weight: 600;
+      margin: 0 5px;
+      transition: color 0.2s ease;
+
+      &:hover {
+        color: #FFC300;
+        text-decoration: underline;
+      }
     }
   }
+}
+
+// Add the slideUp animation
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(40px); }
+  to { opacity: 1; transform: translateY(0); }
 }

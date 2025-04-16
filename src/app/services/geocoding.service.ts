@@ -1,12 +1,14 @@
 import { Injectable, inject, Injector, runInInjectionContext } from '@angular/core';
 import { Observable, from, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
+import { AngularFirestore } from '@angular/fire/compat/firestore';
 
 @Injectable({
   providedIn: 'root'
 })
 export class GeocodingService {
   private injector = inject(Injector);
+  private firestore = inject(AngularFirestore);
   
   getAddressFromCoordinates(lat: number, lng: number): Observable<any> {
     return new Observable(observer => {
@@ -111,6 +113,48 @@ export class GeocodingService {
           },
           error: (err) => observer.error(err)
         });
+      });
+    });
+  }
+
+  getDeliverymanLocationUpdates(trackingId: string): Observable<any> {
+    return new Observable(observer => {
+      runInInjectionContext(this.injector, () => {
+        const subscription = this.firestore.collection('assigned_parcels', ref => 
+          ref.where('trackingId', '==', trackingId)
+        ).snapshotChanges().subscribe({
+          next: (snapshots) => {
+            if (snapshots.length === 0) {
+              console.log('No assigned parcel found for tracking ID:', trackingId);
+              observer.next(null);
+              return;
+            }
+            
+            const parcelData = snapshots[0].payload.doc.data() as any;
+            
+            if (parcelData && parcelData.locationLat && parcelData.locationLng) {
+              observer.next({
+                lat: parcelData.locationLat,
+                lng: parcelData.locationLng,
+                locationDescription: parcelData.locationDescription || 'Current Location',
+                timestamp: parcelData.locationUpdatedAt || new Date()
+              });
+            } else {
+              console.log('Missing location data for tracking ID:', trackingId);
+              observer.next(null);
+            }
+          },
+          error: (err) => {
+            console.error('Error tracking deliveryman location:', err);
+            observer.error(err);
+          }
+        });
+        
+        // Return a function that properly unsubscribes
+        return () => {
+          console.log('Cleaning up location subscription');
+          subscription.unsubscribe();
+        };
       });
     });
   }

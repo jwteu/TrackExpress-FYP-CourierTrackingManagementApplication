@@ -1,10 +1,10 @@
-import { Component, OnInit, inject, Injector, runInInjectionContext, ViewChild, ElementRef, AfterViewInit } from '@angular/core';
+import { Component, OnInit, inject, Injector, runInInjectionContext, ViewChild, ElementRef, AfterViewInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IonicModule, ToastController, LoadingController } from '@ionic/angular';
 import { Router } from '@angular/router';
 import { AngularFirestore } from '@angular/fire/compat/firestore';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, Subscription } from 'rxjs';
 import { TrackingHistoryService } from '../../services/tracking-history.service';
 import { GeocodingService } from '../../services/geocoding.service';
 declare const L: any;
@@ -49,7 +49,7 @@ interface EstimatedDelivery {
   standalone: true,
   imports: [CommonModule, FormsModule, IonicModule]
 })
-export class TrackingParcelPage implements OnInit, AfterViewInit {
+export class TrackingParcelPage implements OnInit, AfterViewInit, OnDestroy {
   trackingId: string = '';
   parcel: any = null;
   loading: boolean = false;
@@ -77,6 +77,14 @@ export class TrackingParcelPage implements OnInit, AfterViewInit {
   private injector = inject(Injector);
   private geocodingService = inject(GeocodingService);
 
+  private currentLocationMarker: any;
+  private destinationMarker: any;
+  private routeLine: any;
+  private routeOutline: any;
+  private locationSubscription: Subscription | null = null;
+  public isLocationTracking = false;
+  lastLocationUpdate: Date | null = null;
+
   constructor() {}
 
   ngOnInit() {}
@@ -102,6 +110,11 @@ export class TrackingParcelPage implements OnInit, AfterViewInit {
         this.mapElement?.nativeElement ? 'Map DOM element exists' : 'No map DOM element'
       );
     }
+  }
+
+  ngOnDestroy() {
+    // Clean up location subscription when component is destroyed
+    this.stopLocationTracking();
   }
 
   async trackParcel() {
@@ -167,6 +180,11 @@ export class TrackingParcelPage implements OnInit, AfterViewInit {
         console.log('Map coordinates:', this.mapCoordinates);
         console.log('Map element available:', !!this.mapElement?.nativeElement);
         console.log('Leaflet available:', typeof L !== 'undefined');
+
+        // Start real-time location tracking if the parcel is out for delivery OR in transit
+        if (this.parcel.status === 'Out for Delivery' || this.parcel.status === 'In Transit') {
+          this.startLocationTracking(this.trackingId);
+        }
       });
     } catch (error) {
       console.error('Error searching for parcel:', error);
@@ -191,6 +209,44 @@ export class TrackingParcelPage implements OnInit, AfterViewInit {
     }
   }
 
+  startLocationTracking(trackingId: string) {
+    // Stop any existing tracking first
+    this.stopLocationTracking();
+    
+    console.log('Starting real-time location tracking for', trackingId);
+    this.isLocationTracking = true;
+    
+    this.locationSubscription = this.geocodingService.getDeliverymanLocationUpdates(trackingId)
+      .subscribe({
+        next: (locationData) => {
+          if (locationData && locationData.lat && locationData.lng) {
+            console.log('Received location update:', locationData);
+            this.lastLocationUpdate = new Date(locationData.timestamp?.toDate?.() || new Date());
+            
+            // Update map with new location
+            this.updateMapWithNewLocation(
+              locationData.lat,
+              locationData.lng,
+              locationData.locationDescription
+            );
+          }
+        },
+        error: (err) => {
+          console.error('Error tracking location:', err);
+          this.isLocationTracking = false;
+        }
+      });
+  }
+
+  stopLocationTracking() {
+    if (this.locationSubscription) {
+      console.log('Stopping location tracking');
+      this.locationSubscription.unsubscribe();
+      this.locationSubscription = null;
+      this.isLocationTracking = false;
+    }
+  }
+
   async buildTrackingEvents(parcelData: Record<string, any>) {
     this.trackingEvents = [];
     
@@ -206,47 +262,52 @@ export class TrackingParcelPage implements OnInit, AfterViewInit {
       source: 'parcels'
     });
     
-    // Load parcel handlers (deliverymen assigned to this parcel)
+    // Load tracking history events
+    console.log('Loading tracking history for:', this.trackingId);
     try {
-      const handlersSnapshot = await runInInjectionContext(this.injector, () => {
-        return firstValueFrom(this.trackingHistoryService.getParcelHandlers(this.trackingId));
+      const trackingHistory = await runInInjectionContext(this.injector, () => {
+        return firstValueFrom(this.trackingHistoryService.getTrackingHistory(this.trackingId));
       });
       
-      if (handlersSnapshot && handlersSnapshot.length > 0) {
-        handlersSnapshot.forEach(handler => {
-          // Create an event that combines Handler Assigned with current status
-          const title = handler.status === 'Out for Delivery' ? 
-            'Out for Delivery' : 'Handler Assigned';
-          const icon = handler.status === 'Out for Delivery' ? 
-            'bicycle-outline' : 'person-outline';
-          const description = handler.status === 'Out for Delivery' ? 
-            'Parcel is out for delivery to recipient' : 
-            'Parcel assigned to delivery personnel';
-            
-          this.trackingEvents.push({
-            title: title,
-            status: handler.status,
-            description: description, 
-            timestamp: handler.assignedAt,
-            location: parcelData['locationDescription'] || parcelData['pickupLocation'] || 'Transit Facility',
-            deliverymanName: handler.deliverymanName,
-            icon: icon,
-            active: true,
-            source: 'handlers'
-          });
+      if (trackingHistory && trackingHistory.length > 0) {
+        console.log(`Found ${trackingHistory.length} tracking history events`);
+        
+        // Filter out handler events, only keep main status events
+        const filteredHistory = trackingHistory.filter(event => 
+          event.status === 'Registered' || 
+          event.status === 'In Transit' || 
+          event.status === 'Out for Delivery' || 
+          event.status === 'Delivered'
+        );
+        
+        // Map the filtered events to timeline events
+        const historyEvents = this.mapTrackingEvents(filteredHistory);
+        
+        // Add the filtered events to tracking events
+        historyEvents.forEach(event => {
+          // Check for duplicates before adding
+          const isDuplicate = this.trackingEvents.some(existing => 
+            existing.status === event.status && 
+            this.isSameTimestamp(existing.timestamp, event.timestamp)
+          );
+          
+          if (!isDuplicate) {
+            this.trackingEvents.push(event);
+          }
         });
+      } else {
+        console.log('No tracking history events found');
       }
     } catch (error) {
-      console.error('Error fetching handler history:', error);
+      console.error('Error loading tracking history:', error);
     }
     
-    // Only add a separate "Out for Delivery" event if there's no handler with that status
-    const hasOutForDeliveryHandler = this.trackingEvents.some(
+    // Only add a separate "Out for Delivery" event if there's none already
+    const hasOutForDeliveryEvent = this.trackingEvents.some(
       event => event.status === 'Out for Delivery'
     );
     
-    if (parcelData['status'] === 'Out for Delivery' && !hasOutForDeliveryHandler) {
-      // Only add this if we don't already have an Out for Delivery event from handlers
+    if (parcelData['status'] === 'Out for Delivery' && !hasOutForDeliveryEvent) {
       this.trackingEvents.push({
         title: 'Out for Delivery',
         status: 'Out for Delivery',
@@ -258,8 +319,14 @@ export class TrackingParcelPage implements OnInit, AfterViewInit {
         active: true,
         source: 'parcels'
       });
-    } else if (parcelData['status'] === 'Delivered') {
-      // Always add the delivered event if the parcel is delivered
+    } 
+    
+    // Always add delivered event if the parcel is delivered
+    const hasDeliveredEvent = this.trackingEvents.some(
+      event => event.status === 'Delivered'
+    );
+    
+    if (parcelData['status'] === 'Delivered' && !hasDeliveredEvent) {
       this.trackingEvents.push({
         title: 'Delivered',
         status: 'Delivered',
@@ -370,7 +437,7 @@ export class TrackingParcelPage implements OnInit, AfterViewInit {
   async initializeMap() {
     console.log('Initializing map with coordinates:', this.mapCoordinates);
     
-    // 1. Clear early if we don't have what we need
+    // Early exit checks
     if (!this.mapCoordinates || !this.mapElement?.nativeElement) {
       console.error('Missing map coordinates or element');
       return;
@@ -379,45 +446,34 @@ export class TrackingParcelPage implements OnInit, AfterViewInit {
     try {
       const { currentLat, currentLng, destLat, destLng } = this.mapCoordinates;
       
-      // 2. Verify Leaflet is loaded
+      // Verify Leaflet is loaded
       if (typeof L === 'undefined') {
-        console.error('Leaflet library is not loaded');
-        // Instead of trying to load it dynamically (which often fails), show an error message
-        this.showErrorToast('Map library not loaded. Please refresh the page.');
-        return;
+        console.error('Leaflet is not loaded');
+        await this.loadLeafletDynamically();
       }
       
       console.log('Creating map with these coordinates:', { currentLat, currentLng, destLat, destLng });
       
-      // 3. Create a new Leaflet map instance
+      // Create a new Leaflet map instance
       if (!this.map) {
-        console.log('Creating new Leaflet map instance');
-        this.map = L.map(this.mapElement.nativeElement, {
-          center: [currentLat, currentLng],
-          zoom: 13,
-          attributionControl: true,
-          zoomControl: true
-        });
+        console.log('Creating new map instance');
+        this.map = L.map(this.mapElement.nativeElement).setView([currentLat, currentLng], 13);
         
-        // 4. Add tile layer
+        // Add OpenStreetMap tiles
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(this.map);
       } else {
-        // Reset view if map already exists
-        this.map.setView([currentLat, currentLng], 13);
-        
-        // Clear existing markers and lines
-        this.map.eachLayer((layer: any) => {
-          if (layer instanceof L.Marker || layer instanceof L.Polyline) {
-            this.map.removeLayer(layer);
-          }
-        });
+        console.log('Using existing map instance');
+        // Remove existing layers if we're re-initializing
+        if (this.currentLocationMarker) this.map.removeLayer(this.currentLocationMarker);
+        if (this.destinationMarker) this.map.removeLayer(this.destinationMarker);
+        if (this.routeLine) this.map.removeLayer(this.routeLine);
+        if (this.routeOutline) this.map.removeLayer(this.routeOutline);
       }
       
-      // 5. Add markers with more visible icons
       // Add origin marker (delivery person location)
-      L.marker([currentLat, currentLng], {
+      this.currentLocationMarker = L.marker([currentLat, currentLng], {
         icon: L.divIcon({
           html: `
             <div style="font-size: 14px; background: #FFDE59; border-radius: 50%; 
@@ -437,7 +493,7 @@ export class TrackingParcelPage implements OnInit, AfterViewInit {
       .bindPopup(`Current Location: ${this.mapCoordinates.currentLocation}`);
       
       // Add destination marker
-      L.marker([destLat, destLng], {
+      this.destinationMarker = L.marker([destLat, destLng], {
         icon: L.divIcon({
           html: `
             <div style="font-size: 14px; background: white; border-radius: 50%; 
@@ -456,77 +512,96 @@ export class TrackingParcelPage implements OnInit, AfterViewInit {
       }).addTo(this.map)
       .bindPopup(`Destination: ${this.parcel?.receiverAddress || 'Delivery Address'}`);
       
-      // 6. Draw a more visible route line between points
-      // IMPROVED: Thicker, more visible line with arrow decorations
+      // Create the route lines
       const routeCoordinates = [
         [currentLat, currentLng],
         [destLat, destLng]
       ];
       
-      // Create a thick, highly visible main line
-      const mainRoute = L.polyline(routeCoordinates, {
-        color: '#FFDE59', // Bright yellow main color
-        weight: 6, // Thicker line
-        opacity: 0.9, // More opaque
+      // Create the main route
+      this.routeLine = L.polyline(routeCoordinates, {
+        color: '#FFDE59',
+        weight: 6,
+        opacity: 0.9,
         lineCap: 'round',
         lineJoin: 'round'
       }).addTo(this.map);
       
-      // Add a darker outline to the route for better visibility
-      const routeOutline = L.polyline(routeCoordinates, {
-        color: '#333333', // Dark outline
-        weight: 10, // Thicker than the main line
-        opacity: 0.3, // Semi-transparent
+      // Add the route outline
+      this.routeOutline = L.polyline(routeCoordinates, {
+        color: '#333333',
+        weight: 10,
+        opacity: 0.3,
         lineCap: 'round',
         lineJoin: 'round'
       }).addTo(this.map);
       
       // Make sure outline is behind the main route
-      routeOutline.bringToBack();
-      mainRoute.bringToFront();
+      this.routeOutline.bringToBack();
+      this.routeLine.bringToFront();
       
-      // Add animated arrow decoration along the route
-      if (L.polylineDecorator) {
-        const decorator = L.polylineDecorator(mainRoute, {
-          patterns: [
-            {
-              offset: '5%',
-              repeat: '15%',
-              symbol: L.Symbol.arrowHead({
-                pixelSize: 12,
-                polygon: true,
-                pathOptions: {
-                  color: '#333',
-                  fillOpacity: 0.8,
-                  weight: 1
-                }
-              })
-            }
-          ]
-        }).addTo(this.map);
-      }
-      
-      // 7. Calculate straight-line distance
+      // Calculate straight-line distance
       const d = this.calculateDistance(currentLat, currentLng, destLat, destLng);
       this.mapCoordinates.distance = d.toFixed(1);
       
-      // 8. Make the map fit both points with padding
-      this.map.fitBounds(mainRoute.getBounds(), {
+      // Make the map fit both points with padding
+      this.map.fitBounds(this.routeLine.getBounds(), {
         padding: [40, 40],
         maxZoom: 15
       });
       
-      // 9. Force a map size recalculation
+      // Force a map size recalculation
       setTimeout(() => {
-        this.map.invalidateSize();
-        this.mapLoaded = true;
+        if (this.map) {
+          this.map.invalidateSize();
+        }
       }, 250);
+      
+      this.mapLoaded = true;
       
     } catch (error) {
       console.error('Error in map initialization:', error);
       this.mapLoaded = true;
       this.showErrorToast('Map could not be displayed. Please try again.');
     }
+  }
+
+  updateMapWithNewLocation(lat: number, lng: number, locationDescription: string) {
+    if (!this.map || !this.currentLocationMarker || !this.mapCoordinates) {
+      console.error('Map, marker, or coordinates not initialized');
+      return;
+    }
+    
+    console.log('Updating map with new location:', lat, lng, locationDescription);
+    
+    // Update the stored coordinates
+    this.mapCoordinates.currentLat = lat;
+    this.mapCoordinates.currentLng = lng;
+    this.mapCoordinates.currentLocation = locationDescription || 'Current Location';
+    
+    // Update the marker position
+    this.currentLocationMarker.setLatLng([lat, lng]);
+    this.currentLocationMarker.setPopupContent(`Current Location: ${locationDescription}`);
+    
+    // Update the route line
+    const routeCoordinates = [
+      [lat, lng],
+      [this.mapCoordinates.destLat, this.mapCoordinates.destLng]
+    ];
+    this.routeLine.setLatLngs(routeCoordinates);
+    this.routeOutline.setLatLngs(routeCoordinates);
+    
+    // Update distance calculation
+    const d = this.calculateDistance(lat, lng, this.mapCoordinates.destLat, this.mapCoordinates.destLng);
+    this.mapCoordinates.distance = d.toFixed(1);
+    
+    // Smoothly pan the map to include the updated position
+    this.map.fitBounds(this.routeLine.getBounds(), {
+      padding: [40, 40],
+      maxZoom: 15,
+      animate: true,
+      duration: 0.5
+    });
   }
 
   calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -645,7 +720,8 @@ export class TrackingParcelPage implements OnInit, AfterViewInit {
                    (a.timestamp instanceof Date ? a.timestamp.getTime() / 1000 : 0);
       const timeB = b.timestamp?.seconds ? b.timestamp.seconds : 
                    (b.timestamp instanceof Date ? b.timestamp.getTime() / 1000 : 0);
-      return timeA - timeB;
+      // Reverse the order (newest first)
+      return timeB - timeA;
     });
   }
 
@@ -669,36 +745,29 @@ export class TrackingParcelPage implements OnInit, AfterViewInit {
     });
 
     return sortedEvents.map(data => {
-      let title = '';
+      let title = data.title || '';
       let description = data.description || this.getStatusDescription(data.status);
       let location = data.location || 'Unknown Location';
 
-      switch(data.status) {
-        case 'Registered':
-          title = 'Pickup';
-          description = `Parcel registered by admin at ${location}`;
-          break;
-          
-        case 'In Transit':
-          if (data.deliverymanName) {
-            title = `Handled by ${data.deliverymanName}`;
-            description = `Parcel is now being handled by ${data.deliverymanName}`;
-          } else {
+      // Map status to friendly titles if not already set
+      if (!title) {
+        switch(data.status) {
+          case 'Registered':
+            title = 'Pickup';
+            break;
+          case 'In Transit':
             title = 'In Transit';
-          }
-          break;
-          
-        case 'Out for Delivery':
-          title = 'Out for Delivery';
-          break;
-          
-        case 'Delivered':
-          title = 'Delivered';
-          break;
-          
-        default:
-          title = data.title || data.status;
-          break;
+            break;
+          case 'Out for Delivery':
+            title = 'Out for Delivery';
+            break;
+          case 'Delivered':
+            title = 'Delivered';
+            break;
+          default:
+            title = data.status;
+            break;
+        }
       }
 
       return {
@@ -792,13 +861,21 @@ export class TrackingParcelPage implements OnInit, AfterViewInit {
     
     const currentDate = new Date();
     
-    // Constants for company work policies
-    const WORKING_DAYS_PER_WEEK = 6; // Monday-Saturday
-    const WORK_HOURS_PER_DAY = 8; // Total work hours per day
-    const REST_HOURS = 1; // Rest hours per day
-    const EFFECTIVE_HOURS = WORK_HOURS_PER_DAY - REST_HOURS; // Effective delivery hours per day
-    const AVG_SPEED_KM_PER_HOUR = 35; // Average speed in km/h
-
+    // Company work policies
+    const WORKING_DAYS_PER_WEEK = 6; // Monday-Saturday (Sunday rest)
+    const WORK_START_HOUR = 10; // 10:00 AM
+    const WORK_END_HOUR = 20;   // 8:00 PM
+    
+    // Vehicle and logistics parameters - ADJUSTED FOR REALISTIC DELIVERY TIMES
+    const BASE_SPEED_KM_PER_HOUR = 80; // Increased average speed
+    const TRAFFIC_FACTOR = 0.8; // Less traffic reduction (20% instead of 30%)
+    const EFFECTIVE_SPEED = BASE_SPEED_KM_PER_HOUR * TRAFFIC_FACTOR; // ~64 km/h effective speed
+    
+    // REDUCED administrative time factors (in hours)
+    const SORTING_TIME = 1; // Reduced from 2 hours
+    const LOADING_TIME = 0.5; // Reduced from 1 hour
+    const PER_STOP_TIME = 0.15; // Reduced from 0.25 (15 to 9 minutes)
+    
     // Calculate distance in kilometers if coordinates are available
     let distanceKm = 0;
     if (this.mapCoordinates) {
@@ -811,53 +888,102 @@ export class TrackingParcelPage implements OnInit, AfterViewInit {
       console.log(`Calculated distance: ${distanceKm.toFixed(2)} km`);
     }
     
-    // Base estimation in hours based on distance
+    // Estimate number of delivery stops (REDUCED for faster delivery)
+    let estimatedStops = 1; // At least one stop for this parcel
+    if (distanceKm > 0 && distanceKm < 20) {
+      estimatedStops += Math.floor(distanceKm / 10); // Reduced stops (one every 10km instead of 5km)
+    } else if (distanceKm >= 20) {
+      estimatedStops += 2 + Math.floor((distanceKm - 20) / 20); // Reduced stops (one every 20km instead of 10km)
+    }
+    
+    // Calculate total travel time needed
     let estimatedHours = 0;
     
     if (distanceKm > 0) {
-      // Calculate raw travel time based on distance and speed
-      const rawTravelHours = distanceKm / AVG_SPEED_KM_PER_HOUR;
+      // Travel time based on distance and effective speed
+      const travelHours = distanceKm / EFFECTIVE_SPEED;
       
-      // Add processing time based on distance
-      if (distanceKm < 10) {
-        estimatedHours = rawTravelHours + 2; // Short distance: add 2 hours for processing
-      } else if (distanceKm < 50) {
-        estimatedHours = rawTravelHours + 4; // Medium distance: add 4 hours
-      } else if (distanceKm < 100) {
-        estimatedHours = rawTravelHours + 8; // Longer distance: add 8 hours
-      } else {
-        estimatedHours = rawTravelHours + 16; // Very long distance: add 16 hours
+      // Add administrative time based on distance tier
+      if (distanceKm < 50) { // Short distance (within state)
+        // 1-day delivery for short distances (same state)
+        estimatedHours = travelHours + LOADING_TIME + (PER_STOP_TIME * estimatedStops);
+        
+      } else if (distanceKm < 150) { // Medium distance (neighboring state)
+        // 1-2 day delivery for medium distances (neighboring state)
+        estimatedHours = travelHours + SORTING_TIME + LOADING_TIME + (PER_STOP_TIME * estimatedStops);
+        
+      } else if (distanceKm < 300) { // Longer distance (2-3 states away)
+        // 2-3 day delivery
+        estimatedHours = travelHours + SORTING_TIME + LOADING_TIME + (PER_STOP_TIME * estimatedStops) + 4;
+        
+      } else { // Very long distance (across multiple states)
+        // 3-4 day delivery for long distances
+        estimatedHours = travelHours + SORTING_TIME + LOADING_TIME + (PER_STOP_TIME * estimatedStops) + 8;
       }
     } else {
       // Fallback if no coordinates: estimate based on status
       switch(parcelData.status) {
         case 'Registered':
-          estimatedHours = 48; // 2 days
+          estimatedHours = 24; // 1 day if just registered (reduced from 2 days)
           break;
         case 'In Transit':
-          estimatedHours = 24; // 1 day
+          estimatedHours = 12; // 0.5 day if in transit (reduced from 1 day)
           break;
         case 'Out for Delivery':
-          estimatedHours = 6; // Same day delivery (6 effective hours)
+          estimatedHours = 4; // Same day if out for delivery (reduced from 8 hours)
           break;
         default:
-          estimatedHours = 48; // Default to 2 days
+          estimatedHours = 24; // Default: 1 day (reduced from 2 days)
       }
     }
-
+  
     console.log(`Initial estimated hours: ${estimatedHours}`);
     
-    // Convert hours to working days, considering our effective work hours per day
-    let totalWorkingDays = Math.ceil(estimatedHours / EFFECTIVE_HOURS);
+    // Apply time-of-day factor (REDUCED impact)
+    const currentHour = currentDate.getHours();
+    if (currentHour >= 7 && currentHour <= 9) {
+      // Morning rush hour: add 15% more time (reduced from 25%)
+      estimatedHours *= 1.15;
+      console.log('Applied morning rush hour factor');
+    } else if (currentHour >= 17 && currentHour <= 19) {
+      // Evening rush hour: add 20% more time (reduced from 30%)
+      estimatedHours *= 1.2;
+      console.log('Applied evening rush hour factor');
+    }
     
-    // Add an extra day for safety buffer
-    totalWorkingDays += 1;
+    // Apply day-of-week factor (REDUCED impact)
+    const dayOfWeek = currentDate.getDay();
+    if (dayOfWeek === 5) { // Friday
+      // Friday: add 10% more time (reduced from 15%)
+      estimatedHours *= 1.1;
+      console.log('Applied Friday factor');
+    } else if (dayOfWeek === 6) { // Saturday
+      // Saturday: add 5% more time (reduced from 10%)
+      estimatedHours *= 1.05;
+      console.log('Applied Saturday factor');
+    }
+    
+    // Convert hours to working days
+    // IMPORTANT CHANGE: Use 24 hours per day instead of just work hours, as parcels move overnight
+    let totalWorkingDays = Math.ceil(estimatedHours / 24);
+    
+    // Add a smaller buffer (0.5 day instead of 1 day)
+    totalWorkingDays += 0.5;
+    
+    // Round up to whole days
+    totalWorkingDays = Math.ceil(totalWorkingDays);
     
     console.log(`Estimated working days needed: ${totalWorkingDays}`);
     
     // Calculate the estimated delivery date by accounting for working days
     let estimatedDate = new Date(creationDate);
     let workdaysAdded = 0;
+    
+    // If the current time is already past work hours, start counting from tomorrow
+    if (currentHour >= WORK_END_HOUR) {
+      estimatedDate.setDate(estimatedDate.getDate() + 1);
+      console.log('Current time is after work hours, starting count from tomorrow');
+    }
     
     while (workdaysAdded < totalWorkingDays) {
       // Add one day
@@ -866,54 +992,51 @@ export class TrackingParcelPage implements OnInit, AfterViewInit {
       // Skip Sundays (0 = Sunday in JavaScript Date)
       if (estimatedDate.getDay() !== 0) {
         workdaysAdded++;
+        console.log(`Added workday: ${estimatedDate.toDateString()}, ${workdaysAdded}/${totalWorkingDays}`);
+      } else {
+        console.log(`Skipped Sunday: ${estimatedDate.toDateString()}`);
       }
     }
     
-    // If current time is after working hours (after 5 PM), add one more day
-    const currentHour = currentDate.getHours();
-    if (currentHour >= 17) { // 5 PM
-      estimatedDate.setDate(estimatedDate.getDate() + 1);
-      
-      // Skip Sunday if needed
-      if (estimatedDate.getDay() === 0) {
-        estimatedDate.setDate(estimatedDate.getDate() + 1);
-      }
-    }
-    
-    // Ensure that if the estimated date has passed but parcel isn't delivered,
-    // we set it to the next available working day
-    if (estimatedDate < currentDate && parcelData.status !== 'Delivered') {
-      // Set to tomorrow or next Monday if tomorrow is Sunday
-      estimatedDate = new Date(currentDate);
-      estimatedDate.setDate(currentDate.getDate() + 1);
-      
-      // If it's Sunday, move to Monday
-      if (estimatedDate.getDay() === 0) {
-        estimatedDate.setDate(estimatedDate.getDate() + 1);
-      }
-    }
+    // Rest of your code remains the same...
     
     // Format the date for display
     const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     
     const formattedDate = `${estimatedDate.getDate()} ${monthNames[estimatedDate.getMonth()]} ${estimatedDate.getFullYear()}`;
-    const dayOfWeek = dayNames[estimatedDate.getDay()];
+    const dayOfWeekName = dayNames[estimatedDate.getDay()];
     
     // Calculate days remaining
     const timeDiff = estimatedDate.getTime() - currentDate.getTime();
     const daysRemaining = Math.ceil(timeDiff / (1000 * 3600 * 24));
     
-    // Determine estimated delivery time window based on distance and work hours
-    let timeWindow = "9 AM - 5 PM"; // Default window
+    // Determine estimated delivery time window based on distance and time of day
+    let timeWindow = "10 AM - 8 PM"; // Default window matching working hours
     
-    if (daysRemaining === 0 && distanceKm < 30) {
-      // If delivery is today and close by, provide a narrower window
-      const currentHour = currentDate.getHours();
+    if (daysRemaining === 0) {
+      // If delivery is today, provide a narrower window based on current time
       if (currentHour < 12) {
+        timeWindow = "2 PM - 8 PM"; // Morning now, deliver afternoon/evening
+      } else if (currentHour < 16) {
+        timeWindow = "5 PM - 8 PM"; // Afternoon now, deliver evening
+      } else if (currentHour < WORK_END_HOUR) {
+        timeWindow = `${currentHour + 2}:00 PM - 8:00 PM`; // Later delivery window
+      }
+    } else {
+      // For deliveries on future days, estimate time window based on distance
+      if (distanceKm < 15) {
+        // Very short distance - likely to be delivered early
+        timeWindow = "10 AM - 1 PM";
+      } else if (distanceKm < 30) {
+        // Medium distance - mid-morning to early afternoon
+        timeWindow = "11 AM - 3 PM";
+      } else if (distanceKm < 60) {
+        // Longer distance - afternoon delivery
         timeWindow = "1 PM - 5 PM";
       } else {
-        timeWindow = "3 PM - 5 PM";
+        // Very long distance - later in the day
+        timeWindow = "3 PM - 8 PM";
       }
     }
     
@@ -921,11 +1044,49 @@ export class TrackingParcelPage implements OnInit, AfterViewInit {
     this.estimatedDelivery = {
       date: estimatedDate,
       formattedDate,
-      dayOfWeek,
+      dayOfWeek: dayOfWeekName,
       timeWindow,
       daysRemaining: daysRemaining < 0 ? 0 : daysRemaining
     };
     
-    console.log('Estimated delivery:', this.estimatedDelivery);
+    console.log('Final estimated delivery:', this.estimatedDelivery);
+  }
+
+  private isSameTimestamp(a: any, b: any): boolean {
+    if (!a || !b) return false;
+    
+    // Convert both to milliseconds for comparison
+    let timeA: number;
+    let timeB: number;
+    
+    if (a instanceof Date) {
+      timeA = a.getTime();
+    } else if (a.seconds) {
+      timeA = a.seconds * 1000;
+    } else {
+      timeA = new Date(a).getTime();
+    }
+    
+    if (b instanceof Date) {
+      timeB = b.getTime();
+    } else if (b.seconds) {
+      timeB = b.seconds * 1000;
+    } else {
+      timeB = new Date(b).getTime();
+    }
+    
+    // Allow 1 second difference to account for rounding
+    return Math.abs(timeA - timeB) < 1000;
+  }
+
+  private getStatusTitle(status: string): string {
+    switch(status) {
+      case 'Registered': return 'Registered';
+      case 'In Transit': return 'In Transit';
+      case 'Out for Delivery': return 'Out for Delivery';
+      case 'Delivered': return 'Delivered';
+      case 'Handoff': return 'Parcel Handoff';
+      default: return status;
+    }
   }
 }

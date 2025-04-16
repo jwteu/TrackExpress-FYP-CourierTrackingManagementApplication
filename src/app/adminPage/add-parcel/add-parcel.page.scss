@@ -1,21 +1,65 @@
 :host {
+  // --- Variables copied from admin-home ---
   --yellow: #FFD700;
-  --light-yellow: #FFECB3;
-  --dark-gray: #333333;
-  --white: #FFFFFF;
-  --soft-gray: #E0E0E0;
+  --light-yellow: #FFF9E5; // Used in gradient
+  --gold-accent: #FFC300;
+  --dark-gray: #1A1F26; // Used for text/icons in toolbar
+  --medium-gray: #909AAD;
+  --soft-gray: #F5F6FA; // Used in gradient
+  --white: #FFFFFF; // Used in gradient
+  --glass-bg: rgba(255, 255, 255, 0.78);
+  --glass-border: rgba(255, 255, 255, 0.6);
+  --shadow-light: rgba(50, 60, 80, 0.08);
+  --shadow-medium: rgba(50, 60, 80, 0.12);
+  --shadow-strong: rgba(50, 60, 80, 0.18);
+  --primary-gradient: linear-gradient(115deg, var(--yellow) 0%, var(--gold-accent) 100%);
+  --primary-gradient-hover: linear-gradient(115deg, var(--gold-accent) 0%, #FFE57A 100%);
+  --font-primary: 'Poppins', sans-serif;
+  --ease-out-quint: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out-cubic: cubic-bezier(0.645, 0.045, 0.355, 1);
+  // --- End Variables copied from admin-home ---
+
+  // Original variables from add-parcel (kept for reference, overridden by above where names match)
+  // --yellow: #FFD700;
+  // --light-yellow: #FFECB3; // Overridden
+  // --dark-gray: #333333; // Overridden
+  // --white: #FFFFFF; // Overridden
+  // --soft-gray: #E0E0E0; // Overridden
 }
 
+// --- Styles copied/adapted from admin-home for background and toolbar ---
 ion-content {
-  --background: var(--white);
-  font-family: 'Poppins', sans-serif;
+  // Apply gradient similar to admin-home
+  --background: linear-gradient(135deg, var(--light-yellow) 0%, var(--white) 60%, var(--soft-gray) 100%);
+  font-family: var(--font-primary); // Use font from admin-home
 }
 
-ion-toolbar {
-  --background: var(--yellow);
-  --color: var(--dark-gray);
-}
+ion-header ion-toolbar {
+  // Refined, almost floating toolbar style from admin-home
+  --background: rgba(255, 255, 255, 0.88); // Keep slightly opaque
+  backdrop-filter: blur(16px); // Adjust blur
+  --color: var(--dark-gray); // Use dark gray from admin-home vars
+  --border-width: 0 0 1px 0;
+  --border-color: rgba(0, 0, 0, 0.06); // Slightly more visible border
+  --padding-start: 12px;
+  --padding-end: 12px;
 
+  ion-title {
+    font-weight: 600;
+    font-size: 19px; // Match admin-home title size
+    letter-spacing: 0.2px;
+    color: var(--dark-gray); // Ensure title color matches
+  }
+
+  // Style back button to match admin-home menu button color
+  ion-button {
+     --color: var(--dark-gray);
+  }
+}
+// --- End Styles copied/adapted from admin-home ---
+
+
+// --- Existing Styles for Cards/Inputs from add-parcel.page.scss (Keep As Is) ---
 ion-card {
   border-radius: 12px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
@@ -23,14 +67,14 @@ ion-card {
 }
 
 ion-card-header {
-  background: var(--light-yellow);
+  background: #FFECB3; // Original light-yellow from add-parcel
   padding: 16px;
 }
 
 ion-card-subtitle {
   font-size: 14px;
   font-weight: 600;
-  color: var(--dark-gray);
+  color: #333333; // Original dark-gray from add-parcel
   text-transform: uppercase;
 }
 
@@ -41,16 +85,16 @@ ion-card-content {
 .input-item {
   --border-radius: 10px;
   --padding-start: 16px;
-  --background: var(--soft-gray);
+  --background: #E0E0E0; // Original soft-gray from add-parcel
   margin-bottom: 12px;
 
   ion-label {
-    color: var(--dark-gray);
+    color: #333333; // Original dark-gray from add-parcel
     font-weight: 500;
   }
 
   ion-input, ion-textarea {
-    --color: var(--dark-gray);
+    --color: #333333; // Original dark-gray from add-parcel
     font-size: 16px;
   }
 }
@@ -67,6 +111,7 @@ ion-card-content {
   ion-button {
     --padding-start: 8px;
     --padding-end: 8px;
+    // Keep original button color or adjust if needed
   }
 }
 
@@ -76,8 +121,8 @@ ion-card-content {
 }
 
 .primary-button {
-  --background: var(--yellow);
-  --color: var(--dark-gray);
+  --background: var(--yellow); // Use yellow from variables
+  --color: #333333; // Original dark-gray from add-parcel
   --border-radius: 12px;
   font-size: 16px;
   font-weight: 600;
@@ -86,8 +131,10 @@ ion-card-content {
   transition: transform 0.2s ease;
 
   &:active {
+    // Keep original active state or adjust
     --background: var(--white);
     --color: var(--yellow);
     transform: scale(0.95);
   }
 }
+// --- End Existing Styles ---

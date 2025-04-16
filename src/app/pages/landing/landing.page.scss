@@ -1,14 +1,18 @@
 :host {
   --yellow: #FFD700;
-  --light-yellow: #FFECB3;
-  --dark-gray: #333333;
+  --light-yellow: #FFF9E5;
+  --dark-gray: #222831;
   --white: #FFFFFF;
-  --soft-gray: #E0E0E0;
+  --soft-gray: #F5F6FA;
+  --glass-bg: rgba(255,255,255,0.7);
+  --glass-blur: 12px;
 }
 
 ion-content {
-  --background: linear-gradient(135deg, var(--light-yellow) 0%, var(--white) 100%);
+  --background: linear-gradient(120deg, #FFF9E5 0%, #F5F6FA 60%, #FFD700 100%);
   font-family: 'Poppins', sans-serif;
+  min-height: 100vh;
+  animation: bgMove 12s ease-in-out infinite alternate;
 }
 
 .landing-container {
@@ -16,151 +20,139 @@ ion-content {
   flex-direction: column;
   max-width: 100%;
   margin: 0 auto;
-  padding: 8px 16px;
+  padding: 16px 8px 32px 8px;
   min-height: 100%;
+  align-items: center;
+  justify-content: center;
 }
 
-// Update the hero section styling
 .hero-section {
   text-align: center;
-  padding: 8px;
-  
+  padding: 24px 12px 12px 12px;
+  animation: fadeIn 0.8s cubic-bezier(.4,0,.2,1);
+
   .hero-image {
-    max-width: 280px; // Increased from 220px to make logo bigger
+    max-width: 220px;
     height: auto;
-    margin-bottom: 8px;
+    margin-bottom: 12px;
+    filter: drop-shadow(0 8px 24px rgba(34,40,49,0.08));
+    animation: float 3s ease-in-out infinite;
   }
 
   .company-name {
-    font-size: 32px;
+    font-size: 36px;
     font-weight: 700;
     color: var(--dark-gray);
-    margin: 0 0 16px;
-    text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    margin: 0 0 12px;
+    letter-spacing: 1px;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.06);
   }
 
   .subtitle {
-    font-size: 14px;
+    font-size: 16px;
     color: var(--dark-gray);
-    opacity: 0.8;
-    margin: 0 auto 12px;
+    opacity: 0.7;
+    margin: 0 auto 18px;
+    max-width: 320px;
+    line-height: 1.5;
   }
 }
 
 .primary-cta {
   width: 100%;
-  margin: 0 auto 16px;
+  margin: 0 auto 20px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  
+  gap: 10px;
+
   .track-button {
-    --background: var(--yellow);
+    --background: linear-gradient(90deg, #FFD700 60%, #FFF9E5 100%);
     --color: var(--dark-gray);
-    --border-radius: 8px;
-    --padding-start: 16px;
-    --padding-end: 16px;
-    font-size: 16px;
-    font-weight: 600;
-    height: 44px;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.12);
+    --border-radius: 12px;
+    --padding-start: 20px;
+    --padding-end: 20px;
+    font-size: 18px;
+    font-weight: 700;
+    height: 48px;
+    box-shadow: 0 6px 24px rgba(34,40,49,0.10);
     margin: 0;
+    letter-spacing: 0.5px;
+    transition: transform 0.15s, box-shadow 0.15s;
 
-    ion-icon {
-      font-size: 18px;
-      margin-right: 8px;
-    }
-  }
-  
-  .login-button {
-    --border-color: var(--dark-gray);
-    --color: var(--dark-gray);
-    --border-radius: 8px;
-    --padding-start: 16px;
-    --padding-end: 16px;
-    font-size: 14px;
-    font-weight: 600;
-    height: 40px;
-    margin: 0;
-    
-    ion-icon {
-      font-size: 16px;
-      margin-right: 8px;
-    }
-  }
-}
-
-/* Modified for vertical layout with separated box items */
-.mini-features {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-top: 10px;
-  
-  .feature-item {
-    display: flex;
-    align-items: center;
-    padding: 14px 12px;
-    border-radius: 10px;
-    background-color: rgba(255, 255, 255, 0.9);
-    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-    
     &:hover {
-      background-color: rgba(255, 255, 255, 1);
-      transform: translateY(-2px);
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      transform: translateY(-2px) scale(1.03);
+      box-shadow: 0 10px 32px rgba(34,40,49,0.13);
     }
-    
+
     ion-icon {
-      font-size: 32px;
-      color: var(--yellow);
-      margin-right: 16px;
-      flex-shrink: 0;
-      background-color: rgba(255, 215, 0, 0.1);
-      padding: 8px;
-      border-radius: 8px;
-    }
-    
-    span {
-      font-size: 16px;
-      font-weight: 500;
-      color: var(--dark-gray);
-      text-align: left;
-      line-height: 1.3;
+      font-size: 20px;
+      margin-right: 8px;
     }
   }
 }
 
 .worker-login-text {
   text-align: center;
-  margin-top: 6px;
-  font-size: 12px;
+  margin-top: 8px;
+  font-size: 13px;
   color: var(--dark-gray);
-  
+
   a {
-    color: var(--dark-gray);
+    color: var(--yellow);
     font-weight: 600;
-    text-decoration: none;
-    position: relative;
-    
-    &::after {
-      content: '';
-      position: absolute;
-      width: 100%;
-      height: 2px;
-      bottom: -2px;
-      left: 0;
-      background-color: var(--yellow);
-      transition: all 0.2s ease;
-    }
-    
+    text-decoration: underline;
+    transition: color 0.2s;
     &:hover {
+      color: #FFC300;
+    }
+  }
+}
+
+/* Glassmorphism for feature cards */
+.mini-features {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin-top: 32px;
+  width: 100%;
+  max-width: 420px;
+
+  .feature-item {
+    display: flex;
+    align-items: center;
+    padding: 22px 20px;
+    border-radius: 22px;
+    background: linear-gradient(120deg, rgba(255,255,255,0.85) 60%, #FFF9E5 100%);
+    box-shadow: 0 8px 32px rgba(34,40,49,0.10), 0 1.5px 6px rgba(255,215,0,0.07);
+    backdrop-filter: blur(16px);
+    border: 1.5px solid rgba(255,255,255,0.5);
+    transition: transform 0.22s, box-shadow 0.22s, background 0.22s;
+
+    &:hover {
+      background: linear-gradient(120deg, #FFF9E5 70%, #FFD700 100%);
+      transform: translateY(-5px) scale(1.04);
+      box-shadow: 0 12px 36px rgba(34,40,49,0.16);
+    }
+
+    ion-icon {
+      font-size: 40px;
       color: var(--yellow);
-      
-      &::after {
-        background-color: var(--yellow);
-      }
+      margin-right: 22px;
+      background: rgba(255, 215, 0, 0.18);
+      padding: 12px;
+      border-radius: 12px;
+      box-shadow: 0 3px 12px rgba(255,215,0,0.10);
+      transition: background 0.22s;
+    }
+
+    span {
+      font-size: 19px;
+      font-weight: 700;
+      color: var(--dark-gray);
+      text-align: left;
+      line-height: 1.5;
+      letter-spacing: 0.3px;
+      text-shadow: 0 1px 4px rgba(255,255,255,0.18);
     }
   }
 }
@@ -174,6 +166,11 @@ ion-content {
   0% { transform: translateY(0px); }
   50% { transform: translateY(-8px); }
   100% { transform: translateY(0px); }
+}
+
+@keyframes bgMove {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 100% 50%; }
 }
 
 // Update media queries for responsive design

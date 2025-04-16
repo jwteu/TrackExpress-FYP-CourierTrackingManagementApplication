@@ -662,6 +662,24 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
           )
         );
       }
+
+      // Add tracking history event for the location change
+      console.log('Adding tracking history event with new location:', addressData.display_name);
+      await firstValueFrom(
+        this.trackingHistoryService.addTrackingEvent({
+          trackingId: trackingId,
+          parcelId: parcelDetails.id,
+          status: status,
+          title: status === 'In Transit' ? 'In Transit' : 'Out for Delivery',
+          description: `Parcel ${status === 'In Transit' ? 'in transit at' : 'out for delivery from'} ${addressData.display_name || 'Unknown location'}`,
+          location: addressData.display_name || 'Unknown location',
+          timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+          deliverymanId: this.currentUserId,
+          deliverymanName: this.currentUserName
+        })
+      );
+
+      console.log('Added tracking history event with new location');
       
       // Reset form
       this.parcelForm.reset({
