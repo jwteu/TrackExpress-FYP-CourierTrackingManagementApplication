@@ -9,6 +9,9 @@ import { TrackingHistoryService } from '../../services/tracking-history.service'
 import { GeocodingService } from '../../services/geocoding.service';
 declare const L: any;
 
+// Add your OpenRouteService API key here (register for free at openrouteservice.org)
+const ORS_API_KEY = '5b3ce3597851110001cf624890e9ab05b8224e9ea60a53ebf9706174'; // <-- Replace with your key
+
 interface TrackingEvent {
   title: string;
   status: string;
@@ -436,133 +439,136 @@ export class TrackingParcelPage implements OnInit, AfterViewInit, OnDestroy {
 
   async initializeMap() {
     console.log('Initializing map with coordinates:', this.mapCoordinates);
-    
-    // Early exit checks
+
     if (!this.mapCoordinates || !this.mapElement?.nativeElement) {
       console.error('Missing map coordinates or element');
       return;
     }
-    
+
     try {
       const { currentLat, currentLng, destLat, destLng } = this.mapCoordinates;
-      
-      // Verify Leaflet is loaded
+
+      // Ensure Leaflet is loaded
       if (typeof L === 'undefined') {
-        console.error('Leaflet is not loaded');
         await this.loadLeafletDynamically();
       }
-      
-      console.log('Creating map with these coordinates:', { currentLat, currentLng, destLat, destLng });
-      
-      // Create a new Leaflet map instance
+
+      // Create or reset map
       if (!this.map) {
-        console.log('Creating new map instance');
         this.map = L.map(this.mapElement.nativeElement).setView([currentLat, currentLng], 13);
-        
-        // Add OpenStreetMap tiles
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          attribution: '&copy; OpenStreetMap contributors'
         }).addTo(this.map);
       } else {
-        console.log('Using existing map instance');
-        // Remove existing layers if we're re-initializing
         if (this.currentLocationMarker) this.map.removeLayer(this.currentLocationMarker);
         if (this.destinationMarker) this.map.removeLayer(this.destinationMarker);
         if (this.routeLine) this.map.removeLayer(this.routeLine);
         if (this.routeOutline) this.map.removeLayer(this.routeOutline);
       }
-      
-      // Add origin marker (delivery person location)
+
+      // Add current location marker
       this.currentLocationMarker = L.marker([currentLat, currentLng], {
         icon: L.divIcon({
-          html: `
-            <div style="font-size: 14px; background: #FFDE59; border-radius: 50%; 
-                 box-shadow: 0 2px 8px rgba(0,0,0,0.4); width: 40px; height: 40px; 
-                 display: flex; align-items: center; justify-content: center; position: relative;">
-              <ion-icon name="bicycle-outline" style="font-size: 24px; color: #333;"></ion-icon>
-              <div style="position: absolute; bottom: -20px; white-space: nowrap; 
-                   background: rgba(0,0,0,0.7); color: white; padding: 2px 5px; 
-                   border-radius: 3px; font-size: 10px;">Current Location</div>
-            </div>
-          `,
+          html: `<div style="font-size: 14px; background: #FFDE59; border-radius: 50%; box-shadow: 0 2px 8px rgba(0,0,0,0.4); width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; position: relative;">
+            <ion-icon name="bicycle-outline" style="font-size: 24px; color: #333;"></ion-icon>
+            <div style="position: absolute; bottom: -20px; white-space: nowrap; background: rgba(0,0,0,0.7); color: white; padding: 2px 5px; border-radius: 3px; font-size: 10px;">Current Location</div>
+          </div>`,
           className: '',
           iconSize: [40, 40],
           iconAnchor: [20, 20]
         })
       }).addTo(this.map)
-      .bindPopup(`Current Location: ${this.mapCoordinates.currentLocation}`);
-      
+        .bindPopup(`Current Location: ${this.mapCoordinates.currentLocation}`);
+
       // Add destination marker
       this.destinationMarker = L.marker([destLat, destLng], {
         icon: L.divIcon({
-          html: `
-            <div style="font-size: 14px; background: white; border-radius: 50%; 
-                 box-shadow: 0 2px 8px rgba(0,0,0,0.4); width: 40px; height: 40px; 
-                 display: flex; align-items: center; justify-content: center; position: relative;">
-              <ion-icon name="home-outline" style="font-size: 24px; color: #333;"></ion-icon>
-              <div style="position: absolute; bottom: -20px; white-space: nowrap; 
-                   background: rgba(0,0,0,0.7); color: white; padding: 2px 5px; 
-                   border-radius: 3px; font-size: 10px;">Destination</div>
-            </div>
-          `,
+          html: `<div style="font-size: 14px; background: white; border-radius: 50%; box-shadow: 0 2px 8px rgba(0,0,0,0.4); width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; position: relative;">
+            <ion-icon name="home-outline" style="font-size: 24px; color: #333;"></ion-icon>
+            <div style="position: absolute; bottom: -20px; white-space: nowrap; background: rgba(0,0,0,0.7); color: white; padding: 2px 5px; border-radius: 3px; font-size: 10px;">Destination</div>
+          </div>`,
           className: '',
           iconSize: [40, 40],
           iconAnchor: [20, 20]
         })
       }).addTo(this.map)
-      .bindPopup(`Destination: ${this.parcel?.receiverAddress || 'Delivery Address'}`);
-      
-      // Create the route lines
-      const routeCoordinates = [
-        [currentLat, currentLng],
-        [destLat, destLng]
-      ];
-      
-      // Create the main route
-      this.routeLine = L.polyline(routeCoordinates, {
+        .bindPopup(`Destination: ${this.parcel?.receiverAddress || 'Delivery Address'}`);
+
+      // --- NEW: Fetch and draw the real road route using OpenRouteService ---
+      await this.drawRouteWithOpenRouteService(currentLat, currentLng, destLat, destLng);
+
+      this.mapLoaded = true;
+    } catch (error) {
+      console.error('Error in map initialization:', error);
+      this.mapLoaded = true;
+      this.showErrorToast('Map could not be displayed. Please try again.');
+    }
+  }
+
+  async drawRouteWithOpenRouteService(startLat: number, startLng: number, endLat: number, endLng: number) {
+    try {
+      // Remove previous route if exists
+      if (this.routeLine) {
+        this.map.removeLayer(this.routeLine);
+        this.routeLine = null;
+      }
+      if (this.routeOutline) {
+        this.map.removeLayer(this.routeOutline);
+        this.routeOutline = null;
+      }
+
+      // Call OpenRouteService Directions API
+      const url = `https://api.openrouteservice.org/v2/directions/driving-car?api_key=${ORS_API_KEY}&start=${startLng},${startLat}&end=${endLng},${endLat}`;
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Failed to fetch route from OpenRouteService');
+      const data = await response.json();
+
+      // Decode the polyline geometry
+      const coords = data.features[0].geometry.coordinates.map((c: number[]) => [c[1], c[0]]);
+
+      // Draw the main route line
+      this.routeLine = L.polyline(coords, {
         color: '#FFDE59',
         weight: 6,
         opacity: 0.9,
         lineCap: 'round',
         lineJoin: 'round'
       }).addTo(this.map);
-      
-      // Add the route outline
-      this.routeOutline = L.polyline(routeCoordinates, {
+
+      // Draw the outline
+      this.routeOutline = L.polyline(coords, {
         color: '#333333',
         weight: 10,
         opacity: 0.3,
         lineCap: 'round',
         lineJoin: 'round'
       }).addTo(this.map);
-      
-      // Make sure outline is behind the main route
+
       this.routeOutline.bringToBack();
       this.routeLine.bringToFront();
-      
-      // Calculate straight-line distance
-      const d = this.calculateDistance(currentLat, currentLng, destLat, destLng);
-      this.mapCoordinates.distance = d.toFixed(1);
-      
-      // Make the map fit both points with padding
+
+      // Fit map to route
       this.map.fitBounds(this.routeLine.getBounds(), {
         padding: [40, 40],
         maxZoom: 15
       });
-      
-      // Force a map size recalculation
-      setTimeout(() => {
-        if (this.map) {
-          this.map.invalidateSize();
-        }
-      }, 250);
-      
-      this.mapLoaded = true;
-      
+
+      // Optionally, update distance
+      if (this.mapCoordinates) {
+        const distanceKm = data.features[0].properties.summary.distance / 1000;
+        this.mapCoordinates.distance = distanceKm.toFixed(1);
+      }
     } catch (error) {
-      console.error('Error in map initialization:', error);
-      this.mapLoaded = true;
-      this.showErrorToast('Map could not be displayed. Please try again.');
+      console.error('Error drawing route:', error);
+      // Fallback: draw straight line if routing fails
+      if (this.map && this.mapCoordinates) {
+        const coords = [
+          [this.mapCoordinates.currentLat, this.mapCoordinates.currentLng],
+          [this.mapCoordinates.destLat, this.mapCoordinates.destLng]
+        ];
+        this.routeLine = L.polyline(coords, { color: '#FFDE59', weight: 6 }).addTo(this.map);
+        this.routeOutline = L.polyline(coords, { color: '#333333', weight: 10, opacity: 0.3 }).addTo(this.map);
+      }
     }
   }
 
@@ -571,37 +577,21 @@ export class TrackingParcelPage implements OnInit, AfterViewInit, OnDestroy {
       console.error('Map, marker, or coordinates not initialized');
       return;
     }
-    
-    console.log('Updating map with new location:', lat, lng, locationDescription);
-    
+
     // Update the stored coordinates
     this.mapCoordinates.currentLat = lat;
     this.mapCoordinates.currentLng = lng;
     this.mapCoordinates.currentLocation = locationDescription || 'Current Location';
-    
+
     // Update the marker position
     this.currentLocationMarker.setLatLng([lat, lng]);
     this.currentLocationMarker.setPopupContent(`Current Location: ${locationDescription}`);
-    
-    // Update the route line
-    const routeCoordinates = [
-      [lat, lng],
-      [this.mapCoordinates.destLat, this.mapCoordinates.destLng]
-    ];
-    this.routeLine.setLatLngs(routeCoordinates);
-    this.routeOutline.setLatLngs(routeCoordinates);
-    
-    // Update distance calculation
-    const d = this.calculateDistance(lat, lng, this.mapCoordinates.destLat, this.mapCoordinates.destLng);
-    this.mapCoordinates.distance = d.toFixed(1);
-    
-    // Smoothly pan the map to include the updated position
-    this.map.fitBounds(this.routeLine.getBounds(), {
-      padding: [40, 40],
-      maxZoom: 15,
-      animate: true,
-      duration: 0.5
-    });
+
+    // --- NEW: Redraw the route using OpenRouteService ---
+    this.drawRouteWithOpenRouteService(lat, lng, this.mapCoordinates.destLat, this.mapCoordinates.destLng);
+
+    // Optionally, pan/zoom to fit
+    // (fitBounds is called in drawRouteWithOpenRouteService)
   }
 
   calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -658,20 +648,10 @@ export class TrackingParcelPage implements OnInit, AfterViewInit, OnDestroy {
 
   openExternalMap() {
     if (!this.mapCoordinates) return;
-    
-    const { destLat, destLng } = this.mapCoordinates;
-    const label = encodeURIComponent(this.parcel?.receiverAddress || 'Destination');
-    
-    let mapUrl = '';
-    
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    if (isIOS) {
-      mapUrl = `maps://?q=${label}&ll=${destLat},${destLng}`;
-    } else {
-      mapUrl = `https://www.openstreetmap.org/?mlat=${destLat}&mlon=${destLng}&zoom=15`;
-    }
-    
-    window.open(mapUrl, '_system');
+    const { currentLat, currentLng, destLat, destLng } = this.mapCoordinates;
+    // Google Maps navigation URL (works on Android/iOS/web)
+    const url = `https://www.google.com/maps/dir/?api=1&origin=${currentLat},${currentLng}&destination=${destLat},${destLng}&travelmode=driving`;
+    window.open(url, '_system');
   }
 
   getStatusDescription(status: string): string {
@@ -1087,6 +1067,37 @@ export class TrackingParcelPage implements OnInit, AfterViewInit, OnDestroy {
       case 'Delivered': return 'Delivered';
       case 'Handoff': return 'Parcel Handoff';
       default: return status;
+    }
+  }
+
+  centerOnCurrentLocation() {
+    if (!this.map || !this.mapCoordinates) {
+      return;
+    }
+    
+    console.log('Centering map on current deliveryman location');
+    
+    // Smoothly animate to the current location
+    this.map.flyTo(
+      [this.mapCoordinates.currentLat, this.mapCoordinates.currentLng],
+      15, // Zoom level
+      {
+        animate: true,
+        duration: 1.5 // Animation duration in seconds
+      }
+    );
+    
+    // Open popup with current location info
+    this.currentLocationMarker.openPopup();
+    
+    // Add a highlight effect to the marker
+    const markerElement = this.currentLocationMarker.getElement();
+    if (markerElement) {
+      markerElement.style.transition = 'transform 0.3s ease-out';
+      markerElement.style.transform = 'scale(1.2)';
+      setTimeout(() => {
+        markerElement.style.transform = 'scale(1)';
+      }, 300);
     }
   }
 }

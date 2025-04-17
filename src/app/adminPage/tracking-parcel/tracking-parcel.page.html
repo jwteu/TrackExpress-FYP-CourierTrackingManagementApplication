@@ -94,7 +94,13 @@
 
         <!-- Map (Hidden if Delivered or Photo Available) -->
         <div class="map-container" *ngIf="parcel && mapCoordinates && parcel.status !== 'Delivered' && !parcel.photoURL">
-          <h3>Delivery Route</h3>
+          <div class="map-header" style="display: flex; align-items: center; justify-content: space-between; padding: 0 16px 0 16px;">
+            <h3 style="margin: 0;">Delivery Route</h3>
+            <button class="open-map-btn" (click)="openExternalMap()" aria-label="Open in Map">
+              <ion-icon name="map-outline"></ion-icon>
+              <span>Open Map</span>
+            </button>
+          </div>
           <div class="map-wrapper">
             <div #mapElement class="map-element"></div>
             <div class="map-overlay" *ngIf="!mapLoaded">
@@ -103,6 +109,13 @@
             </div>
             <div class="map-error" *ngIf="mapLoaded && !map">
               <p>Unable to load map.</p>
+            </div>
+            <!-- Track Location Button -->
+            <div class="map-controls" *ngIf="isLocationTracking">
+              <button class="track-location-btn" (click)="centerOnCurrentLocation()">
+                <ion-icon name="locate-outline"></ion-icon>
+                <span>Track Location</span>
+              </button>
             </div>
           </div>
           <div class="destination-info">
