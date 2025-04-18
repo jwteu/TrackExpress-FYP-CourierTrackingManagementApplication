@@ -114,10 +114,11 @@ ion-header ion-toolbar {
       z-index: 2;
       overflow: hidden;
 
-      ion-icon {
-        font-size: 50px; // Ensure icon is large enough
-        color: var(--dark-gray);
-        opacity: 0.85;
+      .avatar-image {
+        display: block;
+        width: 85%;
+        height: 85%;
+        object-fit: contain;
       }
     }
 

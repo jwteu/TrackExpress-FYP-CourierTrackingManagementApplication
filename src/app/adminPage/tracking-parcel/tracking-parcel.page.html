@@ -166,12 +166,6 @@
                 <ion-icon name="time-outline"></ion-icon>
                 <span>{{ estimatedDelivery.timeWindow }}</span>
               </div>
-              <div class="detail-item" *ngIf="estimatedDelivery.daysRemaining !== null">
-                <ion-icon name="hourglass-outline"></ion-icon>
-                <span>{{ estimatedDelivery.daysRemaining === 0 ? 'Today' : 
-                        estimatedDelivery.daysRemaining === 1 ? 'Tomorrow' : 
-                        estimatedDelivery.daysRemaining + ' days' }}</span>
-              </div>
             </div>
           </div>
         </div>

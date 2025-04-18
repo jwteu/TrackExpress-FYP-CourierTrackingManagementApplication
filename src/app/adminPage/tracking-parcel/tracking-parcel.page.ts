@@ -132,6 +132,10 @@ export class TrackingParcelPage implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
+    // Stop previous location tracking and reset mapLoaded before searching
+    this.stopLocationTracking();
+    this.mapLoaded = false;
+
     this.searchPerformed = true;
     this.loading = true;
     this.parcel = null;
@@ -445,6 +449,18 @@ export class TrackingParcelPage implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
+    // --- FIX: Destroy previous map instance if it exists ---
+    if (this.map) {
+      this.map.off();
+      this.map.remove();
+      this.map = null;
+    }
+    // Clear the map container's innerHTML to avoid duplicate map errors
+    this.mapElement.nativeElement.innerHTML = '';
+
+    // Stop location tracking to prevent updates to destroyed map
+    this.stopLocationTracking();
+
     try {
       const { currentLat, currentLng, destLat, destLng } = this.mapCoordinates;
 
@@ -453,18 +469,11 @@ export class TrackingParcelPage implements OnInit, AfterViewInit, OnDestroy {
         await this.loadLeafletDynamically();
       }
 
-      // Create or reset map
-      if (!this.map) {
-        this.map = L.map(this.mapElement.nativeElement).setView([currentLat, currentLng], 13);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '&copy; OpenStreetMap contributors'
-        }).addTo(this.map);
-      } else {
-        if (this.currentLocationMarker) this.map.removeLayer(this.currentLocationMarker);
-        if (this.destinationMarker) this.map.removeLayer(this.destinationMarker);
-        if (this.routeLine) this.map.removeLayer(this.routeLine);
-        if (this.routeOutline) this.map.removeLayer(this.routeOutline);
-      }
+      // Create new map instance
+      this.map = L.map(this.mapElement.nativeElement).setView([currentLat, currentLng], 13);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(this.map);
 
       // Add current location marker
       this.currentLocationMarker = L.marker([currentLat, currentLng], {
@@ -494,7 +503,7 @@ export class TrackingParcelPage implements OnInit, AfterViewInit, OnDestroy {
       }).addTo(this.map)
         .bindPopup(`Destination: ${this.parcel?.receiverAddress || 'Delivery Address'}`);
 
-      // --- NEW: Fetch and draw the real road route using OpenRouteService ---
+      // Draw the route
       await this.drawRouteWithOpenRouteService(currentLat, currentLng, destLat, destLng);
 
       this.mapLoaded = true;
