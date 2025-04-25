@@ -1,6 +1,6 @@
 import { Injectable, inject, Injector, runInInjectionContext } from '@angular/core';
-import { AngularFirestore } from '@angular/fire/compat/firestore';
-import { Observable, from, map, of, first, tap } from 'rxjs';
+import { AngularFirestore, AngularFirestoreCollection } from '@angular/fire/compat/firestore';
+import { Observable, from, map, of, first, tap, forkJoin } from 'rxjs'; // Import forkJoin
 import firebase from 'firebase/compat/app';
 
 export interface Parcel {
@@ -17,6 +17,10 @@ export interface Parcel {
   userId?: string;   // Add userId to the interface
   userEmail?: string; // Add userEmail to the interface
   locationDescription?: string; // Add this property
+  photoURL?: string; // Add photoURL
+  completedAt?: any; // Add completedAt
+  deliverymanId?: string; // Add deliverymanId
+  deliverymanName?: string; // Add deliverymanName
 }
 
 @Injectable({
@@ -212,7 +216,7 @@ export class ParcelService {
     const params = {
       service_id: 'service_o0nwz8b',
       template_id: 'template_1yqzf6m',
-      user_id: 'ghZzg_nWOdHQY6Krj',
+      user_id: 'T1yl0I9kdv0wiyZtr',
       template_params: {
         tracking_id: trackingId,
         parcel_status: status, // Changed to match template variable
@@ -330,6 +334,104 @@ export class ParcelService {
         }
       });
     });
+  }
+
+  /**
+   * Update parcel location
+   */
+  updateParcelLocation(assignedParcelId: string, locationData: any): Observable<void> {
+    // Store a reference to the injector
+    const localInjector = this.injector;
+
+    return new Observable(observer => {
+      // Define the async operation separately to keep the Observable constructor clean
+      const updateOperation = async () => {
+        try {
+          console.log(`Starting location update for parcel ID: ${assignedParcelId}`);
+
+          // --- Wrap Firestore call in runInInjectionContext ---
+          const parcelDoc = await runInInjectionContext(localInjector, () =>
+            this.firestore.collection('assigned_parcels').doc(assignedParcelId).get().toPromise()
+          );
+
+          if (!parcelDoc || !parcelDoc.exists) {
+            throw new Error('Assigned parcel not found'); // Use throw for clearer error handling
+          }
+
+          const parcelData = parcelDoc.data() as Parcel;
+
+          // --- Wrap Firestore batch creation and collection calls ---
+          const batch = runInInjectionContext(localInjector, () => this.firestore.firestore.batch());
+          const assignedParcelRef = runInInjectionContext(localInjector, () =>
+            this.firestore.collection('assigned_parcels').doc(assignedParcelId).ref
+          );
+
+          const locationTimestamp = locationData.locationUpdatedAt || firebase.firestore.FieldValue.serverTimestamp();
+
+          batch.update(assignedParcelRef, {
+            locationLat: locationData.locationLat,
+            locationLng: locationData.locationLng,
+            locationDescription: locationData.locationDescription,
+            locationUpdatedAt: locationTimestamp
+          });
+
+          let mainParcelId: string | null = null; // To store the ID for tracking history
+
+          if (parcelData.trackingId) {
+            // --- Wrap Firestore query ---
+            const parcelsSnapshot = await runInInjectionContext(localInjector, () =>
+              this.firestore
+                .collection('parcels', ref => ref.where('trackingId', '==', parcelData.trackingId))
+                .get().toPromise()
+            );
+
+            if (parcelsSnapshot && !parcelsSnapshot.empty) {
+              const mainParcelRef = parcelsSnapshot.docs[0].ref;
+              mainParcelId = parcelsSnapshot.docs[0].id; // Get the ID of the main parcel doc
+              batch.update(mainParcelRef, {
+                locationLat: locationData.locationLat,
+                locationLng: locationData.locationLng,
+                locationDescription: locationData.locationDescription,
+                locationUpdatedAt: locationTimestamp
+              });
+            }
+
+            // --- Wrap Firestore collection call ---
+            const trackingHistoryRef = runInInjectionContext(localInjector, () =>
+              this.firestore.collection('tracking_history').doc().ref
+            );
+
+            batch.set(trackingHistoryRef, {
+              trackingId: parcelData.trackingId,
+              parcelId: mainParcelId, // Use the potentially found main parcel ID
+              status: parcelData.status || 'In Transit',
+              title: 'Location Update',
+              description: `Parcel location updated to ${locationData.locationDescription}`,
+              location: locationData.locationDescription,
+              deliverymanId: parcelData.userId,
+              deliverymanName: parcelData.name,
+              timestamp: locationTimestamp,
+              createdAt: locationTimestamp // Use the same timestamp for consistency
+            });
+          }
+
+          // Commit the batch
+          await batch.commit();
+          console.log(`Successfully updated location for parcel ID: ${assignedParcelId}`);
+          observer.next();
+          observer.complete();
+
+        } catch (error) {
+          // Log the specific error during the update process
+          console.error(`Error during updateParcelLocation for ${assignedParcelId}:`, error);
+          observer.error(error); // Propagate the error to the subscriber
+        }
+      };
+
+      // Execute the async operation
+      updateOperation();
+
+    }); // End of Observable constructor
   }
 
   /**

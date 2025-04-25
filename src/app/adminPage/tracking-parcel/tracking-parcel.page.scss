@@ -296,6 +296,34 @@ ion-card-content {
   }
 }
 
+.map-status-overlay {
+  position: absolute;
+  top: 20px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.hub-status {
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  
+  ion-icon {
+    margin-right: 8px;
+    font-size: 18px;
+  }
+}
+
 .map-controls {
   position: absolute;
   bottom: 15px;
@@ -350,6 +378,8 @@ ion-card-content {
   cursor: pointer;
   transition: background 0.2s, box-shadow 0.2s, transform 0.2s;
   outline: none;
+  position: relative;
+  padding-right: 20px; // Add more padding for the LIVE indicator
 
   ion-icon {
     font-size: 20px;
@@ -366,6 +396,35 @@ ion-card-content {
   &:active {
     background: var(--light-yellow);
     transform: scale(0.98);
+  }
+
+  .real-time-indicator {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background: #ff4444;
+    color: white;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    
+    .pulse-dot {
+      width: 6px;
+      height: 6px;
+      background-color: white;
+      border-radius: 50%;
+      margin-right: 3px;
+      display: inline-block;
+      animation: pulse-animation 1.5s infinite;
+    }
+    
+    span {
+      font-weight: bold;
+      letter-spacing: 0.5px;
+    }
   }
 }
 
@@ -643,6 +702,10 @@ ion-card-content {
       margin: 2px 0 0 0;
     }
   }
+}
+
+.tracking-status ion-icon[name="business-outline"] {
+  color: #6c757d;
 }
 
 .pulse {

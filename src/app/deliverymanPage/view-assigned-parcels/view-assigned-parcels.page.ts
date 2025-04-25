@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, inject, ViewChild, ElementRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, ViewChild, ElementRef, Injector, runInInjectionContext } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormGroup, FormBuilder, Validators } from '@angular/forms';
 import { IonicModule, NavController, LoadingController, ToastController, AlertController } from '@ionic/angular';
@@ -43,6 +43,9 @@ interface Parcel {
   imports: [CommonModule, FormsModule, ReactiveFormsModule, IonicModule, RouterModule]
 })
 export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
+  // Add this line to your existing properties
+  private injector = inject(Injector);
+  
   // State variables
   currentUserId: string | null = null;
   currentUserName: string | null = null;
@@ -78,6 +81,12 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
 
   // Add this property to your component
   private sessionCheckInterval: any;
+
+  // Add these properties to the class
+  private locationUpdateInterval: any;
+  private lastLocationUpdate: Date | null = null;
+  private isUpdatingLocation: boolean = false;
+  private minimumUpdateDistance: number = 50; // Minimum distance (meters) to trigger update
 
   constructor() {
     // Initialize form
@@ -168,6 +177,12 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
 
     // Start periodic session verification
     this.startSessionVerification();
+
+    // Start location updates
+    this.startLocationUpdates();
+
+    // Check device capabilities
+    this.checkDeviceCapabilities();
   }
 
   ngOnDestroy() {
@@ -183,6 +198,9 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
     if (this.sessionCheckInterval) {
       clearInterval(this.sessionCheckInterval);
     }
+
+    // Stop location updates
+    this.stopLocationUpdates();
   }
 
   ionViewWillLeave() {
@@ -534,63 +552,86 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
     }
     
     const loading = await this.loadingCtrl.create({
-      message: 'Adding parcel...'
+      message: 'Adding parcel and getting accurate location...'
     });
     
     await loading.present();
     this.isAddingParcel = true;
     
     try {
-      // Check if parcel exists
+      // Check if parcel exists and is not already assigned
       const parcelDetails = await firstValueFrom(
         this.parcelService.getParcelDetails(trackingId)
       );
       
       if (!parcelDetails) {
-        throw new Error('Parcel not found with this tracking ID');
+        await loading.dismiss();
+        this.isAddingParcel = false;
+        this.showToast('No parcel found with this tracking ID');
+        return;
       }
       
-      // Check if already assigned
       const isAssigned = await firstValueFrom(
         this.parcelService.isParcelAssigned(trackingId)
       );
       
       if (isAssigned) {
-        throw new Error('This parcel is already assigned to a delivery person');
+        await loading.dismiss();
+        this.isAddingParcel = false;
+        this.showToast('This parcel is already assigned to a deliveryman');
+        return;
       }
       
-      // Get current location
+      // Get current location WITH HIGH ACCURACY
       let position: Position;
-      if (Capacitor.isPluginAvailable('Geolocation')) {
-        position = await Geolocation.getCurrentPosition();
-      } else {
-        throw new Error('Geolocation is not available on this device');
+      try {
+        if (Capacitor.isPluginAvailable('Geolocation')) {
+          // Use high accuracy options for better location precision
+          position = await Geolocation.getCurrentPosition({
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+          });
+        } else {
+          // Try browser geolocation as fallback with high accuracy
+          position = await this.getBrowserLocationWithHighAccuracy();
+        }
+      } catch (locError) {
+        console.error('Error getting location:', locError);
+        throw new Error('Unable to get your current location. Please check your device GPS settings.');
       }
       
-      // Get address from coordinates
+      // Get detailed address from coordinates using zoom level 18 for better precision
       let locationDescription = "Current location";
+      let addressData;
       try {
-        const geoData = await firstValueFrom(
+        addressData = await firstValueFrom(
           this.geocodingService.getAddressFromCoordinates(
             position.coords.latitude, 
-            position.coords.longitude
+            position.coords.longitude,
+            { zoom: 18 } // Use higher zoom level for more detailed address
           )
         );
         
-        if (geoData && geoData.display_name) {
-          // Extract just the city/area part of the address
-          const addressParts = geoData.display_name.split(',');
-          if (addressParts.length > 2) {
-            // Use just city and region, not the full address
-            locationDescription = addressParts.slice(1, 3).join(', ').trim();
-          } else {
-            locationDescription = geoData.display_name;
-          }
+        if (addressData && addressData.display_name) {
+          locationDescription = addressData.display_name;
+          console.log('Location description:', locationDescription);
         }
       } catch (geoError) {
         console.warn('Error getting location name:', geoError);
-        locationDescription = `Location ${position.coords.latitude.toFixed(2)}, ${position.coords.longitude.toFixed(2)}`;
+        locationDescription = `Location ${position.coords.latitude.toFixed(4)}, ${position.coords.longitude.toFixed(4)}`;
       }
+      
+      // IMPORTANT: Create a standardized location object to use in both collections
+      const locationData = {
+        locationLat: position.coords.latitude,
+        locationLng: position.coords.longitude,
+        locationDescription: locationDescription,
+        locationUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      };
+      
+      // IMPORTANT FIX: Preserve original parcel date from parcel details
+      const addedDate = parcelDetails.createdAt || firebase.firestore.FieldValue.serverTimestamp();
       
       // Add to assigned parcels with current location
       const assignedParcelData = {
@@ -599,16 +640,12 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
         userId: this.currentUserId,
         userEmail: (await this.auth.currentUser)?.email || 'unknown',
         sessionId: this.generateSessionId(),
-        locationLat: position.coords.latitude,
-        locationLng: position.coords.longitude,
-        locationDescription: locationDescription,
-        addedDate: firebase.firestore.FieldValue.serverTimestamp(),
         status,
-        // Add a timestamp for when location was updated
-        locationUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        addedDate: addedDate,
+        ...locationData // Use the standardized location data
       };
       
-      console.log('Adding to assigned parcels:', assignedParcelData);
+      console.log('Adding to assigned parcels with standardized location:', assignedParcelData);
       
       // Use firstValueFrom to properly await the Observable
       const assignedId = await firstValueFrom(
@@ -629,57 +666,52 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
         })
       );
       
-      console.log('Parcel handler record added');
-      
-      // Update parcel status - also use firstValueFrom
+      // Update parcel status with the SAME location data
       await firstValueFrom(
         this.parcelService.updateParcelStatus(parcelDetails.id, {
           status,
           deliverymanId: this.currentUserId,
-          deliverymanName: this.currentUserName
+          deliverymanName: this.currentUserName,
+          ...locationData // Use the same standardized location data
         })
       );
       
-      console.log('Parcel status updated in main collection');
-      
-      // Get address for notification using reverse geocoding
-      const addressData = await firstValueFrom(
-        this.geocodingService.getAddressFromCoordinates(
-          position.coords.latitude,
-          position.coords.longitude
-        )
-      );
-      
-      // Send email notification to receiver
-      if (parcelDetails.receiverEmail) {
-        await firstValueFrom(
-          this.parcelService.sendEmailNotification(
-            parcelDetails.receiverEmail,
-            parcelDetails.receiverName || 'Valued Customer',
-            trackingId,
-            status,
-            addressData.display_name || 'Unknown location'
-          )
-        );
-      }
-
-      // Add tracking history event for the location change
-      console.log('Adding tracking history event with new location:', addressData.display_name);
+      // Add tracking history event using the SAME location data for consistency
       await firstValueFrom(
         this.trackingHistoryService.addTrackingEvent({
           trackingId: trackingId,
           parcelId: parcelDetails.id,
           status: status,
           title: status === 'In Transit' ? 'In Transit' : 'Out for Delivery',
-          description: `Parcel ${status === 'In Transit' ? 'in transit at' : 'out for delivery from'} ${addressData.display_name || 'Unknown location'}`,
-          location: addressData.display_name || 'Unknown location',
+          description: `Parcel ${status === 'In Transit' ? 'in transit at' : 'out for delivery from'} ${locationDescription}`,
+          location: locationDescription, // Use the same location name
           timestamp: firebase.firestore.FieldValue.serverTimestamp(),
           deliverymanId: this.currentUserId,
           deliverymanName: this.currentUserName
         })
       );
 
-      console.log('Added tracking history event with new location');
+      // IMPORTANT FIX: Send email notification to receiver
+      try {
+        if (parcelDetails.receiverEmail) {
+          // Send email notification about the status update
+          await firstValueFrom(
+            this.parcelService.sendEmailNotification(
+              parcelDetails.receiverEmail,
+              parcelDetails.receiverName || 'Valued Customer',
+              trackingId,
+              status,
+              locationDescription
+            )
+          );
+          console.log('Status update email sent to receiver');
+        } else {
+          console.log('No receiver email available to send notification');
+        }
+      } catch (emailError) {
+        console.error('Error sending email notification:', emailError);
+        // Don't throw the error to prevent the operation from failing
+      }
       
       // Reset form
       this.parcelForm.reset({
@@ -1067,5 +1099,282 @@ private startSessionVerification() {
       this.handleInvalidSession('Session timeout');
     }
   }, 60000); // Every minute
+}
+
+// Improve the getBrowserLocationWithHighAccuracy method
+private async getBrowserLocationWithHighAccuracy(): Promise<Position> {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error('Geolocation is not supported by this browser.'));
+      return;
+    }
+
+    // Try to get high accuracy GPS location with longer timeout
+    navigator.geolocation.getCurrentPosition(
+      (position) => resolve(position),
+      (error) => {
+        console.warn(`Geolocation error (code ${error.code}): ${error.message}`);
+        reject(error);
+      },
+      { 
+        enableHighAccuracy: true, 
+        timeout: 20000, // Increase timeout to 20 seconds
+        maximumAge: 0    // Don't use cached position
+      }
+    );
+  });
+}
+
+// Add these new methods to your component
+private startLocationUpdates() {
+  // Stop any existing interval first
+  this.stopLocationUpdates();
+
+  console.log('Starting location updates every 2 minutes.');
+  // Update location every 2 minutes (120 seconds)
+  this.locationUpdateInterval = setInterval(async () => {
+    console.log('2-minute interval triggered: Updating location.');
+    await this.updateCurrentLocation();
+  }, 120 * 1000); // 120 seconds * 1000 ms/second
+
+  // Also update immediately when the page loads
+  setTimeout(() => this.updateCurrentLocation(), 1000); // Update shortly after init
+}
+
+private stopLocationUpdates() {
+  if (this.locationUpdateInterval) {
+    console.log('Stopping location updates interval.');
+    clearInterval(this.locationUpdateInterval);
+    this.locationUpdateInterval = null; // Clear the interval ID
+  }
+}
+
+private async updateCurrentLocation() {
+  // Prevent concurrent updates
+  if (this.isUpdatingLocation) {
+    console.log('Location update already in progress. Skipping.');
+    return;
+  }
+
+  // Ensure user is logged in and has assigned parcels
+  if (!this.currentUserId || !this.currentUserName || this.assignedParcels.length === 0) {
+    console.log('Skipping location update: No user or no assigned parcels.');
+    return;
+  }
+
+  this.isUpdatingLocation = true;
+  console.log('Attempting to get current location for update...');
+
+  try {
+    // Get current location with high accuracy and increased timeout
+    const position = await this.getBrowserLocationWithHighAccuracy();
+    const newLat = position.coords.latitude;
+    const newLng = position.coords.longitude;
+    const accuracy = position.coords.accuracy; // Get accuracy in meters
+
+    console.log(`New location obtained: Lat ${newLat}, Lng ${newLng}, Accuracy: ${accuracy} meters`);
+
+    // Log warning if accuracy is poor
+    if (accuracy > 1000) {
+      console.warn(`⚠️ Poor location accuracy: ${accuracy} meters. This may be IP-based location, not GPS.`);
+    }
+
+    // Get address description for the new location
+    let locationDescription = `${newLat.toFixed(4)}, ${newLng.toFixed(4)}`;
+    try {
+      // Run geocoding service inside injection context
+      const addressData = await runInInjectionContext(this.injector, async () => {
+        return await firstValueFrom(
+          this.geocodingService.getAddressFromCoordinates(newLat, newLng)
+        );
+      });
+      
+      if (addressData && addressData.display_name) {
+        locationDescription = addressData.display_name;
+        console.log(`Resolved address: ${locationDescription}`);
+        
+        // Check if location description contains unexpected locations
+        if (locationDescription.toLowerCase().includes('puchong') && 
+            !this.isNearCoordinates(newLat, newLng, 2.91, 101.61, 20)) {
+          console.warn(`⚠️ Location mismatch detected! Address shows Puchong but coordinates aren't nearby.`);
+          // This could indicate IP-based fallback location
+        }
+      }
+    } catch (geoError) {
+      console.warn('Could not get address for coordinates:', geoError);
+    }
+
+    // Prepare location data for update
+    const locationData = {
+      locationLat: newLat,
+      locationLng: newLng,
+      locationDescription: locationDescription,
+      locationAccuracy: accuracy, // Store accuracy value
+      locationUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    // Create a local reference to the injector for use in the promises
+    const localInjector = this.injector;
+
+    // Update all assigned parcels for this deliveryman in parallel
+    const updatePromises = this.assignedParcels.map(parcel => {
+      if (parcel.id && typeof parcel.id === 'string') {
+        console.log(`Updating location for assigned parcel ID: ${parcel.id}`);
+        return runInInjectionContext(localInjector, async () => {
+          try {
+            return await firstValueFrom(this.parcelService.updateParcelLocation(parcel.id!, locationData));
+          } catch (error) {
+            console.error(`Error updating location for parcel ${parcel.id}:`, error);
+            return Promise.resolve();
+          }
+        });
+      } else {
+        console.warn(`Skipping update for parcel without ID: ${parcel.trackingId}`);
+        return Promise.resolve();
+      }
+    });
+
+    await Promise.all(updatePromises);
+    this.lastLocationUpdate = new Date();
+    console.log(`Successfully updated location for ${updatePromises.length} parcels at ${this.lastLocationUpdate.toLocaleTimeString()}`);
+
+  } catch (error) {
+    console.error('Error updating current location:', error);
+  } finally {
+    this.isUpdatingLocation = false;
+    console.log('Location update process finished.');
+  }
+}
+
+// Add this helper method to determine if coordinates are near each other
+private isNearCoordinates(lat1: number, lng1: number, lat2: number, lng2: number, maxDistanceKm: number): boolean {
+  const R = 6371; // Earth's radius in km
+  const dLat = this.deg2rad(lat2 - lat1);
+  const dLng = this.deg2rad(lng2 - lng1);
+  const a = 
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(this.deg2rad(lat1)) * Math.cos(this.deg2rad(lat2)) * 
+    Math.sin(dLng/2) * Math.sin(dLng/2); 
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+  const distance = R * c;
+  return distance <= maxDistanceKm;
+}
+
+private deg2rad(deg: number): number {
+  return deg * (Math.PI/180);
+}
+
+// Add this method
+async promptForManualLocationCorrection(detectedLocation: string) {
+  const alert = await this.alertCtrl.create({
+    header: 'Location Confirmation',
+    message: `Detected location: ${detectedLocation}<br><br>Is this correct?`,
+    buttons: [
+      {
+        text: 'No, Correct It',
+        handler: () => {
+          this.openLocationPicker();
+        }
+      },
+      {
+        text: 'Yes, Use This',
+        role: 'cancel'
+      }
+    ]
+  });
+
+  await alert.present();
+}
+
+// Add this method to open a modal or page for selecting location
+async openLocationPicker() {
+  // You could implement a modal with a map for the user to select their location
+  // Or simply prompt for a text description of their current location
+  const alert = await this.alertCtrl.create({
+    header: 'Enter Your Location',
+    inputs: [
+      {
+        name: 'location',
+        type: 'text',
+        placeholder: 'e.g., UUM Campus, Sintok, Kedah'
+      }
+    ],
+    buttons: [
+      {
+        text: 'Cancel',
+        role: 'cancel'
+      },
+      {
+        text: 'Use This Location',
+        handler: async (data) => {
+          if (data.location) {
+            try {
+              // Convert the entered location to coordinates
+              const geoData = await firstValueFrom(
+                this.geocodingService.getCoordinatesFromAddress(data.location)
+              );
+              
+              if (geoData && geoData.lat && geoData.lon) {
+                // Create a position-like object
+                const position = {
+                  coords: {
+                    latitude: parseFloat(geoData.lat),
+                    longitude: parseFloat(geoData.lon),
+                    accuracy: 100, // Estimate
+                    altitude: null,
+                    altitudeAccuracy: null,
+                    heading: null,
+                    speed: null
+                  },
+                  timestamp: Date.now()
+                };
+                
+                // Now update with this position
+                await this.processAndUpdateLocation(position);
+                this.showToast('Location updated manually');
+              } else {
+                this.showToast('Could not find coordinates for that location');
+              }
+            } catch (error) {
+              console.error('Error with manual location:', error);
+              this.showToast('Failed to set manual location');
+            }
+          }
+        }
+      }
+    ]
+  });
+
+  await alert.present();
+}
+
+// Modified helper to process location data
+private async processAndUpdateLocation(position: any) {
+  const newLat = position.coords.latitude;
+  const newLng = position.coords.longitude;
+  const accuracy = position.coords.accuracy;
+
+  // Rest of your location processing code...
+  // [...]
+}
+
+// Add this method to your component
+private checkDeviceCapabilities() {
+  // Check if device orientation is available (good indicator of mobile device with sensors)
+  const hasOrientation = 'DeviceOrientationEvent' in window;
+  
+  // Check if device motion is available (accelerometer)
+  const hasMotion = 'DeviceMotionEvent' in window;
+  
+  // Check if battery API is available (another mobile indicator)
+  const hasBattery = 'getBattery' in navigator;
+  
+  console.log(`Device capabilities - Orientation: ${hasOrientation}, Motion: ${hasMotion}, Battery: ${hasBattery}`);
+  
+  // If this is likely a desktop, warn user
+  if (!hasOrientation && !hasMotion) {
+    console.warn('This appears to be a desktop device. Location accuracy may be limited.');
+    // You could show a toast to the user
+  }
 }
 }

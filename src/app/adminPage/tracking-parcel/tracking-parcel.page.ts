@@ -88,6 +88,14 @@ export class TrackingParcelPage implements OnInit, AfterViewInit, OnDestroy {
   public isLocationTracking = false;
   lastLocationUpdate: Date | null = null;
 
+  // Add new tracking state variables
+  trackingStatus: 'active' | 'hub' | 'none' = 'none';
+  currentDeliverymanName: string | null = null;
+  currentDeliverymanId: string | null = null;
+  parcelAssignmentSubscription: Subscription | null = null;
+  hubModeActive: boolean = false;
+  lastDeliverymanName: string | null = null;
+
   constructor() {}
 
   ngOnInit() {}
@@ -139,6 +147,8 @@ export class TrackingParcelPage implements OnInit, AfterViewInit, OnDestroy {
     this.searchPerformed = true;
     this.loading = true;
     this.parcel = null;
+    this.trackingStatus = 'none';
+    this.hubModeActive = false;
 
     const loading = await this.loadingController.create({
       message: 'Searching for your parcel...',
@@ -188,9 +198,13 @@ export class TrackingParcelPage implements OnInit, AfterViewInit, OnDestroy {
         console.log('Map element available:', !!this.mapElement?.nativeElement);
         console.log('Leaflet available:', typeof L !== 'undefined');
 
-        // Start real-time location tracking if the parcel is out for delivery OR in transit
-        if (this.parcel.status === 'Out for Delivery' || this.parcel.status === 'In Transit') {
-          this.startLocationTracking(this.trackingId);
+        // Start real-time location tracking if the parcel is not delivered
+        // Modified to include all active statuses, not just Out for Delivery
+        if (this.parcel.status !== 'Delivered') {
+          // IMPORTANT FIX: Use an async function with runInInjectionContext
+          await runInInjectionContext(this.injector, async () => {
+            this.startLocationTracking(this.trackingId);
+          });
         }
       });
     } catch (error) {
@@ -223,26 +237,97 @@ export class TrackingParcelPage implements OnInit, AfterViewInit, OnDestroy {
     console.log('Starting real-time location tracking for', trackingId);
     this.isLocationTracking = true;
     
-    this.locationSubscription = this.geocodingService.getDeliverymanLocationUpdates(trackingId)
-      .subscribe({
-        next: (locationData) => {
-          if (locationData && locationData.lat && locationData.lng) {
-            console.log('Received location update:', locationData);
-            this.lastLocationUpdate = new Date(locationData.timestamp?.toDate?.() || new Date());
+    // First check if parcel is assigned to a deliveryman
+    runInInjectionContext(this.injector, () => {
+      this.parcelAssignmentSubscription = this.firestore.collection('assigned_parcels', ref => 
+        ref.where('trackingId', '==', trackingId)
+      ).snapshotChanges().subscribe({
+        next: (snapshots) => {
+          if (snapshots.length === 0) {
+            console.log('Parcel not currently assigned to any deliveryman');
+            // Handle hub mode - parcel is not assigned
+            this.handleHubMode();
+            return;
+          }
+          
+          // Parcel is assigned to a deliveryman
+          const parcelData = snapshots[0].payload.doc.data() as any;
+          
+          // Check if deliveryman has changed
+          if (this.currentDeliverymanId !== parcelData.userId) {
+            // Deliveryman has changed, update info
+            this.currentDeliverymanId = parcelData.userId || null;
+            this.currentDeliverymanName = parcelData.name || 'Unknown';
             
-            // Update map with new location
+            console.log(`Parcel now handled by: ${this.currentDeliverymanName}`);
+            
+            // Show a toast about the new deliveryman
+            if (this.lastDeliverymanName && this.lastDeliverymanName !== this.currentDeliverymanName) {
+              this.showInfoToast(`Parcel transferred to ${this.currentDeliverymanName}`);
+            }
+            
+            this.lastDeliverymanName = this.currentDeliverymanName;
+          }
+          
+          // Exit hub mode if we were in it
+          if (this.hubModeActive) {
+            this.hubModeActive = false;
+            
+            // Show toast notification that tracking is active again
+            this.showInfoToast(`Tracking resumed with ${this.currentDeliverymanName}`);
+          }
+          
+          this.trackingStatus = 'active';
+          
+          // If we have location data in the document, update the map immediately
+          if (parcelData && parcelData.locationLat && parcelData.locationLng) {
+            console.log('Got location data from assignment document:', 
+              parcelData.locationLat, 
+              parcelData.locationLng, 
+              parcelData.locationUpdatedAt?.toDate?.() || 'no timestamp');
+            
             this.updateMapWithNewLocation(
-              locationData.lat,
-              locationData.lng,
-              locationData.locationDescription
+              parcelData.locationLat,
+              parcelData.locationLng,
+              parcelData.locationDescription || 'Current Location',
+              true // This is a new location, animate transition
             );
+            
+            this.lastLocationUpdate = new Date(parcelData.locationUpdatedAt?.toDate?.() || new Date());
           }
         },
         error: (err) => {
-          console.error('Error tracking location:', err);
+          console.error('Error monitoring parcel assignment:', err);
+          this.trackingStatus = 'none';
           this.isLocationTracking = false;
         }
       });
+    });
+    
+    // Subscribe to location updates from the geocoding service
+    runInInjectionContext(this.injector, () => {
+      this.locationSubscription = this.geocodingService.getDeliverymanLocationUpdates(trackingId)
+        .subscribe({
+          next: (locationData) => {
+            if (locationData && locationData.lat && locationData.lng) {
+              console.log('Received location update:', locationData);
+              this.lastLocationUpdate = new Date(locationData.timestamp?.toDate?.() || new Date());
+              
+              // Update map with new location
+              this.updateMapWithNewLocation(
+                locationData.lat,
+                locationData.lng,
+                locationData.locationDescription || 'Current Location',
+                false // Regular update, don't need special animation
+              );
+            }
+          },
+          error: (err) => {
+            console.error('Error tracking location:', err);
+            this.isLocationTracking = false;
+          }
+        });
+    });
   }
 
   stopLocationTracking() {
@@ -250,7 +335,51 @@ export class TrackingParcelPage implements OnInit, AfterViewInit, OnDestroy {
       console.log('Stopping location tracking');
       this.locationSubscription.unsubscribe();
       this.locationSubscription = null;
-      this.isLocationTracking = false;
+    }
+    
+    if (this.parcelAssignmentSubscription) {
+      console.log('Stopping parcel assignment monitoring');
+      this.parcelAssignmentSubscription.unsubscribe();
+      this.parcelAssignmentSubscription = null;
+    }
+    
+    this.isLocationTracking = false;
+    this.trackingStatus = 'none';
+    this.currentDeliverymanName = null;
+    this.currentDeliverymanId = null;
+  }
+
+  // Handle the case when parcel is at a hub/warehouse (not assigned to any deliveryman)
+  handleHubMode() {
+    if (this.hubModeActive) {
+      return; // Already in hub mode
+    }
+    
+    console.log('Parcel is currently at hub/warehouse');
+    this.hubModeActive = true;
+    this.trackingStatus = 'hub';
+    
+    // Show message to user
+    this.showInfoToast('Parcel is currently at distribution center');
+    
+    // If we have a map with a current location, we'll freeze it there
+    // and update the marker to show it's at a hub
+    if (this.map && this.currentLocationMarker) {
+      // Update the marker icon to show it's at a hub
+      this.currentLocationMarker.setIcon(
+        L.divIcon({
+          html: `<div style="font-size: 14px; background: #6c757d; border-radius: 50%; box-shadow: 0 2px 8px rgba(0,0,0,0.4); width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; position: relative;">
+            <ion-icon name="business-outline" style="font-size: 24px; color: #fff;"></ion-icon>
+            <div style="position: absolute; bottom: -20px; white-space: nowrap; background: rgba(0,0,0,0.7); color: white; padding: 2px 5px; border-radius: 3px; font-size: 10px;">Distribution Center</div>
+          </div>`,
+          className: '',
+          iconSize: [40, 40],
+          iconAnchor: [20, 20]
+        })
+      );
+      
+      // Update popup content
+      this.currentLocationMarker.setPopupContent(`Distribution Center: Awaiting next handler`);
     }
   }
 
@@ -441,12 +570,12 @@ export class TrackingParcelPage implements OnInit, AfterViewInit, OnDestroy {
     }, 300);
   }
 
-  async initializeMap() {
+  async initializeMap(): Promise<boolean> {
     console.log('Initializing map with coordinates:', this.mapCoordinates);
 
     if (!this.mapCoordinates || !this.mapElement?.nativeElement) {
       console.error('Missing map coordinates or element');
-      return;
+      return false;
     }
 
     // --- FIX: Destroy previous map instance if it exists ---
@@ -457,9 +586,6 @@ export class TrackingParcelPage implements OnInit, AfterViewInit, OnDestroy {
     }
     // Clear the map container's innerHTML to avoid duplicate map errors
     this.mapElement.nativeElement.innerHTML = '';
-
-    // Stop location tracking to prevent updates to destroyed map
-    this.stopLocationTracking();
 
     try {
       const { currentLat, currentLng, destLat, destLng } = this.mapCoordinates;
@@ -507,11 +633,112 @@ export class TrackingParcelPage implements OnInit, AfterViewInit, OnDestroy {
       await this.drawRouteWithOpenRouteService(currentLat, currentLng, destLat, destLng);
 
       this.mapLoaded = true;
+      return true;
     } catch (error) {
       console.error('Error in map initialization:', error);
-      this.mapLoaded = true;
-      this.showErrorToast('Map could not be displayed. Please try again.');
+      return false;
     }
+  }
+
+  updateMapWithNewLocation(lat: number, lng: number, locationDescription: string, isNewHandler: boolean = false) {
+    // Check if map exists and initialize it if needed
+    if (!this.map && this.mapElement?.nativeElement && this.mapCoordinates) {
+      console.log('Map not initialized yet, initializing now...');
+      this.initializeMap().then(() => {
+        // After map is initialized, try updating the location again
+        if (this.map && this.currentLocationMarker) {
+          this.updateMapWithNewLocationInternal(lat, lng, locationDescription, isNewHandler);
+        }
+      });
+      return;
+    }
+    
+    if (!this.map || !this.currentLocationMarker || !this.mapCoordinates) {
+      console.error('Map not initialized or marker not created, cannot update location');
+      return;
+    }
+    
+    this.updateMapWithNewLocationInternal(lat, lng, locationDescription, isNewHandler);
+  }
+
+  private updateMapWithNewLocationInternal(lat: number, lng: number, locationDescription: string, isNewHandler: boolean = false) {
+    // IMPORTANT: Add strict validation to filter out bad coordinate data
+    if (!this.isValidCoordinate(lat) || !this.isValidCoordinate(lng)) {
+      console.error('Invalid coordinates received:', lat, lng);
+      return; // Exit early instead of trying to update with invalid data
+    }
+
+    // Update the stored coordinates
+    this.mapCoordinates!.currentLat = lat;
+    this.mapCoordinates!.currentLng = lng;
+    this.mapCoordinates!.currentLocation = locationDescription || 'Current Location';
+
+    // If this is a new handler, add a visual effect
+    if (isNewHandler) {
+      // First animate to a slightly zoomed out view
+      this.map.flyTo(
+        [this.mapCoordinates!.currentLat, this.mapCoordinates!.currentLng],
+        13, // Zoomed out a bit
+        {
+          animate: true,
+          duration: 1
+        }
+      );
+      
+      // Then zoom back in after a short delay
+      setTimeout(() => {
+        this.map.flyTo(
+          [this.mapCoordinates!.currentLat, this.mapCoordinates!.currentLng],
+          15,
+          {
+            animate: true,
+            duration: 1
+          }
+        );
+      }, 1000);
+    } else {
+      // Regular update - smoothly move the marker
+      this.currentLocationMarker.setLatLng([lat, lng]);
+      
+      // Only update the map view if it's a significant move
+      const mapCenter = this.map.getCenter();
+      const distance = this.calculateDistance(
+        mapCenter.lat, mapCenter.lng,
+        lat, lng
+      );
+      
+      // If moved more than 500 meters from center, animate the map
+      if (distance > 0.5) {
+        this.map.flyTo(
+          [lat, lng],
+          this.map.getZoom(),
+          {
+            animate: true,
+            duration: 0.8
+          }
+        );
+      }
+    }
+
+    // Update the popup content
+    let popupContent = `Current Location: ${locationDescription}`;
+    if (this.currentDeliverymanName) {
+      popupContent += `<br>Handled by: ${this.currentDeliverymanName}`;
+    }
+    this.currentLocationMarker.setPopupContent(popupContent);
+
+    // Draw the updated route
+    this.drawRouteWithOpenRouteService(lat, lng, this.mapCoordinates!.destLat, this.mapCoordinates!.destLng);
+  }
+
+  private isValidCoordinate(coord: any): boolean {
+    // More strict validation to catch edge cases
+    return coord !== null && 
+           coord !== undefined &&
+           !isNaN(coord) && 
+           typeof coord === 'number' && 
+           isFinite(coord) &&
+           Math.abs(coord) <= 180;  
   }
 
   async drawRouteWithOpenRouteService(startLat: number, startLng: number, endLat: number, endLng: number) {
@@ -526,81 +753,122 @@ export class TrackingParcelPage implements OnInit, AfterViewInit, OnDestroy {
         this.routeOutline = null;
       }
 
-      // Call OpenRouteService Directions API
-      const url = `https://api.openrouteservice.org/v2/directions/driving-car?api_key=${ORS_API_KEY}&start=${startLng},${startLat}&end=${endLng},${endLat}`;
-      const response = await fetch(url);
-      if (!response.ok) throw new Error('Failed to fetch route from OpenRouteService');
-      const data = await response.json();
+      // IMPORTANT: Add validation before making API call
+      if (!this.isValidCoordinate(startLat) || !this.isValidCoordinate(startLng) || 
+          !this.isValidCoordinate(endLat) || !this.isValidCoordinate(endLng)) {
+        console.warn('Invalid coordinates for routing:', startLat, startLng, endLat, endLng);
+        this.drawSimpleRoute(startLat, startLng, endLat, endLng);
+        return;
+      }
 
-      // Decode the polyline geometry
-      const coords = data.features[0].geometry.coordinates.map((c: number[]) => [c[1], c[0]]);
-
-      // Draw the main route line
-      this.routeLine = L.polyline(coords, {
-        color: '#FFDE59',
-        weight: 6,
-        opacity: 0.9,
-        lineCap: 'round',
-        lineJoin: 'round'
-      }).addTo(this.map);
-
-      // Draw the outline
-      this.routeOutline = L.polyline(coords, {
-        color: '#333333',
-        weight: 10,
-        opacity: 0.3,
-        lineCap: 'round',
-        lineJoin: 'round'
-      }).addTo(this.map);
-
-      this.routeOutline.bringToBack();
-      this.routeLine.bringToFront();
-
-      // Fit map to route
-      this.map.fitBounds(this.routeLine.getBounds(), {
-        padding: [40, 40],
-        maxZoom: 15
+      // Format coordinates for OpenRouteService API - THIS IS THE FIX
+      const body = JSON.stringify({
+        coordinates: [[startLng, startLat], [endLng, endLat]],
+        preference: "recommended",
+        format: "geojson"
       });
 
-      // Optionally, update distance
-      if (this.mapCoordinates) {
-        const distanceKm = data.features[0].properties.summary.distance / 1000;
-        this.mapCoordinates.distance = distanceKm.toFixed(1);
+      // Call OpenRouteService Directions API with updated endpoint and method
+      const response = await fetch(
+        `https://api.openrouteservice.org/v2/directions/driving-car/geojson`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': ORS_API_KEY
+          },
+          body: body
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch route: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      console.log('Route data received:', data);
+
+      // Decode the polyline geometry
+      if (data.features && data.features.length > 0) {
+        const coords = data.features[0].geometry.coordinates.map((c: number[]) => [c[1], c[0]]);
+
+        // Draw the main route line
+        this.routeLine = L.polyline(coords, {
+          color: this.hubModeActive ? '#6c757d' : '#FFDE59',
+          weight: 6,
+          opacity: this.hubModeActive ? 0.7 : 0.9,
+          lineCap: 'round',
+          lineJoin: 'round',
+          dashArray: this.hubModeActive ? '10, 10' : null
+        }).addTo(this.map);
+
+        // Draw the outline
+        this.routeOutline = L.polyline(coords, {
+          color: '#333333',
+          weight: 10,
+          opacity: 0.3,
+          lineCap: 'round',
+          lineJoin: 'round'
+        }).addTo(this.map);
+
+        this.routeOutline.bringToBack();
+        this.routeLine.bringToFront();
+
+        // Fit map to route with padding and max zoom
+        this.map.fitBounds(this.routeLine.getBounds(), {
+          padding: [40, 40],
+          maxZoom: 15
+        });
+      } else {
+        throw new Error('No route found in response');
       }
     } catch (error) {
       console.error('Error drawing route:', error);
-      // Fallback: draw straight line if routing fails
-      if (this.map && this.mapCoordinates) {
-        const coords = [
-          [this.mapCoordinates.currentLat, this.mapCoordinates.currentLng],
-          [this.mapCoordinates.destLat, this.mapCoordinates.destLng]
-        ];
-        this.routeLine = L.polyline(coords, { color: '#FFDE59', weight: 6 }).addTo(this.map);
-        this.routeOutline = L.polyline(coords, { color: '#333333', weight: 10, opacity: 0.3 }).addTo(this.map);
-      }
+      // Fallback to a simple straight line route
+      this.drawSimpleRoute(startLat, startLng, endLat, endLng);
     }
   }
 
-  updateMapWithNewLocation(lat: number, lng: number, locationDescription: string) {
-    if (!this.map || !this.currentLocationMarker || !this.mapCoordinates) {
-      console.error('Map, marker, or coordinates not initialized');
-      return;
+  drawSimpleRoute(startLat: number, startLng: number, endLat: number, endLng: number) {
+    try {
+      // Remove previous route if exists
+      if (this.routeLine) {
+        this.map.removeLayer(this.routeLine);
+        this.routeLine = null;
+      }
+      if (this.routeOutline) {
+        this.map.removeLayer(this.routeOutline);
+        this.routeOutline = null;
+      }
+
+      // Create a straight line between points
+      this.routeLine = L.polyline([
+        [startLat, startLng],
+        [endLat, endLng]
+      ], {
+        color: this.hubModeActive ? '#6c757d' : '#FFDE59',
+        weight: 5,
+        opacity: 0.8,
+        dashArray: '10, 10',
+      }).addTo(this.map);
+
+      // Fit map to show both points
+      this.map.fitBounds(this.routeLine.getBounds(), { 
+        padding: [50, 50],
+        maxZoom: 14
+      });
+
+      // Calculate approximate distance
+      if (this.mapCoordinates) {
+        const distance = this.calculateDistance(
+          startLat, startLng,
+          endLat, endLng
+        );
+        
+        this.mapCoordinates.distance = `~${distance.toFixed(1)} km`;
+      }
+    } catch (error) {
+      console.error('Error drawing simple route:', error);
     }
-
-    // Update the stored coordinates
-    this.mapCoordinates.currentLat = lat;
-    this.mapCoordinates.currentLng = lng;
-    this.mapCoordinates.currentLocation = locationDescription || 'Current Location';
-
-    // Update the marker position
-    this.currentLocationMarker.setLatLng([lat, lng]);
-    this.currentLocationMarker.setPopupContent(`Current Location: ${locationDescription}`);
-
-    // --- NEW: Redraw the route using OpenRouteService ---
-    this.drawRouteWithOpenRouteService(lat, lng, this.mapCoordinates.destLat, this.mapCoordinates.destLng);
-
-    // Optionally, pan/zoom to fit
-    // (fitBounds is called in drawRouteWithOpenRouteService)
   }
 
   calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -655,12 +923,134 @@ export class TrackingParcelPage implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
-  openExternalMap() {
-    if (!this.mapCoordinates) return;
+  // Add this method before openExternalMap()
+  async refreshLocationBeforeOpeningMap(): Promise<void> {
+    // Only try to refresh if we're tracking a parcel
+    if (!this.isLocationTracking || !this.trackingId) {
+      return;
+    }
+    
+    const loading = await this.loadingController.create({
+      message: 'Getting latest location...',
+      duration: 3000, // Maximum 3 seconds wait
+      spinner: 'dots'
+    });
+    
+    await loading.present();
+    
+    try {
+      // Get the most current location data using runInInjectionContext
+      await runInInjectionContext(this.injector, async () => {
+        try {
+          const snapshot = await firstValueFrom(
+            this.firestore.collection('assigned_parcels', ref => 
+              ref.where('trackingId', '==', this.trackingId)
+            ).get()
+          );
+          
+          if (!snapshot.empty) {
+            const parcelData = snapshot.docs[0].data() as any;
+            
+            if (parcelData.locationLat && parcelData.locationLng) {
+              // Update our stored coordinates with the latest data
+              if (this.mapCoordinates) {
+                this.mapCoordinates.currentLat = parcelData.locationLat;
+                this.mapCoordinates.currentLng = parcelData.locationLng;
+                this.mapCoordinates.currentLocation = parcelData.locationDescription || 'Current Location';
+                
+                console.log('Updated to latest coordinates before opening map:', 
+                  this.mapCoordinates.currentLat, 
+                  this.mapCoordinates.currentLng);
+                
+                // Also update the map if it exists
+                if (this.map && this.currentLocationMarker) {
+                  this.currentLocationMarker.setLatLng([
+                    this.mapCoordinates.currentLat, 
+                    this.mapCoordinates.currentLng
+                  ]);
+                }
+              }
+            }
+          }
+        } catch (queryError) {
+          console.error('Error fetching location data:', queryError);
+        }
+      });
+    } catch (error) {
+      console.error('Error refreshing location data:', error);
+      // Continue anyway with the coordinates we have
+    } finally {
+      loading.dismiss();
+    }
+  }
+
+  // Now modify the openExternalMap method to call this first
+  async openExternalMap() {
+    // Refresh location data first
+    await this.refreshLocationBeforeOpeningMap();
+    
+    if (!this.mapCoordinates) {
+      return;
+    }
+    
     const { currentLat, currentLng, destLat, destLng } = this.mapCoordinates;
-    // Google Maps navigation URL (works on Android/iOS/web)
-    const url = `https://www.google.com/maps/dir/?api=1&origin=${currentLat},${currentLng}&destination=${destLat},${destLng}&travelmode=driving`;
-    window.open(url, '_system');
+    
+    // Add timestamp to force refresh of coordinates
+    const timestamp = new Date().getTime();
+    
+    // Determine which maps app to use based on platform capabilities
+    if (this.isPlatformNative()) {
+      // For mobile devices: Use platform-specific maps with waypoints
+      if (this.isIOS()) {
+        // iOS: Use Apple Maps with waypoints and current location tracking
+        const url = `maps://maps.apple.com/?daddr=${destLat},${destLng}&saddr=${currentLat},${currentLng}&dirflg=d&t=${timestamp}`;
+        window.open(url, '_system');
+        
+        // Show information about real-time updates
+        this.showInfoToast('Opening Apple Maps with current location. Return to app for live updates.');
+      } else {
+        // Android: Use Google Maps with navigation mode and current location
+        // The 'navigate' mode will automatically use device location and provide real-time tracking
+        const url = `google.navigation:q=${destLat},${destLng}&mode=d`;
+        window.open(url, '_system');
+        
+        // Fallback for devices without Google Maps app installed
+        setTimeout(() => {
+          // If the app didn't open, try web version with current location
+          const webUrl = `https://www.google.com/maps/dir/?api=1&origin=${currentLat},${currentLng}&destination=${destLat},${destLng}&travelmode=driving&t=${timestamp}`;
+          window.open(webUrl, '_system');
+        }, 1000);
+        
+        // Show information about real-time updates
+        this.showInfoToast('Opening navigation with current location tracking');
+      }
+    } else {
+      // For browsers: Use Google Maps with directions and current location enabled
+      const originLabel = encodeURIComponent(this.currentDeliverymanName ? 
+        `Current Location (${this.currentDeliverymanName})` : 
+        'Current Location');
+        
+      const destinationLabel = encodeURIComponent('Delivery Destination');
+      
+      // Add parameters to enable device location tracking in Google Maps
+      const url = `https://www.google.com/maps/dir/?api=1&origin=${currentLat},${currentLng}&destination=${destLat},${destLng}&travelmode=driving&layer=traffic&t=${timestamp}`;
+      
+      window.open(url, '_blank');
+      
+      // Show information about real-time updates
+      this.showInfoToast('Maps opened with current location. For real-time updates, allow location access in your browser.');
+    }
+  }
+
+  // Helper function to detect native platform
+  private isPlatformNative(): boolean {
+    return (window as any).Capacitor?.isNativePlatform() || false;
+  }
+
+  // Helper function to detect iOS
+  private isIOS(): boolean {
+    const userAgent = window.navigator.userAgent.toLowerCase();
+    return /iphone|ipad|ipod/.test(userAgent);
   }
 
   getStatusDescription(status: string): string {
@@ -831,6 +1221,16 @@ export class TrackingParcelPage implements OnInit, AfterViewInit, OnDestroy {
       message: message,
       duration: 3000,
       color: 'danger',
+      position: 'top'
+    });
+    toast.present();
+  }
+
+  async showInfoToast(message: string) {
+    const toast = await this.toastController.create({
+      message: message,
+      duration: 3000,
+      color: 'medium',
       position: 'top'
     });
     toast.present();

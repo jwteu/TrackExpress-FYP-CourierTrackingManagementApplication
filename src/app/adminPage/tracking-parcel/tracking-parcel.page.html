@@ -97,6 +97,10 @@
           <div class="map-header" style="display: flex; align-items: center; justify-content: space-between; padding: 0 16px 0 16px;">
             <h3 style="margin: 0;">Delivery Route</h3>
             <button class="open-map-btn" (click)="openExternalMap()" aria-label="Open in Map">
+              <div class="real-time-indicator" *ngIf="isLocationTracking">
+                <span class="pulse-dot"></span>
+                <span>LIVE</span>
+              </div>
               <ion-icon name="map-outline"></ion-icon>
               <span>Open Map</span>
             </button>
@@ -117,6 +121,12 @@
                 <span>Track Location</span>
               </button>
             </div>
+            <div class="map-status-overlay" *ngIf="hubModeActive">
+              <div class="hub-status">
+                <ion-icon name="business-outline"></ion-icon>
+                <span>Parcel is at distribution center</span>
+              </div>
+            </div>
           </div>
           <div class="destination-info">
             <div class="destination-icon">
@@ -128,9 +138,17 @@
             </div>
           </div>
           <div class="tracking-status" *ngIf="isLocationTracking && lastLocationUpdate">
-            <ion-icon name="sync-outline" class="pulse"></ion-icon>
+            <ion-icon [name]="hubModeActive ? 'business-outline' : 'sync-outline'" [class]="hubModeActive ? '' : 'pulse'"></ion-icon>
             <div class="tracking-status-text">
-              <p class="status-title">Real-time tracking active</p>
+              <p class="status-title">
+                <ng-container *ngIf="!hubModeActive">
+                  Real-time tracking active
+                  <span *ngIf="currentDeliverymanName"> with {{ currentDeliverymanName }}</span>
+                </ng-container>
+                <ng-container *ngIf="hubModeActive">
+                  Parcel at distribution center
+                </ng-container>
+              </p>
               <p class="status-time">Last updated: {{ formatDate(lastLocationUpdate) }}</p>
             </div>
           </div>

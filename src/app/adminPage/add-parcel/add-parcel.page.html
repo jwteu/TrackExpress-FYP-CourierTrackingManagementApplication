@@ -74,7 +74,12 @@
         </ion-text>
         <ion-item class="input-item">
           <ion-label position="floating">Receiver Address</ion-label>
-          <ion-textarea formControlName="receiverAddress" rows="3"></ion-textarea>
+          <div class="input-with-button">
+            <ion-textarea formControlName="receiverAddress" rows="3"></ion-textarea>
+            <ion-button fill="clear" size="small" (click)="geocodeReceiverAddress()">
+              <ion-icon name="map-outline"></ion-icon>
+            </ion-button>
+          </div>
         </ion-item>
       </ion-card-content>
     </ion-card>

@@ -1,11 +1,11 @@
 import { Component, CUSTOM_ELEMENTS_SCHEMA, OnInit, inject, Injector, runInInjectionContext } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { FormBuilder, FormGroup, Validators, FormControl } from '@angular/forms';
 import { AngularFirestore } from '@angular/fire/compat/firestore';
 import { Router } from '@angular/router';
 import { v4 as uuidv4 } from 'uuid';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { IonicModule, LoadingController, ToastController } from '@ionic/angular';
+import { IonicModule, LoadingController, ToastController, AlertController } from '@ionic/angular';
 import * as JsBarcode from 'jsbarcode';
 import { Location } from '@angular/common';
 
@@ -29,6 +29,7 @@ export class AddParcelPage implements OnInit {
   private location = inject(Location);
   private loadingCtrl = inject(LoadingController);
   private toastCtrl = inject(ToastController);
+  private alertCtrl = inject(AlertController);
   private injector = inject(Injector); // Add this line
   
   constructor() {
@@ -208,6 +209,94 @@ export class AddParcelPage implements OnInit {
     );
   }
 
+  async geocodeReceiverAddress() {
+    const receiverAddress = this.parcelForm.get('receiverAddress')?.value;
+    
+    if (!receiverAddress) {
+      return;
+    }
+    
+    const loading = await this.loadingCtrl.create({
+      message: 'Finding address...',
+      spinner: 'circles'
+    });
+    await loading.present();
+    
+    try {
+      // Use Nominatim with a higher limit to get multiple results
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?` +
+        `format=json&q=${encodeURIComponent(receiverAddress)}&limit=5`
+      );
+      
+      if (!response.ok) {
+        throw new Error('Failed to geocode address');
+      }
+      
+      const data = await response.json();
+      loading.dismiss();
+      
+      if (data && data.length > 0) {
+        // Show a list of potential matches for the user to choose from
+        const alert = await this.alertCtrl.create({
+          header: 'Select Correct Address',
+          message: 'Please choose the closest match to your address:',
+          inputs: data.map((result: any, index: number) => ({
+            type: 'radio',
+            label: result.display_name,
+            value: index.toString(),
+            checked: index === 0
+          })),
+          buttons: [
+            {
+              text: 'Cancel',
+              role: 'cancel'
+            },
+            {
+              text: 'Select',
+              handler: (value) => {
+                const selectedIndex = parseInt(value);
+                const selectedAddress = data[selectedIndex];
+                
+                // Save these coordinates to form fields
+                this.parcelForm.addControl('receiverLat', new FormControl(parseFloat(selectedAddress.lat)));
+                this.parcelForm.addControl('receiverLng', new FormControl(parseFloat(selectedAddress.lon)));
+                
+                // Update the address text field with the formatted address
+                this.parcelForm.patchValue({
+                  receiverAddress: selectedAddress.display_name
+                });
+                
+                this.showToast('Address verified successfully');
+              }
+            }
+          ]
+        });
+        
+        await alert.present();
+      } else {
+        loading.dismiss();
+        const toast = await this.toastCtrl.create({
+          message: 'No addresses found. Try adding more details (city, postal code).',
+          duration: 3000,
+          position: 'bottom',
+          color: 'warning'
+        });
+        await toast.present();
+      }
+    } catch (error) {
+      loading.dismiss();
+      console.error('Error geocoding address:', error);
+      const toast = await this.toastCtrl.create({
+        message: 'Could not verify address location',
+        duration: 2000,
+        position: 'bottom',
+        color: 'danger'
+      });
+      await toast.present();
+    }
+  }
+
   async submit() {
     if (this.parcelForm.valid) {
       // Show loading spinner
@@ -223,11 +312,18 @@ export class AddParcelPage implements OnInit {
         // Use the tracking ID directly for the barcode
         const barcode = this.generateBarcode(trackingId);
         
+        // Get receiver coordinates (if available)
+        const receiverLat = this.parcelForm.get('receiverLat')?.value;
+        const receiverLng = this.parcelForm.get('receiverLng')?.value;
+        
         const parcelData = {
           ...this.parcelForm.value,
           trackingId,
           barcode,
-          createdAt: new Date().toISOString() // Store as ISO string for better Firestore compatibility
+          // Include these coordinates if they exist
+          receiverLat: receiverLat || null,
+          receiverLng: receiverLng || null,
+          createdAt: new Date().toISOString()
         };
   
         // Log the form data
@@ -317,7 +413,7 @@ export class AddParcelPage implements OnInit {
         const senderParams = {
           service_id: 'service_o0nwz8b',
           template_id: 'template_5e1px4b',
-          user_id: 'ghZzg_nWOdHQY6Krj', 
+          user_id: 'T1yl0I9kdv0wiyZtr', // CHANGE THIS LINE - use the working user ID
           template_params: {
             tracking_id: parcelData.trackingId,
             date: new Date(parcelData.date).toLocaleDateString(),
@@ -357,7 +453,7 @@ export class AddParcelPage implements OnInit {
         const receiverParams = {
           service_id: 'service_o0nwz8b',
           template_id: 'template_1yqzf6m',
-          user_id: 'ghZzg_nWOdHQY6Krj',
+          user_id: 'T1yl0I9kdv0wiyZtr', // CHANGE THIS LINE - use the working user ID
           template_params: {
             tracking_id: parcelData.trackingId,
             date: new Date(parcelData.date).toLocaleDateString(),
@@ -424,5 +520,15 @@ export class AddParcelPage implements OnInit {
 
   goBack() {
     this.location.back();
+  }
+
+  private async showToast(message: string) {
+    const toast = await this.toastCtrl.create({
+      message,
+      duration: 2000,
+      position: 'bottom',
+      color: 'success'
+    });
+    await toast.present();
   }
 }

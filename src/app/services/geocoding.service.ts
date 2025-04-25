@@ -10,11 +10,12 @@ export class GeocodingService {
   private injector = inject(Injector);
   private firestore = inject(AngularFirestore);
   
-  getAddressFromCoordinates(lat: number, lng: number): Observable<any> {
+  getAddressFromCoordinates(lat: number, lng: number, options = { zoom: 18 }): Observable<any> {
     return new Observable(observer => {
       runInInjectionContext(this.injector, () => {
+        // Use a higher zoom level (18) for more precise addresses
         from(fetch(
-          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`
+          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=${options.zoom}&addressdetails=1`
         )
         .then(response => {
           if (!response.ok) {
@@ -120,6 +121,8 @@ export class GeocodingService {
   getDeliverymanLocationUpdates(trackingId: string): Observable<any> {
     return new Observable(observer => {
       runInInjectionContext(this.injector, () => {
+        console.log(`Starting real-time location updates for tracking ID: ${trackingId}`);
+        
         const subscription = this.firestore.collection('assigned_parcels', ref => 
           ref.where('trackingId', '==', trackingId)
         ).snapshotChanges().subscribe({
@@ -132,16 +135,23 @@ export class GeocodingService {
             
             const parcelData = snapshots[0].payload.doc.data() as any;
             
-            if (parcelData && parcelData.locationLat && parcelData.locationLng) {
+            // Add validation for the location data
+            const lat = parcelData.locationLat;
+            const lng = parcelData.locationLng;
+            
+            if (this.isValidLatitude(lat) && this.isValidLongitude(lng)) {
+              console.log(`Location update received for ${trackingId}:`, lat, lng, 
+                parcelData.locationUpdatedAt?.toDate?.() || 'no timestamp');
+              
               observer.next({
-                lat: parcelData.locationLat,
-                lng: parcelData.locationLng,
+                lat: lat,
+                lng: lng,
                 locationDescription: parcelData.locationDescription || 'Current Location',
                 timestamp: parcelData.locationUpdatedAt || new Date()
               });
             } else {
-              console.log('Missing location data for tracking ID:', trackingId);
-              observer.next(null);
+              console.warn(`Invalid coordinates received for ${trackingId}: lat=${lat}, lng=${lng}`);
+              // Don't emit invalid coordinates
             }
           },
           error: (err) => {
@@ -157,5 +167,34 @@ export class GeocodingService {
         };
       });
     });
+  }
+
+  // Helper function to validate latitude
+  private isValidLatitude(lat: any): boolean {
+    return lat !== null && 
+           lat !== undefined &&
+           !isNaN(lat) && 
+           typeof lat === 'number' && 
+           isFinite(lat) &&
+           Math.abs(lat) <= 90;  // Latitude must be between -90 and 90
+  }
+
+  // Helper function to validate longitude
+  private isValidLongitude(lng: any): boolean {
+    return lng !== null && 
+           lng !== undefined &&
+           !isNaN(lng) && 
+           typeof lng === 'number' && 
+           isFinite(lng) &&
+           Math.abs(lng) <= 180;  // Longitude must be between -180 and 180
+  }
+
+  // Helper function to validate coordinates
+  private isValidCoordinate(coord: any): boolean {
+    return coord !== null && 
+           coord !== undefined &&
+           !isNaN(coord) && 
+           typeof coord === 'number' && 
+           isFinite(coord);
   }
 }
