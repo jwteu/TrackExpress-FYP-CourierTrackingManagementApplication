@@ -340,11 +340,9 @@ export class ParcelService {
    * Update parcel location
    */
   updateParcelLocation(assignedParcelId: string, locationData: any): Observable<void> {
-    // Store a reference to the injector
     const localInjector = this.injector;
 
     return new Observable(observer => {
-      // Define the async operation separately to keep the Observable constructor clean
       const updateOperation = async () => {
         try {
           console.log(`Starting location update for parcel ID: ${assignedParcelId}`);
@@ -355,7 +353,7 @@ export class ParcelService {
           );
 
           if (!parcelDoc || !parcelDoc.exists) {
-            throw new Error('Assigned parcel not found'); // Use throw for clearer error handling
+            throw new Error('Assigned parcel not found');
           }
 
           const parcelData = parcelDoc.data() as Parcel;
@@ -375,45 +373,8 @@ export class ParcelService {
             locationUpdatedAt: locationTimestamp
           });
 
-          let mainParcelId: string | null = null; // To store the ID for tracking history
-
-          if (parcelData.trackingId) {
-            // --- Wrap Firestore query ---
-            const parcelsSnapshot = await runInInjectionContext(localInjector, () =>
-              this.firestore
-                .collection('parcels', ref => ref.where('trackingId', '==', parcelData.trackingId))
-                .get().toPromise()
-            );
-
-            if (parcelsSnapshot && !parcelsSnapshot.empty) {
-              const mainParcelRef = parcelsSnapshot.docs[0].ref;
-              mainParcelId = parcelsSnapshot.docs[0].id; // Get the ID of the main parcel doc
-              batch.update(mainParcelRef, {
-                locationLat: locationData.locationLat,
-                locationLng: locationData.locationLng,
-                locationDescription: locationData.locationDescription,
-                locationUpdatedAt: locationTimestamp
-              });
-            }
-
-            // --- Wrap Firestore collection call ---
-            const trackingHistoryRef = runInInjectionContext(localInjector, () =>
-              this.firestore.collection('tracking_history').doc().ref
-            );
-
-            batch.set(trackingHistoryRef, {
-              trackingId: parcelData.trackingId,
-              parcelId: mainParcelId, // Use the potentially found main parcel ID
-              status: parcelData.status || 'In Transit',
-              title: 'Location Update',
-              description: `Parcel location updated to ${locationData.locationDescription}`,
-              location: locationData.locationDescription,
-              deliverymanId: parcelData.userId,
-              deliverymanName: parcelData.name,
-              timestamp: locationTimestamp,
-              createdAt: locationTimestamp // Use the same timestamp for consistency
-            });
-          }
+          // We'll update the location in Firebase but NOT create tracking events
+          // This lets the map update in real-time without cluttering the timeline
 
           // Commit the batch
           await batch.commit();
@@ -422,16 +383,67 @@ export class ParcelService {
           observer.complete();
 
         } catch (error) {
-          // Log the specific error during the update process
           console.error(`Error during updateParcelLocation for ${assignedParcelId}:`, error);
-          observer.error(error); // Propagate the error to the subscriber
+          observer.error(error);
         }
       };
 
-      // Execute the async operation
       updateOperation();
+    });
+  }
 
-    }); // End of Observable constructor
+  /**
+   * Create a new method to handle status changes specifically
+   */
+  changeParcelStatus(parcelId: string, trackingId: string, newStatus: string, locationData: any, deliverymanInfo: any): Observable<void> {
+    return new Observable(observer => {
+      runInInjectionContext(this.injector, async () => {
+        try {
+          // Get Firestore references
+          const firestoreInstance = this.firestore.firestore;
+          const parcelsCollection = this.firestore.collection('parcels');
+          const trackingHistoryCollection = this.firestore.collection('tracking_history');
+          
+          // Create batch
+          const batch = firestoreInstance.batch();
+          
+          // Update main parcel document
+          const parcelRef = parcelsCollection.doc(parcelId).ref;
+          batch.update(parcelRef, {
+            status: newStatus,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
+          
+          // Create tracking history event with location data
+          const trackingHistoryRef = trackingHistoryCollection.doc().ref;
+          
+          // Use location data if available
+          const locationDescription = locationData?.locationDescription || 'Unknown location';
+          
+          batch.set(trackingHistoryRef, {
+            parcelId,
+            trackingId,
+            status: newStatus,
+            title: newStatus,
+            description: this.getStatusDescription(newStatus),
+            location: locationDescription,
+            locationLat: locationData?.locationLat,
+            locationLng: locationData?.locationLng,
+            deliverymanId: deliverymanInfo?.deliverymanId,
+            deliverymanName: deliverymanInfo?.deliverymanName,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+          });
+          
+          // Commit the batch
+          await batch.commit();
+          observer.next();
+          observer.complete();
+        } catch (error) {
+          console.error('Error changing parcel status:', error);
+          observer.error(error);
+        }
+      });
+    });
   }
 
   /**
@@ -439,11 +451,11 @@ export class ParcelService {
    */
   private getStatusDescription(status: string): string {
     switch(status) {
-      case 'Registered': return 'Parcel has been registered';
-      case 'In Transit': return 'Parcel is in transit to delivery location';
-      case 'Out for Delivery': return 'Parcel is out for delivery to recipient';
-      case 'Delivered': return 'Parcel has been delivered successfully';
-      default: return `Status updated to: ${status}`;
+      case 'Registered': return 'Parcel registered';
+      case 'In Transit': return 'Parcel is in transit'; // Simplified text
+      case 'Out for Delivery': return 'Parcel out for delivery';
+      case 'Delivered': return 'Parcel delivered';
+      default: return `Status: ${status}`;
     }
   }
 }

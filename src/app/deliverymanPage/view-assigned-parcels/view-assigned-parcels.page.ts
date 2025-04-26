@@ -1,15 +1,15 @@
-import { Component, OnInit, OnDestroy, inject, ViewChild, ElementRef, Injector, runInInjectionContext } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, ElementRef, inject, Injector, runInInjectionContext, NgZone, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule, ReactiveFormsModule, FormGroup, FormBuilder, Validators } from '@angular/forms';
+import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { IonicModule, NavController, LoadingController, ToastController, AlertController } from '@ionic/angular';
+import { Router, RouterModule } from '@angular/router';
 import { AngularFireAuth } from '@angular/fire/compat/auth';
+import { AngularFirestore } from '@angular/fire/compat/firestore';
+import { Subscription, firstValueFrom } from 'rxjs';
 import { Capacitor } from '@capacitor/core';
 import { Geolocation, Position } from '@capacitor/geolocation';
-import { Subscription, firstValueFrom, forkJoin } from 'rxjs';
-import { switchMap, catchError, tap, delay } from 'rxjs/operators';
 import * as Quagga from 'quagga';
 import firebase from 'firebase/compat/app';
-import { RouterModule } from '@angular/router';
 import { ParcelService } from '../../services/parcel.service';
 import { GeocodingService } from '../../services/geocoding.service';
 import { TrackingHistoryService } from '../../services/tracking-history.service';
@@ -43,8 +43,10 @@ interface Parcel {
   imports: [CommonModule, FormsModule, ReactiveFormsModule, IonicModule, RouterModule]
 })
 export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
-  // Add this line to your existing properties
+  // Add these important dependencies
   private injector = inject(Injector);
+  private zone = inject(NgZone);
+  private cdr = inject(ChangeDetectorRef);
   
   // State variables
   currentUserId: string | null = null;
@@ -78,25 +80,28 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
   private parcelService = inject(ParcelService);
   private geocodingService = inject(GeocodingService);
   private trackingHistoryService = inject(TrackingHistoryService);
+  private firestore = inject(AngularFirestore);
 
-  // Add this property to your component
+  // Session and location tracking
   private sessionCheckInterval: any;
-
-  // Add these properties to the class
   private locationUpdateInterval: any;
   private lastLocationUpdate: Date | null = null;
   private isUpdatingLocation: boolean = false;
   private minimumUpdateDistance: number = 50; // Minimum distance (meters) to trigger update
+  
+  // Debug flag to help with troubleshooting
+  public debugMode: boolean = false;
 
   constructor() {
     // Initialize form
     this.parcelForm = this.formBuilder.group({
-      trackingId: ['', [Validators.required, Validators.minLength(3)]],
+      trackingId: ['', [Validators.required, Validators.pattern('^TR[A-Z0-9]{8}$')]],
       status: ['In Transit', Validators.required]
     });
   }
 
   ngOnInit() {
+    console.log('ViewAssignedParcelsPage initializing');
     // Clear any existing subscriptions first
     this.clearSubscriptions();
     
@@ -118,15 +123,16 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
           this.handleInvalidSession('Invalid user role');
           return;
         }
+        
+        // Set current user from session to enable immediate operations
+        this.currentUserId = userSession.uid;
+        this.currentUserName = userSession.name;
       } catch (error) {
         console.error('Error parsing session data:', error);
       }
     }
     
-    this.authSubscription = this.auth.authState.pipe(
-      // Add delay to ensure Firebase auth state is fully updated
-      delay(300)
-    ).subscribe(user => {
+    this.authSubscription = this.auth.authState.subscribe(user => {
       if (user) {
         // Store current user information
         this.currentUserId = user.uid;
@@ -155,6 +161,9 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
               this.updateSessionData(userData);
               
               this.loadAssignedParcels();
+              
+              // Explicitly start location updates now that user is verified
+              this.startLocationUpdates();
             } else {
               console.error('User verification failed. Data mismatch!');
               console.error('Email match:', userData.email === user.email);
@@ -178,9 +187,6 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
     // Start periodic session verification
     this.startSessionVerification();
 
-    // Start location updates
-    this.startLocationUpdates();
-
     // Check device capabilities
     this.checkDeviceCapabilities();
   }
@@ -201,24 +207,27 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
 
     // Stop location updates
     this.stopLocationUpdates();
+    
+    console.log('ViewAssignedParcelsPage destroyed');
   }
 
-  ionViewWillLeave() {
-    // Make sure to stop scanning and hide all overlays when leaving the page
-    this.stopBarcodeScanner();
-    this.isProcessingImage = false;
-    this.isScanningBarcode = false;
+  ionViewWillEnter() {
+    console.log('ViewAssignedParcelsPage will enter');
+    // Restart location updates when view re-enters
+    if (this.currentUserId && this.currentUserName) {
+      this.startLocationUpdates();
+    }
   }
 
   ionViewDidLeave() {
-    // Double-check cleanup when the view is fully left
-    if (Quagga) {
-      try {
-        Quagga.stop();
-      } catch (e) {
-        console.log('Quagga already stopped');
-      }
-    }
+    console.log('ViewAssignedParcelsPage did leave');
+    // Double-check cleanup when the view is left
+    this.stopBarcodeScanner();
+    this.isProcessingImage = false;
+    this.isScanningBarcode = false;
+    
+    // Stop location updates when leaving the page to conserve resources
+    this.stopLocationUpdates();
   }
 
   loadAssignedParcels() {
@@ -227,7 +236,9 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
       return;
     }
     
+    console.log('Loading assigned parcels for deliveryman:', this.currentUserName);
     this.isLoadingParcels = true;
+    this.cdr.detectChanges(); // Force UI update
     
     // Unsubscribe from any existing subscription first
     if (this.parcelsSubscription) {
@@ -241,82 +252,83 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
     ).subscribe({
       next: async (parcels) => {
         console.log('Received assigned parcels:', parcels);
-        const parcelsWithAddresses: Parcel[] = [];
-        
-        // For each assigned parcel, get additional details and verify ownership
-        for (const parcel of parcels) {
-          try {
-            // Skip parcels that don't belong to this user
-            if (parcel.userId && parcel.userId !== this.currentUserId) {
-              console.warn(`Skipping parcel ${parcel.trackingId} - user ID mismatch`);
-              continue;
-            }
-            
-            // Skip parcels that are already delivered or have a photo (completed)
-            if (parcel.status === 'Delivered' || 
-                parcel.status?.includes('photo') || 
-                parcel.status?.includes('Photo') ||
-                (parcel as any).photoURL) {  // Use type assertion to fix the error
-              console.log(`Skipping completed parcel ${parcel.trackingId}`);
-              continue;
-            }
-            
-            // Get location description
-            let locationDescription = "Unknown location";
-            if (parcel.locationLat && parcel.locationLng) {
-              // Try to get address from coordinates
-              try {
-                const geoData = await firstValueFrom(
-                  this.geocodingService.getAddressFromCoordinates(
-                    parcel.locationLat, 
-                    parcel.locationLng
-                  )
-                );
-                
-                if (geoData && geoData.display_name) {
-                  // Extract just the city/area part of the address
-                  const addressParts = geoData.display_name.split(',');
-                  if (addressParts.length > 2) {
-                    // Use just city and region, not the full address
-                    locationDescription = addressParts.slice(1, 3).join(', ').trim();
-                  } else {
-                    locationDescription = geoData.display_name;
-                  }
-                }
-              } catch (geoError) {
-                console.warn('Error getting location name:', geoError);
-                locationDescription = `Location ${parcel.locationLat.toFixed(2)}, ${parcel.locationLng.toFixed(2)}`;
+        this.zone.run(async () => {
+          const parcelsWithAddresses: Parcel[] = [];
+          
+          // For each assigned parcel, get additional details and verify ownership
+          for (const parcel of parcels) {
+            try {
+              // Skip parcels that don't belong to this user
+              if (parcel.userId && parcel.userId !== this.currentUserId) {
+                console.warn(`Skipping parcel ${parcel.trackingId} - user ID mismatch`);
+                continue;
               }
-            }
-            
-            // Get parcel details from the main collection
-            const parcelDetails = await firstValueFrom(
-              this.parcelService.getParcelDetails(parcel.trackingId)
-            );
               
-            if (parcelDetails) {
-              parcelsWithAddresses.push({
-                ...parcel,
-                locationDescription,
-                receiverAddress: parcelDetails.receiverAddress || 'No address available',
-                receiverName: parcelDetails.receiverName,
-                status: parcel.status || parcelDetails.status || 'Pending',
-                selected: false
-              });
+              // Skip parcels that are already delivered or have a photo (completed)
+              if (parcel.status === 'Delivered' || 
+                  parcel.status?.includes('photo') || 
+                  parcel.status?.includes('Photo') ||
+                  parcel.photoURL) {
+                console.log(`Skipping completed parcel ${parcel.trackingId}`);
+                continue;
+              }
+              
+              // Get location description
+              let locationDescription = "Unknown location";
+              if (parcel.locationLat && parcel.locationLng) {
+                // Try to get address from coordinates
+                try {
+                  const address = await firstValueFrom(
+                    this.geocodingService.getAddressFromCoordinates(parcel.locationLat, parcel.locationLng)
+                  );
+                  if (address && address.formatted_address) {
+                    locationDescription = address.formatted_address;
+                  }
+                } catch (geoError) {
+                  console.warn('Could not get address from coordinates:', geoError);
+                  locationDescription = `Location near ${parcel.locationLat.toFixed(4)}, ${parcel.locationLng.toFixed(4)}`;
+                }
+              }
+              
+              // Get parcel details from the main collection
+              const parcelDetails = await runInInjectionContext(this.injector, () => 
+                firstValueFrom(this.parcelService.getParcelDetails(parcel.trackingId))
+              );
+                
+              if (parcelDetails) {
+                parcelsWithAddresses.push({
+                  ...parcel,
+                  locationDescription: parcel.locationDescription || locationDescription,
+                  receiverAddress: parcelDetails.receiverAddress || 'No address available',
+                  receiverName: parcelDetails.receiverName,
+                  status: parcel.status || parcelDetails.status || 'Pending',
+                  selected: false
+                });
+              }
+            } catch (error) {
+              console.error(`Error fetching details for parcel ${parcel.trackingId}:`, error);
             }
-          } catch (error) {
-            console.error('Error fetching parcel details:', error);
           }
-        }
-        
-        console.log('Processed parcels with addresses:', parcelsWithAddresses);
-        this.assignedParcels = parcelsWithAddresses;
-        this.isLoadingParcels = false;
+          
+          console.log('Processed parcels with addresses:', parcelsWithAddresses);
+          this.assignedParcels = parcelsWithAddresses;
+          this.isLoadingParcels = false;
+          this.cdr.detectChanges(); // Force UI update
+          
+          // If we loaded parcels but don't have a location update yet, trigger one
+          if (parcelsWithAddresses.length > 0 && !this.lastLocationUpdate) {
+            console.log('Triggering location update after loading parcels');
+            this.updateCurrentLocation();
+          }
+        });
       },
       error: (error) => {
         console.error('Error loading assigned parcels:', error);
-        this.isLoadingParcels = false;
-        this.showToast('Failed to load assigned parcels');
+        this.zone.run(() => {
+          this.isLoadingParcels = false;
+          this.showToast('Failed to load assigned parcels');
+          this.cdr.detectChanges(); // Force UI update
+        });
       }
     });
   }
@@ -349,7 +361,7 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
         } else if (date.getTime && typeof date.getTime === 'function') {
           dateObj = date;
         } else {
-          dateObj = new Date(date);
+          dateObj = new Date();
         }
       } else {
         dateObj = new Date(date);
@@ -370,7 +382,8 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
     }
   }
 
-  formatCoordinate(coord: number): string {
+  formatCoordinate(coord: number | undefined): string {
+    if (coord === undefined || coord === null) return 'N/A';
     return coord.toFixed(4);
   }
 
@@ -380,6 +393,7 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
     if (!this.isMultiSelectMode) {
       this.assignedParcels.forEach(parcel => parcel.selected = false);
     }
+    this.cdr.detectChanges();
   }
 
   toggleSelection(parcel: Parcel) {
@@ -399,6 +413,8 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
     if (this.isMultiSelectMode && selectedCount === 0) {
       this.isMultiSelectMode = false;
     }
+    
+    this.cdr.detectChanges();
   }
 
   toggleAllParcels() {
@@ -414,9 +430,16 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
       this.allSelected = true;
       this.isMultiSelectMode = true;
     }
+    
+    this.cdr.detectChanges();
   }
 
   async removeParcel(parcel: Parcel) {
+    if (!parcel.id) {
+      this.showToast('Cannot remove parcel: Missing ID');
+      return;
+    }
+    
     const alert = await this.alertCtrl.create({
       header: 'Confirm Removal',
       message: `Are you sure you want to remove parcel ${parcel.trackingId}?`,
@@ -475,79 +498,74 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
     await loading.present();
     
     try {
-      const tasks = parcels.map(parcel => {
-        // First get the parcel details
-        return this.parcelService.getParcelDetails(parcel.trackingId).pipe(
-          switchMap(parcelDetails => {
-            if (!parcelDetails) {
-              return forkJoin([]);
-            }
+      for (const parcel of parcels) {
+        if (!parcel.id) {
+          console.warn(`Skipping removal for parcel ${parcel.trackingId}: Missing ID`);
+          continue;
+        }
+        
+        // Use runInInjectionContext for Firebase operations
+        await runInInjectionContext(this.injector, async () => {
+          // Remove from assigned_parcels
+          await this.parcelService.removeAssignedParcel(parcel.id!).toPromise();
+          
+          // Get main parcel details
+          const mainParcel = await this.parcelService.getParcelDetails(parcel.trackingId).toPromise();
+          
+          if (mainParcel && mainParcel.id) {
+            // Reset status in main parcels collection
+            await this.parcelService.resetParcelStatus(mainParcel.id).toPromise();
             
-            // Record this handler's data in parcel_handlers collection
-            const handlerTask = this.trackingHistoryService.completeParcelHandling(
-              parcel.trackingId,
-              this.currentUserId || 'unknown'
-            );
-            
-            // Add a tracking event for the handoff
-            const trackingTask = this.trackingHistoryService.addTrackingEvent({
+            // Add tracking history event
+            await this.trackingHistoryService.addTrackingEvent({
               trackingId: parcel.trackingId,
-              parcelId: parcelDetails.id,
-              status: 'Handoff',
-              title: 'Parcel Handoff',
-              description: `Parcel handed off by ${this.currentUserName}`,
-              timestamp: firebase.firestore.Timestamp.now(),
-              location: parcel.locationLat && parcel.locationLng ? 
-                `${parcel.locationLat.toFixed(6)}, ${parcel.locationLng.toFixed(6)}` : undefined,
-              deliverymanId: this.currentUserId || undefined,
-              deliverymanName: this.currentUserName || undefined
-            });
-            
-            const deleteTask = this.parcelService.removeAssignedParcel(parcel.id!);
-            const resetTask = this.parcelService.resetParcelStatus(parcelDetails.id);
-            
-            return forkJoin([deleteTask, resetTask, handlerTask, trackingTask]);
-          })
-        );
-      });
-      
-      await firstValueFrom(forkJoin(tasks));
-      
-      await loading.dismiss();
-      this.showToast(`${parcels.length} parcel(s) removed successfully`);
-      
-      // Refresh the list
-      this.loadAssignedParcels();
-      
-      // Exit multi-select mode if we were in it
-      if (this.isMultiSelectMode) {
-        this.isMultiSelectMode = false;
+              parcelId: mainParcel.id,
+              status: 'Assignment Removed',
+              title: 'Removed from Courier',
+              description: `Parcel removed from delivery person ${this.currentUserName}`,
+              timestamp: new Date(),
+              location: parcel.locationDescription || 'Unknown',
+              deliverymanId: this.currentUserId ?? undefined,
+              deliverymanName: this.currentUserName ?? undefined
+            }).toPromise();
+          }
+        });
       }
+      
+      loading.dismiss();
+      this.showToast(`Successfully removed ${parcels.length} parcel(s)`);
+      
+      // Reset multi-select mode
+      this.isMultiSelectMode = false;
+      this.allSelected = false;
+      
+      // Reload assigned parcels
+      this.loadAssignedParcels();
     } catch (error) {
-      await loading.dismiss();
+      loading.dismiss();
       console.error('Error removing parcels:', error);
-      this.showToast('Failed to remove parcels');
+      this.showToast('Failed to remove some parcels');
     }
   }
 
   async addParcel() {
     // Verify user session is still valid before proceeding
     if (!this.currentUserId || !this.currentUserName || !this.verifySessionFreshness()) {
-      this.showToast('Session expired. Please login again.');
-      this.handleInvalidSession('Session validation failed during parcel add');
+      this.showToast('Your session is invalid. Please login again.');
+      this.handleInvalidSession('Session invalid during add parcel');
       return;
     }
 
     if (this.parcelForm.invalid) {
-      this.showToast('Please enter a valid tracking ID');
+      this.showToast('Please enter a valid tracking ID (format: TRXXXXXXXX)');
       return;
     }
     
-    const trackingId = this.parcelForm.get('trackingId')?.value;
+    const trackingId = this.parcelForm.get('trackingId')?.value.trim().toUpperCase();
     const status = this.parcelForm.get('status')?.value;
     
     if (!trackingId || !status) {
-      this.showToast('Please fill in all required fields');
+      this.showToast('Please fill out all required fields');
       return;
     }
     
@@ -559,159 +577,154 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
     this.isAddingParcel = true;
     
     try {
-      // Check if parcel exists and is not already assigned
-      const parcelDetails = await firstValueFrom(
-        this.parcelService.getParcelDetails(trackingId)
-      );
+      // Check if parcel exists first
+      const parcelDetails = await runInInjectionContext(this.injector, async () => {
+        return await firstValueFrom(this.parcelService.getParcelDetails(trackingId));
+      });
       
       if (!parcelDetails) {
-        await loading.dismiss();
-        this.isAddingParcel = false;
-        this.showToast('No parcel found with this tracking ID');
-        return;
+        throw new Error(`Parcel with tracking ID ${trackingId} not found`);
       }
       
-      const isAssigned = await firstValueFrom(
-        this.parcelService.isParcelAssigned(trackingId)
-      );
+      // Check if parcel is already assigned to another deliveryman
+      const isAssigned = await runInInjectionContext(this.injector, async () => {
+        return await firstValueFrom(this.parcelService.isParcelAssigned(trackingId));
+      });
       
       if (isAssigned) {
-        await loading.dismiss();
-        this.isAddingParcel = false;
-        this.showToast('This parcel is already assigned to a deliveryman');
-        return;
+        // Check if it's assigned to the current user
+        const alreadyOwned = this.assignedParcels.some(p => p.trackingId === trackingId);
+        if (alreadyOwned) {
+          this.showToast(`Parcel ${trackingId} is already in your list`);
+          loading.dismiss();
+          this.isAddingParcel = false;
+          return;
+        }
+        throw new Error(`Parcel ${trackingId} is already assigned to another delivery person`);
       }
       
-      // Get current location WITH HIGH ACCURACY
-      let position: Position;
+      // Get current location with high accuracy (important!)
+      console.log('Getting current location for new parcel...');
+      
+      // Temporarily disable minimum distance requirement for new parcels
+      const originalMinDistance = this.minimumUpdateDistance;
+      this.minimumUpdateDistance = 0;
+      
+      let location: Position;
+      let locationDescription = 'Current Location';
+      
       try {
+        // First try to get location with Capacitor if available
         if (Capacitor.isPluginAvailable('Geolocation')) {
-          // Use high accuracy options for better location precision
-          position = await Geolocation.getCurrentPosition({
-            enableHighAccuracy: true,
-            timeout: 10000,
-            maximumAge: 0
-          });
+          try {
+            // Request permissions first
+            const permStatus = await Geolocation.requestPermissions();
+            console.log('Geolocation permission status:', permStatus);
+            
+            location = await Geolocation.getCurrentPosition({
+              enableHighAccuracy: true,
+              timeout: 15000
+            });
+            console.log('Capacitor location:', location);
+          } catch (capacitorError) {
+            console.log('Capacitor geolocation error, falling back to browser API:', capacitorError);
+            location = await this.getBrowserLocationWithHighAccuracy();
+          }
         } else {
-          // Try browser geolocation as fallback with high accuracy
-          position = await this.getBrowserLocationWithHighAccuracy();
+          // Fall back to browser API
+          location = await this.getBrowserLocationWithHighAccuracy();
         }
-      } catch (locError) {
-        console.error('Error getting location:', locError);
-        throw new Error('Unable to get your current location. Please check your device GPS settings.');
-      }
-      
-      // Get detailed address from coordinates using zoom level 18 for better precision
-      let locationDescription = "Current location";
-      let addressData;
-      try {
-        addressData = await firstValueFrom(
-          this.geocodingService.getAddressFromCoordinates(
-            position.coords.latitude, 
-            position.coords.longitude,
-            { zoom: 18 } // Use higher zoom level for more detailed address
-          )
-        );
         
-        if (addressData && addressData.display_name) {
-          locationDescription = addressData.display_name;
-          console.log('Location description:', locationDescription);
+        // Get address for the location
+        try {
+          const addressResult = await runInInjectionContext(this.injector, async () => {
+            return await firstValueFrom(this.geocodingService.getAddressFromCoordinates(
+              location.coords.latitude, 
+              location.coords.longitude
+            ));
+          });
+          
+          if (addressResult && addressResult.formatted_address) {
+            locationDescription = addressResult.formatted_address;
+            console.log('Geocoded address:', locationDescription);
+          }
+        } catch (geoError) {
+          console.warn('Could not geocode address:', geoError);
+          locationDescription = `Near ${location.coords.latitude.toFixed(4)}, ${location.coords.longitude.toFixed(4)}`;
         }
-      } catch (geoError) {
-        console.warn('Error getting location name:', geoError);
-        locationDescription = `Location ${position.coords.latitude.toFixed(4)}, ${position.coords.longitude.toFixed(4)}`;
+      } catch (locationError) {
+        console.error('Failed to get current location:', locationError);
+        this.showToast('Unable to get your current location. Using default.');
+        
+        // Use default coordinates for Malaysia
+        location = {
+          coords: {
+            latitude: 3.1390,
+            longitude: 101.6869,
+            accuracy: 500,
+            altitude: null,
+            altitudeAccuracy: null,
+            heading: null,
+            speed: null
+          },
+          timestamp: Date.now()
+        };
+        locationDescription = 'Unknown location in Malaysia';
+      } finally {
+        // Restore original minimum distance
+        this.minimumUpdateDistance = originalMinDistance;
       }
       
-      // IMPORTANT: Create a standardized location object to use in both collections
-      const locationData = {
-        locationLat: position.coords.latitude,
-        locationLng: position.coords.longitude,
-        locationDescription: locationDescription,
-        locationUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
-      };
-      
-      // IMPORTANT FIX: Preserve original parcel date from parcel details
-      const addedDate = parcelDetails.createdAt || firebase.firestore.FieldValue.serverTimestamp();
-      
-      // Add to assigned parcels with current location
+      // Prepare assigned parcel data
       const assignedParcelData = {
-        trackingId,
+        trackingId: trackingId,
         name: this.currentUserName,
         userId: this.currentUserId,
-        userEmail: (await this.auth.currentUser)?.email || 'unknown',
-        sessionId: this.generateSessionId(),
-        status,
-        addedDate: addedDate,
-        ...locationData // Use the standardized location data
+        userEmail: (await this.auth.currentUser)?.email,
+        status: status,
+        addedDate: new Date(),
+        locationLat: location.coords.latitude,
+        locationLng: location.coords.longitude,
+        locationDescription: locationDescription,
+        locationUpdatedAt: new Date()
       };
       
-      console.log('Adding to assigned parcels with standardized location:', assignedParcelData);
+      console.log('Adding assigned parcel with data:', assignedParcelData);
       
-      // Use firstValueFrom to properly await the Observable
-      const assignedId = await firstValueFrom(
-        this.parcelService.addAssignedParcel(assignedParcelData)
-      );
-      
-      console.log('Assigned parcel added with ID:', assignedId);
-      
-      // Record this handler in parcel_handlers collection
-      await firstValueFrom(
-        this.trackingHistoryService.addParcelHandler({
-          trackingId: trackingId,
-          parcelId: parcelDetails.id,
-          deliverymanId: this.currentUserId || 'unknown',
-          deliverymanName: this.currentUserName || 'Unknown Deliveryman',
+      // Use runInInjectionContext for Firebase operations
+      const docRef = await runInInjectionContext(this.injector, async () => {
+        // Add to assigned_parcels
+        const docId = await firstValueFrom(this.parcelService.addAssignedParcel(assignedParcelData));
+        
+        // Update main parcel status
+        await firstValueFrom(this.parcelService.updateParcelStatus(parcelDetails.id, {
           status: status,
-          assignedAt: firebase.firestore.Timestamp.now()
-        })
-      );
-      
-      // Update parcel status with the SAME location data
-      await firstValueFrom(
-        this.parcelService.updateParcelStatus(parcelDetails.id, {
-          status,
           deliverymanId: this.currentUserId,
           deliverymanName: this.currentUserName,
-          ...locationData // Use the same standardized location data
-        })
-      );
-      
-      // Add tracking history event using the SAME location data for consistency
-      await firstValueFrom(
-        this.trackingHistoryService.addTrackingEvent({
+          updatedAt: new Date()
+        }));
+        
+        // Add tracking event
+        await firstValueFrom(this.trackingHistoryService.addTrackingEvent({
           trackingId: trackingId,
           parcelId: parcelDetails.id,
           status: status,
-          title: status === 'In Transit' ? 'In Transit' : 'Out for Delivery',
-          description: `Parcel ${status === 'In Transit' ? 'in transit at' : 'out for delivery from'} ${locationDescription}`,
-          location: locationDescription, // Use the same location name
-          timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-          deliverymanId: this.currentUserId,
-          deliverymanName: this.currentUserName
-        })
-      );
-
-      // IMPORTANT FIX: Send email notification to receiver
-      try {
-        if (parcelDetails.receiverEmail) {
-          // Send email notification about the status update
-          await firstValueFrom(
-            this.parcelService.sendEmailNotification(
-              parcelDetails.receiverEmail,
-              parcelDetails.receiverName || 'Valued Customer',
-              trackingId,
-              status,
-              locationDescription
-            )
-          );
-          console.log('Status update email sent to receiver');
-        } else {
-          console.log('No receiver email available to send notification');
-        }
-      } catch (emailError) {
-        console.error('Error sending email notification:', emailError);
-        // Don't throw the error to prevent the operation from failing
-      }
+          title: status, // Just use the status directly as the title
+          description: `Parcel ${status.toLowerCase()} - assigned to ${this.currentUserName}`,
+          timestamp: new Date(),
+          location: locationDescription,
+          deliverymanId: this.currentUserId ?? undefined,
+          deliverymanName: this.currentUserName ?? undefined
+        }));
+        
+        return docId;
+      });
+      
+      console.log('Assigned parcel document ID:', docRef);
+      
+      loading.dismiss();
+      this.isAddingParcel = false;
+      this.showToast(`Parcel ${trackingId} added successfully`);
       
       // Reset form
       this.parcelForm.reset({
@@ -719,662 +732,704 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
         status: 'In Transit'
       });
       
-      await loading.dismiss();
-      this.isAddingParcel = false;
-      this.showToast('Parcel added successfully');
+      // Reload assigned parcels
+      this.loadAssignedParcels();
       
-      // Add a delay before refreshing the list to ensure database consistency
-      setTimeout(() => {
-        this.loadAssignedParcels();
-      }, 1500);
-      
+      // Force immediate location update to ensure tracking page gets data
+      setTimeout(() => this.forceLocationUpdate(), 1000);
     } catch (error: any) {
-      await loading.dismiss();
+      loading.dismiss();
       this.isAddingParcel = false;
       console.error('Error adding parcel:', error);
-      this.showToast(`Failed to add parcel: ${error?.message || 'Unknown error'}`);
+      this.showToast(`Error: ${error.message}`);
+    }
+  }
+
+  // Force a location update (useful for manual refresh)
+  async forceLocationUpdate() {
+    console.log('Manual location update requested');
+    if (this.isUpdatingLocation) {
+      this.showToast('Location update already in progress');
+      return;
+    }
+    
+    const loading = await this.loadingCtrl.create({
+      message: 'Updating your location...',
+      spinner: 'circles'
+    });
+    
+    await loading.present();
+    
+    try {
+      // Temporarily disable minimum distance for forced updates
+      const originalDistance = this.minimumUpdateDistance;
+      this.minimumUpdateDistance = 0;
       
-      // Clear tracking ID even on error
-      this.parcelForm.patchValue({
-        trackingId: ''
-      });
+      await this.updateCurrentLocation();
+      
+      // Restore original distance threshold
+      this.minimumUpdateDistance = originalDistance;
+      
+      loading.dismiss();
+      
+      if (this.lastLocationUpdate) {
+        const time = this.lastLocationUpdate.toLocaleTimeString();
+        this.showToast(`Location updated at ${time}`);
+      } else {
+        this.showToast('Location update completed');
+      }
+    } catch (error) {
+      loading.dismiss();
+      console.error('Forced location update failed:', error);
+      this.showToast('Failed to update location');
     }
   }
 
   startBarcodeScanner() {
+    if (this.isScanningBarcode) return;
+    
     this.isScanningBarcode = true;
+    this.cdr.detectChanges();
 
     setTimeout(() => {
+      if (!this.scannerElement?.nativeElement) {
+        console.error('Scanner element not found');
+        this.isScanningBarcode = false;
+        this.cdr.detectChanges();
+        return;
+      }
+      
       Quagga.init({
         inputStream: {
-          name: 'Live',
-        type: 'LiveStream',
-        target: this.scannerElement.nativeElement,
-        constraints: {
-          facingMode: 'environment',
-          width: { min: 640 },
-          height: { min: 480 },
-          aspectRatio: { min: 1, max: 2 }
+          name: "Live",
+          type: "LiveStream",
+          target: this.scannerElement.nativeElement,
+          constraints: {
+            width: window.innerWidth,
+            height: 300,
+            facingMode: "environment"
+          },
+        },
+        locator: {
+          patchSize: "medium",
+          halfSample: true
+        },
+        numOfWorkers: navigator.hardwareConcurrency || 2,
+        decoder: {
+          readers: ["code_128_reader", "ean_reader", "upc_reader"]
         }
-      },
-      locator: {
-        patchSize: 'medium',
-        halfSample: true
-      },
-      numOfWorkers: 4,
-      frequency: 10,
-      decoder: {
-        readers: ['code_128_reader']
-      },
-      locate: true
-    }, (err) => {
-      if (err) {
-        console.error('Scanner initialization failed:', err);
-        this.showToast('Failed to initialize scanner');
-        this.isScanningBarcode = false;
-        return;
-      }
-
-      Quagga.start();
-      console.log('Scanner started successfully');
-    });
-  }, 800);
-}
-
-stopBarcodeScanner() {
-  if (Quagga) {
-    try {
-      Quagga.stop();
-    } catch (e) {
-      console.log('Error stopping Quagga:', e);
-    }
+      }, (err) => {
+        if (err) {
+          console.error('Quagga initialization error:', err);
+          this.isScanningBarcode = false;
+          this.cdr.detectChanges();
+          return;
+        }
+        
+        console.log('Quagga initialized successfully');
+        Quagga.start();
+        
+        Quagga.onDetected((result) => {
+          this.playSuccessBeep();
+          const code = this.processDetectedCode(result.codeResult.code);
+          
+          this.zone.run(() => {
+            this.parcelForm.patchValue({ trackingId: code });
+            this.stopBarcodeScanner();
+            this.showToast(`Detected barcode: ${code}`);
+          });
+        });
+      });
+    }, 800);
   }
-  this.isScanningBarcode = false;
-}
 
-uploadBarcode() {
-  this.fileInput.nativeElement.click();
-}
-
-async processUploadedImage(event: any) {
-  const file = event.target.files[0];
-  
-  if (!file) return;
-  
-  this.isProcessingImage = true;
-  
-  try {
-    const dataUrl = await this.readFileAsDataURL(file);
-    
-    // Create a temporary image element to process with Quagga
-    const img = new Image();
-    img.src = dataUrl;
-    
-    img.onload = () => {
-      // Create a temporary canvas for the image
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      
-      if (!ctx) {
-        this.isProcessingImage = false;
-        this.showToast('Failed to process the image - canvas context creation failed');
-        // Clear the tracking ID even on error
-        this.resetFileInput();
-        return;
+  stopBarcodeScanner() {
+    if (Quagga) {
+      try {
+        Quagga.stop();
+      } catch (e) {
+        console.log('Quagga already stopped');
       }
+    }
+    this.isScanningBarcode = false;
+    this.cdr.detectChanges();
+  }
+
+  uploadBarcode() {
+    if (!this.fileInput?.nativeElement) {
+      this.showToast('File input not available');
+      return;
+    }
+    
+    this.fileInput.nativeElement.click();
+  }
+
+  async processUploadedImage(event: any) {
+    const file = event?.target?.files?.[0];
+    
+    if (!file) return;
+    
+    this.isProcessingImage = true;
+    this.cdr.detectChanges();
+    
+    try {
+      const dataUrl = await this.readFileAsDataURL(file);
       
-      canvas.width = img.width;
-      canvas.height = img.height;
-      
-      ctx.drawImage(img, 0, 0, img.width, img.height);
-      
-      // Use Quagga to detect barcodes in the static image
       Quagga.decodeSingle({
         src: dataUrl,
         numOfWorkers: 0,
-        inputStream: {
-          size: Math.max(img.width, img.height)
-        },
-        decoder: {
-          readers: [
-            'code_128_reader',
-            'ean_reader',
-            'ean_8_reader',
-            'code_39_reader',
-            'code_93_reader',
-            'upc_reader',
-            'upc_e_reader'
-          ]
-        }
+        inputStream: { size: 800 },
+        decoder: { readers: ["code_128_reader", "ean_reader", "upc_reader"] }
       }, (result) => {
-        this.isProcessingImage = false;
-        
-        if (result && result.codeResult) {
-          const code = result.codeResult.code;
+        this.zone.run(() => {
+          this.isProcessingImage = false;
           
-          // Play success sound
-          this.playSuccessBeep();
-          
-          // Set the detected code in the form
-          this.parcelForm.patchValue({
-            trackingId: code
-          });
-          
-          this.showToast(`Detected barcode: ${code}`);
-          
-          // Auto-submit if it's a valid code
-          if (code.startsWith('TR') && code.length === 10) {
-            this.addParcel();
+          if (result?.codeResult) {
+            this.playSuccessBeep();
+            const code = this.processDetectedCode(result.codeResult.code);
+            this.parcelForm.patchValue({ trackingId: code });
+            this.showToast(`Detected barcode from image: ${code}`);
+          } else {
+            this.showToast('No barcode detected in the image');
           }
-        } else {
-          this.showToast('No barcode detected in the image');
-          // Clear the tracking ID field on failure too
-          this.parcelForm.patchValue({
-            trackingId: ''
-          });
-        }
-        
-        // Reset the file input
-        this.resetFileInput();
+          
+          this.resetFileInput();
+          this.cdr.detectChanges();
+        });
       });
-    };
-    
-    img.onerror = () => {
-      this.isProcessingImage = false;
-      this.showToast('Failed to process the image');
-      // Clear the tracking ID on error
-      this.resetFileInput();
-    };
-  } catch (error) {
-    this.isProcessingImage = false;
-    console.error('Error processing uploaded image:', error);
-    this.showToast('Failed to process the image');
-    // Clear tracking ID on error
-    this.resetFileInput();
+    } catch (error) {
+      console.error('Error processing uploaded image:', error);
+      this.zone.run(() => {
+        this.isProcessingImage = false;
+        this.showToast('Failed to process the image');
+        this.resetFileInput();
+        this.cdr.detectChanges();
+      });
+    }
   }
-}
 
-readFileAsDataURL(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
-
-resetFileInput() {
-  if (this.fileInput && this.fileInput.nativeElement) {
-    this.fileInput.nativeElement.value = '';
+  readFileAsDataURL(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = (error) => reject(error);
+      reader.readAsDataURL(file);
+    });
   }
-}
 
-playSuccessBeep() {
-  const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-  const oscillator = audioContext.createOscillator();
-  const gainNode = audioContext.createGain();
-  
-  oscillator.connect(gainNode);
-  gainNode.connect(audioContext.destination);
-  
-  oscillator.type = 'sine';
-  oscillator.frequency.value = 1800;
-  gainNode.gain.value = 0.5;
-  
-  oscillator.start();
-  
-  setTimeout(() => {
-    oscillator.stop();
-    audioContext.close();
-  }, 150);
-}
+  resetFileInput() {
+    if (this.fileInput && this.fileInput.nativeElement) {
+      this.fileInput.nativeElement.value = '';
+    }
+  }
 
-async showToast(message: string) {
-  const toast = await this.toastCtrl.create({
-    message: message,
-    duration: 2000,
-    position: 'bottom',
-    color: 'dark'
-  });
-  toast.present();
-}
+  playSuccessBeep() {
+    try {
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      oscillator.type = 'sine';
+      oscillator.frequency.value = 1800;
+      gainNode.gain.value = 0.5;
+      
+      oscillator.start();
+      
+      setTimeout(() => {
+        oscillator.stop();
+        audioContext.close();
+      }, 150);
+    } catch (e) {
+      console.warn('Unable to play beep:', e);
+    }
+  }
 
-goBack() {
-  this.navCtrl.navigateBack('/deliveryman-home');
-}
+  async showToast(message: string, duration: number = 2000) {
+    const toast = await this.toastCtrl.create({
+      message: message,
+      duration: duration,
+      position: 'bottom',
+      color: 'dark'
+    });
+    toast.present();
+  }
 
-private processDetectedCode(code: string): string {
-  if (!code) return '';
+  goBack() {
+    this.navCtrl.navigateBack('/deliveryman-home');
+  }
 
-  // Clean the code (remove unwanted characters)
-  const cleanCode = code.replace(/[^\w\d]/g, '');
+  // Toggle debug mode
+  toggleDebugMode() {
+    this.debugMode = !this.debugMode;
+    this.showToast(`Debug mode ${this.debugMode ? 'enabled' : 'disabled'}`);
+  }
 
-  // If it already looks like a TR code, return it
-  if (/^TR[A-Z0-9]{8}$/i.test(cleanCode)) {
+  private processDetectedCode(code: string): string {
+    if (!code) return '';
+
+    // Clean the code (remove unwanted characters)
+    const cleanCode = code.replace(/[^\w\d]/g, '');
+
+    // If it already looks like a TR code, return it
+    if (/^TR[A-Z0-9]{8}$/i.test(cleanCode)) {
+      return cleanCode.toUpperCase();
+    }
+
+    // If it's numeric, convert it to TR format
+    if (/^\d+$/.test(cleanCode)) {
+      // Take the first 8 digits or pad with zeros
+      const numericPart = cleanCode.padEnd(8, '0').slice(0, 8);
+      return `TR${numericPart}`;
+    }
+
+    // Default case: return the cleaned code
     return cleanCode.toUpperCase();
   }
 
-  // If it's numeric, convert it to TR format
-  if (/^\d+$/.test(cleanCode)) {
-    return `TR${cleanCode.substring(0, 8).toUpperCase()}`;
+  // Reset state to avoid data persistence between sessions
+  private resetState() {
+    this.currentUserId = null;
+    this.currentUserName = null;
+    this.assignedParcels = [];
+    this.isLoadingParcels = false;
+    this.isAddingParcel = false;
+    this.isScanningBarcode = false;
+    this.isProcessingImage = false;
+    this.isMultiSelectMode = false;
+    this.allSelected = false;
+    this.lastLocationUpdate = null;
+    
+    // Reset form
+    if (this.parcelForm) {
+      this.parcelForm.reset({
+        trackingId: '',
+        status: 'In Transit'
+      });
+    }
   }
 
-  // Default case: return the cleaned code
-  return cleanCode.toUpperCase();
-}
+  // Clear all subscriptions
+  private clearSubscriptions() {
+    if (this.authSubscription) {
+      this.authSubscription.unsubscribe();
+    }
+    if (this.parcelsSubscription) {
+      this.parcelsSubscription.unsubscribe();
+    }
+  }
 
-// Reset state to avoid data persistence between sessions
-private resetState() {
-  this.currentUserId = null;
-  this.currentUserName = null;
-  this.assignedParcels = [];
-  this.isLoadingParcels = false;
-  this.isAddingParcel = false;
-  this.isScanningBarcode = false;
-  this.isProcessingImage = false;
-  this.isMultiSelectMode = false;
-  this.allSelected = false;
-  
-  // Reset form
-  if (this.parcelForm) {
-    this.parcelForm.reset({
-      trackingId: '',
-      status: 'In Transit'
+  // Handle invalid session
+  private handleInvalidSession(reason: string) {
+    console.error('Session invalid:', reason);
+    
+    this.zone.run(() => {
+      this.showToast('Session error. Please login again.');
+      
+      // Clear local storage
+      localStorage.removeItem('userSession');
+      
+      // Force logout and redirect to login page
+      runInInjectionContext(this.injector, () => {
+        this.auth.signOut().then(() => {
+          this.navCtrl.navigateRoot('/login');
+        }).catch(error => {
+          console.error('Error signing out:', error);
+          this.navCtrl.navigateRoot('/login');
+        });
+      });
     });
   }
-}
 
-// Clear all subscriptions
-private clearSubscriptions() {
-  if (this.authSubscription) {
-    this.authSubscription.unsubscribe();
-  }
-  if (this.parcelsSubscription) {
-    this.parcelsSubscription.unsubscribe();
-  }
-}
-
-// Handle invalid session
-private handleInvalidSession(reason: string) {
-  console.error('Session invalid:', reason);
-  this.showToast('Session error. Please login again.');
-  
-  // Force logout and redirect to login page
-  this.auth.signOut().then(() => {
-    this.navCtrl.navigateRoot('/login');
-  });
-}
-
-// Get user data with comprehensive verification
-private async getUserName(userId: string): Promise<any> {
-  try {
-    const userData = await firstValueFrom(
-      this.parcelService.getUserByID(userId)
-    );
-    
-    if (!userData) {
-      console.error('User data not found for ID:', userId);
-      return null;
+  // Get user data with comprehensive verification
+  private async getUserName(userId: string): Promise<any> {
+    try {
+      return await runInInjectionContext(this.injector, async () => {
+        const userDoc = await this.firestore.collection('users').doc(userId).get().toPromise();
+        
+        if (!userDoc?.exists) {
+          console.error('User document not found');
+          return null;
+        }
+        
+        const userData = userDoc.data() as Record<string, any>;
+        
+        // Add ID to userData
+        return { ...userData, id: userDoc.id };
+      });
+    } catch (error) {
+      console.error('Error getting user name:', error);
+      throw error;
     }
-    
-    // Triple verification
-    // 1. Verify ID matches
-    if (userData.id !== userId) {
-      console.error('User ID mismatch! Expected:', userId, 'Got:', userData.id);
-      throw new Error('User identity verification failed');
-    }
-    
-    // 2. Verify role is deliveryman
-    if (userData.role !== 'deliveryman') {
-      console.error('User role is not deliveryman:', userData.role);
-      throw new Error('User role verification failed');
-    }
-    
-    // 3. Verify account is active
-    if (userData.status === 'disabled' || userData.status === 'suspended') {
-      console.error('User account is not active:', userData.status);
-      throw new Error('User account is not active');
-    }
-    
-    return userData;
-  } catch (error) {
-    console.error('Error fetching user data:', error);
-    return null;
   }
-}
 
-// Update session data with verified information
-private updateSessionData(userData: any) {
-  try {
-    const sessionData = {
-      uid: userData.id,
-      email: userData.email,
-      name: userData.name,
-      role: userData.role,
-      lastVerified: new Date().toISOString()
-    };
-    
-    localStorage.setItem('userSession', JSON.stringify(sessionData));
-  } catch (error) {
-    console.error('Error updating session data:', error);
+  // Update session data with verified information
+  private updateSessionData(userData: any) {
+    try {
+      const sessionData = {
+        uid: userData.id,
+        email: userData.email,
+        name: userData.name,
+        role: userData.role,
+        lastVerified: new Date().toISOString()
+      };
+      
+      localStorage.setItem('userSession', JSON.stringify(sessionData));
+    } catch (error) {
+      console.error('Error updating session data:', error);
+    }
   }
-}
 
-// Add this method to your component
-private verifySessionFreshness(): boolean {
-  try {
-    const sessionData = localStorage.getItem('userSession');
-    if (!sessionData) return false;
-    
-    const userData = JSON.parse(sessionData);
-    const lastVerified = new Date(userData.lastVerified || 0);
-    const now = new Date();
-    
-    // Session timeout after 2 hours (adjust as needed)
-    const SESSION_TIMEOUT_MS = 2 * 60 * 60 * 1000; 
-    
-    if (now.getTime() - lastVerified.getTime() > SESSION_TIMEOUT_MS) {
-      console.warn('Session has expired due to timeout');
+  // Verify if the session is still fresh
+  private verifySessionFreshness(): boolean {
+    try {
+      const sessionData = localStorage.getItem('userSession');
+      if (!sessionData) return false;
+      
+      const userData = JSON.parse(sessionData);
+      if (!userData.lastVerified) return false;
+      
+      const lastVerified = new Date(userData.lastVerified);
+      const now = new Date();
+      
+      // Session valid for 2 hours
+      const SESSION_TIMEOUT = 2 * 60 * 60 * 1000; // 2 hours in milliseconds
+      
+      return (now.getTime() - lastVerified.getTime()) < SESSION_TIMEOUT;
+    } catch (error) {
+      console.error('Error verifying session freshness:', error);
       return false;
     }
-    
-    return true;
-  } catch (error) {
-    console.error('Error verifying session freshness:', error);
-    return false;
   }
-}
 
-// Generate a unique session identifier
-private generateSessionId(): string {
-  return `${this.currentUserId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-}
+  // Generate a unique session identifier
+  private generateSessionId(): string {
+    return `${this.currentUserId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  }
 
-// Start periodic session verification
-private startSessionVerification() {
-  // Check session every minute
-  this.sessionCheckInterval = setInterval(() => {
-    if (!this.verifySessionFreshness()) {
-      console.warn('Session verification failed during routine check');
-      this.handleInvalidSession('Session timeout');
+  // Start periodic session verification
+  private startSessionVerification() {
+    // Check session every minute
+    this.sessionCheckInterval = setInterval(() => {
+      if (!this.verifySessionFreshness()) {
+        console.warn('Session expired during periodic check');
+        this.handleInvalidSession('Session expired');
+      }
+    }, 60000); // Every minute
+  }
+
+  // Improve the getBrowserLocationWithHighAccuracy method
+  private async getBrowserLocationWithHighAccuracy(): Promise<Position> {
+    return new Promise((resolve, reject) => {
+      console.log('Getting browser location...');
+      
+      if (!navigator.geolocation) {
+        reject(new Error('Geolocation is not supported by this browser.'));
+        return;
+      }
+
+      // Try first with high accuracy (might be slow but precise)
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          console.log('Got high accuracy position:', position.coords.accuracy, 'm');
+          resolve(position);
+        },
+        (highAccuracyError) => {
+          console.warn('High accuracy position failed, trying with low accuracy:', highAccuracyError);
+          
+          // If high accuracy fails, try with lower accuracy settings
+          navigator.geolocation.getCurrentPosition(
+            (position) => {
+              console.log('Got low accuracy position:', position.coords.accuracy, 'm');
+              resolve(position);
+            },
+            (error) => {
+              console.error('Both high and low accuracy geolocation failed:', error);
+              reject(error);
+            },
+            { 
+              enableHighAccuracy: false, // Use lower accuracy
+              timeout: 10000,            // Shorter timeout for fallback
+              maximumAge: 60000          // Accept positions up to 1 minute old
+            }
+          );
+        },
+        { 
+          enableHighAccuracy: true, 
+          timeout: 20000,       // Increased from 15000 to 20000
+          maximumAge: 30000     // Accept positions up to 30 seconds old
+        }
+      );
+    });
+  }
+  
+  // Replace the getPositionWithTimeout method with this simplified version
+  private getPositionWithTimeout(resolve: (value: Position) => void, reject: (reason: any) => void) {
+    try {
+      navigator.geolocation.getCurrentPosition(
+        position => resolve(position),
+        error => {
+          console.warn('Geolocation error in getPositionWithTimeout:', error);
+          reject(error);
+        },
+        { 
+          enableHighAccuracy: false,  // Start with lower accuracy for faster response
+          timeout: 20000,             // Longer timeout
+          maximumAge: 60000           // Accept cached positions up to 1 minute old
+        }
+      );
+    } catch (e) {
+      reject(e);
     }
-  }, 60000); // Every minute
-}
+  }
 
-// Improve the getBrowserLocationWithHighAccuracy method
-private async getBrowserLocationWithHighAccuracy(): Promise<Position> {
-  return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) {
-      reject(new Error('Geolocation is not supported by this browser.'));
+  // Add these new methods to your component
+  private startLocationUpdates() {
+    // Stop any existing interval first
+    this.stopLocationUpdates();
+
+    console.log('Starting location updates every 2 minutes');
+    // Update location every 2 minutes (120 seconds)
+    this.locationUpdateInterval = setInterval(async () => {
+      console.log('2-minute interval triggered: Updating location.');
+      await this.updateCurrentLocation();
+    }, 120 * 1000); // 120 seconds
+    
+    // Also update immediately when the page loads or after parcels are assigned
+    setTimeout(() => {
+      // Only trigger initial update if we have parcels
+      if (this.assignedParcels.length > 0) {
+        console.log('Initial location update for assigned parcels');
+        this.updateCurrentLocation();
+      } else {
+        console.log('No parcels assigned yet, skipping initial location update');
+      }
+    }, 1000); // Update shortly after init
+  }
+
+  private stopLocationUpdates() {
+    if (this.locationUpdateInterval) {
+      console.log('Stopping location updates');
+      clearInterval(this.locationUpdateInterval);
+      this.locationUpdateInterval = null;
+    }
+  }
+
+  private async updateCurrentLocation() {
+    // Prevent concurrent updates
+    if (this.isUpdatingLocation) {
+      console.log('Location update already in progress. Skipping.');
       return;
     }
 
-    // Try to get high accuracy GPS location with longer timeout
-    navigator.geolocation.getCurrentPosition(
-      (position) => resolve(position),
-      (error) => {
-        console.warn(`Geolocation error (code ${error.code}): ${error.message}`);
-        reject(error);
-      },
-      { 
-        enableHighAccuracy: true, 
-        timeout: 20000, // Increase timeout to 20 seconds
-        maximumAge: 0    // Don't use cached position
+    // Ensure user is logged in and has assigned parcels
+    if (!this.currentUserId || !this.currentUserName) {
+      console.log('Skipping location update: No valid user session.');
+      return;
+    }
+    
+    // Check if we have any parcels to update
+    if (this.assignedParcels.length === 0) {
+      console.log('No parcels to update location for. Skipping update.');
+      return;
+    }
+
+    this.isUpdatingLocation = true;
+    console.log('Attempting to get current location for update...');
+
+    try {
+      // First try to get location with Capacitor if available
+      let position: Position;
+      
+      if (Capacitor.isPluginAvailable('Geolocation')) {
+        try {
+          // Request permissions explicitly
+          const permissionStatus = await Geolocation.requestPermissions();
+          console.log('Location permission status:', permissionStatus);
+          
+          if (permissionStatus.location === 'denied') {
+            throw new Error('Location permission denied');
+          }
+          
+          position = await Geolocation.getCurrentPosition({
+            enableHighAccuracy: true,
+            timeout: 15000
+          });
+          
+          console.log('Got location via Capacitor:', position);
+        } catch (capacitorError) {
+          console.warn('Capacitor geolocation failed, trying browser API:', capacitorError);
+          position = await this.getBrowserLocationWithHighAccuracy();
+        }
+      } else {
+        // Fall back to browser API
+        position = await this.getBrowserLocationWithHighAccuracy();
+        console.log('Got location via browser API:', position);
       }
-    );
-  });
-}
-
-// Add these new methods to your component
-private startLocationUpdates() {
-  // Stop any existing interval first
-  this.stopLocationUpdates();
-
-  console.log('Starting location updates every 2 minutes.');
-  // Update location every 2 minutes (120 seconds)
-  this.locationUpdateInterval = setInterval(async () => {
-    console.log('2-minute interval triggered: Updating location.');
-    await this.updateCurrentLocation();
-  }, 120 * 1000); // 120 seconds * 1000 ms/second
-
-  // Also update immediately when the page loads
-  setTimeout(() => this.updateCurrentLocation(), 1000); // Update shortly after init
-}
-
-private stopLocationUpdates() {
-  if (this.locationUpdateInterval) {
-    console.log('Stopping location updates interval.');
-    clearInterval(this.locationUpdateInterval);
-    this.locationUpdateInterval = null; // Clear the interval ID
-  }
-}
-
-private async updateCurrentLocation() {
-  // Prevent concurrent updates
-  if (this.isUpdatingLocation) {
-    console.log('Location update already in progress. Skipping.');
-    return;
+      
+      // Process and update location in all assigned parcels
+      await this.processAndUpdateLocation(position);
+      
+      // Update last update timestamp
+      this.lastLocationUpdate = new Date();
+      console.log('Location update successful at:', this.lastLocationUpdate);
+    } catch (error) {
+      console.error('Error updating location:', error);
+      this.zone.run(() => {
+        this.showToast('Failed to update location. Check permissions.');
+      });
+    } finally {
+      this.isUpdatingLocation = false;
+    }
   }
 
-  // Ensure user is logged in and has assigned parcels
-  if (!this.currentUserId || !this.currentUserName || this.assignedParcels.length === 0) {
-    console.log('Skipping location update: No user or no assigned parcels.');
-    return;
-  }
-
-  this.isUpdatingLocation = true;
-  console.log('Attempting to get current location for update...');
-
-  try {
-    // Get current location with high accuracy and increased timeout
-    const position = await this.getBrowserLocationWithHighAccuracy();
+  private async processAndUpdateLocation(position: Position) {
     const newLat = position.coords.latitude;
     const newLng = position.coords.longitude;
-    const accuracy = position.coords.accuracy; // Get accuracy in meters
+    const accuracy = position.coords.accuracy;
 
-    console.log(`New location obtained: Lat ${newLat}, Lng ${newLng}, Accuracy: ${accuracy} meters`);
+    console.log(`Got location: ${newLat}, ${newLng} (accuracy: ${accuracy}m)`);
 
-    // Log warning if accuracy is poor
-    if (accuracy > 1000) {
-      console.warn(`⚠️ Poor location accuracy: ${accuracy} meters. This may be IP-based location, not GPS.`);
+    // Filter out low-accuracy readings but don't throw error
+    if (accuracy > 100) {
+      console.warn(`Location accuracy is poor (${accuracy}m), but continuing with update`);
     }
 
-    // Get address description for the new location
-    let locationDescription = `${newLat.toFixed(4)}, ${newLng.toFixed(4)}`;
-    try {
-      // Run geocoding service inside injection context
-      const addressData = await runInInjectionContext(this.injector, async () => {
-        return await firstValueFrom(
-          this.geocodingService.getAddressFromCoordinates(newLat, newLng)
-        );
-      });
+    let hasMovedEnough = true;
+    if (this.lastLocationUpdate && this.minimumUpdateDistance > 0) {
+      // Find the first assigned parcel with location data
+      const parcelWithLocation = this.assignedParcels.find(p => 
+        p.locationLat !== undefined && p.locationLng !== undefined
+      );
       
-      if (addressData && addressData.display_name) {
-        locationDescription = addressData.display_name;
-        console.log(`Resolved address: ${locationDescription}`);
+      if (parcelWithLocation) {
+        const distance = this.calculateDistance(
+          parcelWithLocation.locationLat, 
+          parcelWithLocation.locationLng,
+          newLat,
+          newLng
+        );
         
-        // Check if location description contains unexpected locations
-        if (locationDescription.toLowerCase().includes('puchong') && 
-            !this.isNearCoordinates(newLat, newLng, 2.91, 101.61, 20)) {
-          console.warn(`⚠️ Location mismatch detected! Address shows Puchong but coordinates aren't nearby.`);
-          // This could indicate IP-based fallback location
+        console.log(`Distance from last location: ${distance.toFixed(1)}m`);
+        
+        if (distance < this.minimumUpdateDistance) {
+          console.log(`Haven't moved ${this.minimumUpdateDistance}m yet (${distance.toFixed(1)}m). Skipping update.`);
+          hasMovedEnough = false;
         }
       }
-    } catch (geoError) {
-      console.warn('Could not get address for coordinates:', geoError);
+    }
+    
+    if (!hasMovedEnough && this.minimumUpdateDistance > 0) {
+      return; // Skip update if we haven't moved enough
     }
 
-    // Prepare location data for update
+    // Get address from Google Maps
+    let locationDescription = `Near ${newLat.toFixed(5)}, ${newLng.toFixed(5)}`;
+    
+    try {
+      // Use the geocoding service to get an address
+      const addressResult = await runInInjectionContext(this.injector, () => 
+        firstValueFrom(this.geocodingService.getAddressFromCoordinates(newLat, newLng))
+      );
+      
+      if (addressResult && addressResult.formatted_address) {
+        locationDescription = addressResult.formatted_address;
+        console.log('Got address:', locationDescription);
+      }
+    } catch (geocodeError) {
+      console.warn('Failed to geocode location:', geocodeError);
+    }
+    
+    // Create location data
+    const updateTimestamp = new Date();
     const locationData = {
       locationLat: newLat,
       locationLng: newLng,
       locationDescription: locationDescription,
-      locationAccuracy: accuracy, // Store accuracy value
-      locationUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      locationUpdatedAt: updateTimestamp
     };
-
-    // Create a local reference to the injector for use in the promises
-    const localInjector = this.injector;
-
-    // Update all assigned parcels for this deliveryman in parallel
-    const updatePromises = this.assignedParcels.map(parcel => {
-      if (parcel.id && typeof parcel.id === 'string') {
-        console.log(`Updating location for assigned parcel ID: ${parcel.id}`);
-        return runInInjectionContext(localInjector, async () => {
-          try {
-            return await firstValueFrom(this.parcelService.updateParcelLocation(parcel.id!, locationData));
-          } catch (error) {
-            console.error(`Error updating location for parcel ${parcel.id}:`, error);
-            return Promise.resolve();
-          }
+    
+    console.log(`Updating ${this.assignedParcels.length} parcels with location: 
+      Lat: ${newLat}, Lng: ${newLng}, 
+      Description: ${locationDescription}, 
+      Time: ${updateTimestamp}`);
+    
+    // Create a batch of promises to update all parcels
+    const updatePromises = this.assignedParcels
+      .filter(parcel => !!parcel.id) // Only update parcels with valid IDs
+      .map(parcel => 
+        runInInjectionContext(this.injector, () => 
+          firstValueFrom(this.parcelService.updateParcelLocation(parcel.id!, locationData))
+        )
+      );
+    
+    // Execute all updates in parallel
+    if (updatePromises.length > 0) {
+      try {
+        await Promise.all(updatePromises);
+        console.log(`Successfully updated location for ${updatePromises.length} parcels`);
+        
+        // Update local parcel data to reflect new location
+        this.zone.run(() => {
+          this.assignedParcels.forEach(parcel => {
+            parcel.locationLat = newLat;
+            parcel.locationLng = newLng;
+            parcel.locationDescription = locationDescription;
+          });
+          this.cdr.detectChanges();
         });
-      } else {
-        console.warn(`Skipping update for parcel without ID: ${parcel.trackingId}`);
-        return Promise.resolve();
+        
+        // Update last location timestamp
+        this.lastLocationUpdate = new Date();
+      } catch (updateError) {
+        console.error('Error updating parcel locations in Firestore:', updateError);
+        throw new Error('Failed to update parcel locations in database');
       }
-    });
-
-    await Promise.all(updatePromises);
-    this.lastLocationUpdate = new Date();
-    console.log(`Successfully updated location for ${updatePromises.length} parcels at ${this.lastLocationUpdate.toLocaleTimeString()}`);
-
-  } catch (error) {
-    console.error('Error updating current location:', error);
-  } finally {
-    this.isUpdatingLocation = false;
-    console.log('Location update process finished.');
+    } else {
+      console.log('No valid parcels to update');
+    }
   }
-}
 
-// Add this helper method to determine if coordinates are near each other
-private isNearCoordinates(lat1: number, lng1: number, lat2: number, lng2: number, maxDistanceKm: number): boolean {
-  const R = 6371; // Earth's radius in km
-  const dLat = this.deg2rad(lat2 - lat1);
-  const dLng = this.deg2rad(lng2 - lng1);
-  const a = 
-    Math.sin(dLat/2) * Math.sin(dLat/2) +
-    Math.cos(this.deg2rad(lat1)) * Math.cos(this.deg2rad(lat2)) * 
-    Math.sin(dLng/2) * Math.sin(dLng/2); 
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
-  const distance = R * c;
-  return distance <= maxDistanceKm;
-}
+  // Add this method to your component
+  private calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
+    const R = 6371e3; // Earth radius in meters
+    const φ1 = this.deg2rad(lat1);
+    const φ2 = this.deg2rad(lat2);
+    const Δφ = this.deg2rad(lat2 - lat1);
+    const Δλ = this.deg2rad(lng2 - lng1);
 
-private deg2rad(deg: number): number {
-  return deg * (Math.PI/180);
-}
+    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+              Math.cos(φ1) * Math.cos(φ2) *
+              Math.sin(Δλ/2) * Math.sin(Δλ/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 
-// Add this method
-async promptForManualLocationCorrection(detectedLocation: string) {
-  const alert = await this.alertCtrl.create({
-    header: 'Location Confirmation',
-    message: `Detected location: ${detectedLocation}<br><br>Is this correct?`,
-    buttons: [
-      {
-        text: 'No, Correct It',
-        handler: () => {
-          this.openLocationPicker();
-        }
-      },
-      {
-        text: 'Yes, Use This',
-        role: 'cancel'
-      }
-    ]
-  });
-
-  await alert.present();
-}
-
-// Add this method to open a modal or page for selecting location
-async openLocationPicker() {
-  // You could implement a modal with a map for the user to select their location
-  // Or simply prompt for a text description of their current location
-  const alert = await this.alertCtrl.create({
-    header: 'Enter Your Location',
-    inputs: [
-      {
-        name: 'location',
-        type: 'text',
-        placeholder: 'e.g., UUM Campus, Sintok, Kedah'
-      }
-    ],
-    buttons: [
-      {
-        text: 'Cancel',
-        role: 'cancel'
-      },
-      {
-        text: 'Use This Location',
-        handler: async (data) => {
-          if (data.location) {
-            try {
-              // Convert the entered location to coordinates
-              const geoData = await firstValueFrom(
-                this.geocodingService.getCoordinatesFromAddress(data.location)
-              );
-              
-              if (geoData && geoData.lat && geoData.lon) {
-                // Create a position-like object
-                const position = {
-                  coords: {
-                    latitude: parseFloat(geoData.lat),
-                    longitude: parseFloat(geoData.lon),
-                    accuracy: 100, // Estimate
-                    altitude: null,
-                    altitudeAccuracy: null,
-                    heading: null,
-                    speed: null
-                  },
-                  timestamp: Date.now()
-                };
-                
-                // Now update with this position
-                await this.processAndUpdateLocation(position);
-                this.showToast('Location updated manually');
-              } else {
-                this.showToast('Could not find coordinates for that location');
-              }
-            } catch (error) {
-              console.error('Error with manual location:', error);
-              this.showToast('Failed to set manual location');
-            }
-          }
-        }
-      }
-    ]
-  });
-
-  await alert.present();
-}
-
-// Modified helper to process location data
-private async processAndUpdateLocation(position: any) {
-  const newLat = position.coords.latitude;
-  const newLng = position.coords.longitude;
-  const accuracy = position.coords.accuracy;
-
-  // Rest of your location processing code...
-  // [...]
-}
-
-// Add this method to your component
-private checkDeviceCapabilities() {
-  // Check if device orientation is available (good indicator of mobile device with sensors)
-  const hasOrientation = 'DeviceOrientationEvent' in window;
-  
-  // Check if device motion is available (accelerometer)
-  const hasMotion = 'DeviceMotionEvent' in window;
-  
-  // Check if battery API is available (another mobile indicator)
-  const hasBattery = 'getBattery' in navigator;
-  
-  console.log(`Device capabilities - Orientation: ${hasOrientation}, Motion: ${hasMotion}, Battery: ${hasBattery}`);
-  
-  // If this is likely a desktop, warn user
-  if (!hasOrientation && !hasMotion) {
-    console.warn('This appears to be a desktop device. Location accuracy may be limited.');
-    // You could show a toast to the user
+    return R * c; // Distance in meters
   }
-}
+
+  private deg2rad(deg: number): number {
+    return deg * (Math.PI/180);
+  }
+
+  // Add this method to check device capabilities
+  private checkDeviceCapabilities() {
+    // Check if device has geolocation
+    const hasGeolocation = 'geolocation' in navigator;
+    console.log('Device has geolocation:', hasGeolocation);
+    
+    // Check if Capacitor geolocation plugin is available
+    const hasCapacitorGeo = Capacitor.isPluginAvailable('Geolocation');
+    console.log('Capacitor Geolocation available:', hasCapacitorGeo);
+    
+    // Check if this is a native app
+    const isNative = Capacitor.isNativePlatform();
+    console.log('Running on native platform:', isNative);
+    
+    // Warn if no geolocation capabilities
+    if (!hasGeolocation && !hasCapacitorGeo) {
+      console.warn('No geolocation capabilities detected on this device');
+      this.showToast('Warning: Device may not support location services', 3000);
+    }
+  }
 }

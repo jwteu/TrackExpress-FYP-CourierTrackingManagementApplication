@@ -9,16 +9,18 @@ import { AppRoutingModule } from './app-routing.module';
 import { AngularFireModule } from '@angular/fire/compat';
 import { AngularFireAuthModule } from '@angular/fire/compat/auth';
 import { AngularFirestoreModule } from '@angular/fire/compat/firestore';
-import { environment } from '../environments/environment'; // Ensure this is correctly pointing to your environment file
+import { environment } from '../environments/environment'; 
 
 import { CloudinaryService } from './services/cloudinary.service';
 
 @NgModule({
-  declarations: [AppComponent],
+  // Remove AppComponent from declarations and add to imports if it's standalone
+  declarations: [], 
   imports: [
     BrowserModule,
     IonicModule.forRoot(),
     AppRoutingModule,
+    AppComponent, // Import the standalone component here
     AngularFireModule.initializeApp(environment.firebaseConfig),
     AngularFireAuthModule,
     AngularFirestoreModule

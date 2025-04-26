@@ -25,7 +25,8 @@
     "useDefineForClassFields": false,
     "typeRoots": [
       "node_modules/@types",
-      "src/typings"
+      "src/typings",
+      "src/app/types" // Add this path to include your custom types
     ]
   },
   "angularCompilerOptions": {

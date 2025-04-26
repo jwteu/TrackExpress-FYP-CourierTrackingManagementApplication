@@ -52,59 +52,61 @@ export class LoginPage implements OnInit {
       const { email, password, role } = this.loginForm.value;
 
       try {
-        // IMPORTANT: Clear all existing data first
+        // First, clear ALL existing data completely
         localStorage.clear();
+        console.log('localStorage cleared');
         
-        // Use runInInjectionContext to maintain proper injection context
-        const userSnapshot = await runInInjectionContext(this.injector, () => {
+        // First authenticate with Firebase
+        const userCredential = await this.afAuth.signInWithEmailAndPassword(email, password);
+        const firebaseUser = userCredential.user;
+        
+        if (!firebaseUser) {
+          throw new Error('Authentication failed');
+        }
+        
+        console.log('Firebase auth successful, UID:', firebaseUser.uid);
+        
+        // Now fetch user data using the verified UID
+        const userDoc = await runInInjectionContext(this.injector, () => {
           return firstValueFrom(
-            this.firestore.collection('users', ref => ref.where('email', '==', email)).get()
+            this.firestore.collection('users').doc(firebaseUser.uid).get()
           );
         });
 
-        if (userSnapshot.empty) {
-          throw new Error('User not found');
+        if (!userDoc.exists) {
+          throw new Error('User document not found');
         }
-
-        const userDoc = userSnapshot.docs[0];
-        const userData = userDoc.data() as { email: string, role: string, name: string, uid: string, staffId: string };
-
-        console.log('Retrieved user data:', userData);
-
-        // Check if the email matches in a case-sensitive manner
-        if (userData.email !== email) {
-          console.error('Email case mismatch:', userData.email, email);
-          throw new Error('Email case mismatch');
-        }
-
-        // Add the role check here
+        
+        const userData = userDoc.data() as { email: string, role: string, name: string, staffId: string };
+        console.log('Fetched user data from Firestore:', JSON.stringify(userData));
+        
+        // Verify the role matches what was selected
         if (userData.role !== role) {
           console.error('Role mismatch:', userData.role, role);
           this.errorMessage = 'Selected role does not match your account.';
+          await this.afAuth.signOut();
           return;
         }
 
-        // Sign in with Firebase Authentication
-        await this.afAuth.signInWithEmailAndPassword(email, password);
-        console.log('Login successful');
-
-        // Store user session data in localStorage
+        // Store user session data with the VERIFIED uid
         const sessionData = {
-          uid: userData.uid,
+          uid: firebaseUser.uid,
           email: userData.email,
           name: userData.name,
           role: userData.role,
-          staffId: userData.staffId,
+          staffId: userData.staffId || '',
           loggedInAt: new Date().toISOString(),
-          sessionId: this.generateUniqueId() // Add a unique session ID
+          sessionId: this.generateUniqueId()
         };
-
+        
+        console.log('About to store in localStorage:', JSON.stringify(sessionData));
         localStorage.setItem('userSession', JSON.stringify(sessionData));
+        console.log('localStorage updated with session data');
 
         if (role === 'admin') {
-          this.navCtrl.navigateRoot('/admin-home'); // Use navigateRoot instead of navigateForward
+          this.navCtrl.navigateRoot('/admin-home', { replaceUrl: true });
         } else {
-          this.navCtrl.navigateRoot('/deliveryman-home'); // Use navigateRoot instead of navigateForward
+          this.navCtrl.navigateRoot('/deliveryman-home', { replaceUrl: true });
         }
       } catch (error) {
         console.error('Login error:', error);

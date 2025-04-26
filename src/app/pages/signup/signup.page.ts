@@ -109,8 +109,9 @@ export class SignupPage implements OnInit {
 
       try {
         // Create user with Firebase Authentication
+        const normalizedEmail = email.toLowerCase();
         const userCredential = await runInInjectionContext(this.injector, () => {
-          return this.afAuth.createUserWithEmailAndPassword(email, password);
+          return this.afAuth.createUserWithEmailAndPassword(normalizedEmail, password);
         });
         const uid = userCredential.user?.uid;
 
@@ -119,7 +120,7 @@ export class SignupPage implements OnInit {
           await runInInjectionContext(this.injector, () => {
             return this.firestore.collection('users').doc(uid).set({
               name,
-              email, // Store the email in its original case
+              email: normalizedEmail, // Store email in lowercase
               icNumber,
               phone,
               address,

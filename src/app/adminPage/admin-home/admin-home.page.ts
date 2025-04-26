@@ -15,7 +15,7 @@ import { Subscription } from 'rxjs'; // Add this import
   imports: [CommonModule, FormsModule, IonicModule],
   schemas: [CUSTOM_ELEMENTS_SCHEMA]
 })
-export class AdminHomePage implements OnInit, OnDestroy { // Add OnDestroy
+export class AdminHomePage implements OnInit, OnDestroy {
   userName: string = '';
   userRole: string = '';
   
@@ -45,8 +45,8 @@ export class AdminHomePage implements OnInit, OnDestroy { // Add OnDestroy
   ) { }
 
   ngOnInit() {
-    this.checkUserSession();
-    this.loadStats(); // Add this call to load stats
+    this.checkUserSession(); // <--- Called on initialization
+    this.loadStats(); 
   }
   
   ngOnDestroy() {
@@ -57,24 +57,32 @@ export class AdminHomePage implements OnInit, OnDestroy { // Add OnDestroy
   }
 
   checkUserSession() {
-    // Existing code unchanged
+    console.log('AdminHomePage: checkUserSession running');
     const sessionData = localStorage.getItem('userSession');
+    console.log('AdminHomePage: raw session data from localStorage:', sessionData);
     
     if (!sessionData) {
-      this.router.navigate(['/login']);
+      console.error('No session data found, navigating to login');
+      this.router.navigate(['/login'], { replaceUrl: true });
       return;
     }
     
     try {
       const userSession = JSON.parse(sessionData);
+      console.log('AdminHomePage: parsed userSession:', JSON.stringify(userSession));
       
+      // Role check
       if (!userSession.uid || !userSession.role || userSession.role !== 'admin') {
+        console.error('Invalid user session - missing data or wrong role');
         this.logout();
         return;
       }
       
-      this.userName = userSession.name || '';
+      // Sets userName directly from the parsed localStorage data
+      this.userName = userSession.name || ''; 
       this.userRole = userSession.role;
+
+      console.log(`AdminHomePage: Set userName to "${this.userName}" (UID: ${userSession.uid})`);
     } catch (error) {
       console.error('Error parsing user session:', error);
       this.logout();
@@ -204,6 +212,6 @@ export class AdminHomePage implements OnInit, OnDestroy { // Add OnDestroy
       console.error('Sign out error:', error);
     }
     
-    this.router.navigate(['/login']);
+    this.router.navigate(['/login'], { replaceUrl: true });
   }
 }

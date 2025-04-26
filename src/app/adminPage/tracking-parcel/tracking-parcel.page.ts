@@ -96,6 +96,10 @@ export class TrackingParcelPage implements OnInit, AfterViewInit, OnDestroy {
   hubModeActive: boolean = false;
   lastDeliverymanName: string | null = null;
 
+  // Add new properties for polling
+  private locationPollingInterval: any;
+  private pollingFrequency: number = 30000; // Poll every 30 seconds
+
   constructor() {}
 
   ngOnInit() {}
@@ -126,6 +130,9 @@ export class TrackingParcelPage implements OnInit, AfterViewInit, OnDestroy {
   ngOnDestroy() {
     // Clean up location subscription when component is destroyed
     this.stopLocationTracking();
+    if (this.locationPollingInterval) {
+      clearInterval(this.locationPollingInterval);
+    }
   }
 
   async trackParcel() {
@@ -276,7 +283,7 @@ export class TrackingParcelPage implements OnInit, AfterViewInit, OnDestroy {
             // Show toast notification that tracking is active again
             this.showInfoToast(`Tracking resumed with ${this.currentDeliverymanName}`);
           }
-          
+
           this.trackingStatus = 'active';
           
           // If we have location data in the document, update the map immediately
@@ -304,7 +311,7 @@ export class TrackingParcelPage implements OnInit, AfterViewInit, OnDestroy {
       });
     });
     
-    // Subscribe to location updates from the geocoding service
+    // Subscribe to location updates from the geocoding service with real-time updates
     runInInjectionContext(this.injector, () => {
       this.locationSubscription = this.geocodingService.getDeliverymanLocationUpdates(trackingId)
         .subscribe({
@@ -328,13 +335,82 @@ export class TrackingParcelPage implements OnInit, AfterViewInit, OnDestroy {
           }
         });
     });
+    
+    // Add a polling mechanism as backup
+    this.startLocationPolling(trackingId);
   }
-
+  
+  // Add a new method to implement polling
+  private startLocationPolling(trackingId: string) {
+    console.log(`Setting up location polling every ${this.pollingFrequency/1000} seconds`);
+    
+    // Clear any existing interval
+    if (this.locationPollingInterval) {
+      clearInterval(this.locationPollingInterval);
+      this.locationPollingInterval = null;
+    }
+    
+    // Set up polling interval to check for location updates
+    this.locationPollingInterval = setInterval(() => {
+      console.log(`Polling for location updates for ${trackingId}`);
+      // Only poll if we're still tracking
+      if (this.isLocationTracking && this.trackingStatus !== 'none') {
+        // Use the refresh method to fetch the latest data
+        this.refreshLocationData(trackingId);
+      }
+    }, this.pollingFrequency);
+  }
+  
+  // Add this method to manually refresh location data
+  private async refreshLocationData(trackingId: string) {
+    try {
+      const snapshot = await runInInjectionContext(this.injector, () => 
+        firstValueFrom(
+          this.firestore.collection('assigned_parcels', ref => 
+            ref.where('trackingId', '==', trackingId)
+          ).get()
+        )
+      );
+      
+      if (!snapshot.empty) {
+        const parcelData = snapshot.docs[0].data() as any;
+        
+        if (parcelData.locationLat && parcelData.locationLng) {
+          const updateTimestamp = parcelData.locationUpdatedAt?.toDate?.() || new Date();
+          
+          // Only update if it's a new location (different timestamp)
+          if (!this.lastLocationUpdate || 
+              updateTimestamp.getTime() > this.lastLocationUpdate.getTime()) {
+            
+            console.log('Polled and found updated location:', parcelData.locationLat, parcelData.locationLng);
+            this.lastLocationUpdate = updateTimestamp;
+            
+            // Update map with new location
+            this.updateMapWithNewLocation(
+              parcelData.locationLat,
+              parcelData.locationLng,
+              parcelData.locationDescription || 'Current Location',
+              false
+            );
+          }
+        }
+      }
+    } catch (error) {
+      console.warn('Error polling for location:', error);
+    }
+  }
+  
   stopLocationTracking() {
     if (this.locationSubscription) {
       console.log('Stopping location tracking');
       this.locationSubscription.unsubscribe();
       this.locationSubscription = null;
+    }
+    
+    if (this.locationPollingInterval) {
+      console.log('Stopping location polling');
+      clearInterval(this.locationPollingInterval);
+      this.locationPollingInterval = null;
     }
     
     if (this.parcelAssignmentSubscription) {
@@ -673,7 +749,7 @@ export class TrackingParcelPage implements OnInit, AfterViewInit, OnDestroy {
     this.mapCoordinates!.currentLng = lng;
     this.mapCoordinates!.currentLocation = locationDescription || 'Current Location';
 
-    // If this is a new handler, add a visual effect
+    // If this is a new
     if (isNewHandler) {
       // First animate to a slightly zoomed out view
       this.map.flyTo(
@@ -986,59 +1062,47 @@ export class TrackingParcelPage implements OnInit, AfterViewInit, OnDestroy {
 
   // Now modify the openExternalMap method to call this first
   async openExternalMap() {
-    // Refresh location data first
+    // Refresh location data first to ensure it's up-to-date
     await this.refreshLocationBeforeOpeningMap();
     
     if (!this.mapCoordinates) {
       return;
     }
     
-    const { currentLat, currentLng, destLat, destLng } = this.mapCoordinates;
+    const { currentLat, currentLng } = this.mapCoordinates;
     
     // Add timestamp to force refresh of coordinates
     const timestamp = new Date().getTime();
     
     // Determine which maps app to use based on platform capabilities
     if (this.isPlatformNative()) {
-      // For mobile devices: Use platform-specific maps with waypoints
+      // For mobile devices: Use platform-specific maps for current location only
       if (this.isIOS()) {
-        // iOS: Use Apple Maps with waypoints and current location tracking
-        const url = `maps://maps.apple.com/?daddr=${destLat},${destLng}&saddr=${currentLat},${currentLng}&dirflg=d&t=${timestamp}`;
+        // iOS: Use Apple Maps to show current location only
+        const url = `maps://maps.apple.com/?ll=${currentLat},${currentLng}&q=Current+Location&t=${timestamp}`;
         window.open(url, '_system');
         
-        // Show information about real-time updates
-        this.showInfoToast('Opening Apple Maps with current location. Return to app for live updates.');
+        this.showInfoToast('Opening Apple Maps to current location.');
       } else {
-        // Android: Use Google Maps with navigation mode and current location
-        // The 'navigate' mode will automatically use device location and provide real-time tracking
-        const url = `google.navigation:q=${destLat},${destLng}&mode=d`;
+        // Android: Use Google Maps to show current location only
+        const url = `geo:${currentLat},${currentLng}?q=${currentLat},${currentLng}`;
         window.open(url, '_system');
         
         // Fallback for devices without Google Maps app installed
         setTimeout(() => {
-          // If the app didn't open, try web version with current location
-          const webUrl = `https://www.google.com/maps/dir/?api=1&origin=${currentLat},${currentLng}&destination=${destLat},${destLng}&travelmode=driving&t=${timestamp}`;
+          const webUrl = `https://www.google.com/maps/search/?api=1&query=${currentLat},${currentLng}&t=${timestamp}`;
           window.open(webUrl, '_system');
         }, 1000);
         
-        // Show information about real-time updates
-        this.showInfoToast('Opening navigation with current location tracking');
+        this.showInfoToast('Opening maps to current location.');
       }
     } else {
-      // For browsers: Use Google Maps with directions and current location enabled
-      const originLabel = encodeURIComponent(this.currentDeliverymanName ? 
-        `Current Location (${this.currentDeliverymanName})` : 
-        'Current Location');
-        
-      const destinationLabel = encodeURIComponent('Delivery Destination');
-      
-      // Add parameters to enable device location tracking in Google Maps
-      const url = `https://www.google.com/maps/dir/?api=1&origin=${currentLat},${currentLng}&destination=${destLat},${destLng}&travelmode=driving&layer=traffic&t=${timestamp}`;
+      // For browsers: Use Google Maps with current location only
+      const url = `https://www.google.com/maps/search/?api=1&query=${currentLat},${currentLng}&t=${timestamp}`;
       
       window.open(url, '_blank');
       
-      // Show information about real-time updates
-      this.showInfoToast('Maps opened with current location. For real-time updates, allow location access in your browser.');
+      this.showInfoToast('Maps opened showing current location.');
     }
   }
 

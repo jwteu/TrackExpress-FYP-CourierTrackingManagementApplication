@@ -4,6 +4,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IonicModule } from '@ionic/angular';
 import { AngularFireAuth } from '@angular/fire/compat/auth';
+import { AngularFirestore } from '@angular/fire/compat/firestore'; // Add this import
 import { firstValueFrom } from 'rxjs';
 import { take } from 'rxjs/operators';
 
@@ -16,10 +17,11 @@ import { take } from 'rxjs/operators';
   schemas: [CUSTOM_ELEMENTS_SCHEMA]
 })
 export class DeliverymanHomePage implements OnInit {
-  userName: string = '';
-  
+  userName: string = ''; // Initialize clearly
+
   // Add injector for Firebase operations
   private injector = inject(Injector);
+  private firestore = inject(AngularFirestore); // Add this line
 
   constructor(
     private router: Router,
@@ -30,31 +32,31 @@ export class DeliverymanHomePage implements OnInit {
     this.checkUserSession();
   }
 
+  // Replace the existing checkUserSession with this simpler version:
   checkUserSession() {
     const sessionData = localStorage.getItem('userSession');
-    
+
     if (!sessionData) {
-      this.router.navigate(['/login']);
+      console.error('No session data found, navigating to login.');
+      this.logout(); // Use logout which handles navigation
       return;
     }
-    
+
     try {
       const userSession = JSON.parse(sessionData);
-      
-      if (!userSession.uid || userSession.role !== 'deliveryman') {
+
+      // Guards should handle this, but double-check role for safety
+      if (!userSession.uid || !userSession.role || userSession.role !== 'deliveryman') {
+        console.error('Invalid session data (UID or Role mismatch), logging out.');
         this.logout();
         return;
       }
-      
-      this.userName = userSession.name || '';
-      
-      // Verify with auth state to ensure session is valid
-      this.afAuth.authState.pipe(take(1)).subscribe(user => {
-        if (!user || user.uid !== userSession.uid) {
-          console.error('Session mismatch with Firebase auth');
-          this.logout();
-        }
-      });
+
+      // Directly set the username from the validated session
+      this.userName = userSession.name || 'Deliveryman'; // Provide a fallback if name is missing
+
+      console.log(`DeliverymanHomePage: Welcome ${this.userName} (UID: ${userSession.uid})`);
+
     } catch (error) {
       console.error('Error parsing user session:', error);
       this.logout();
@@ -66,19 +68,19 @@ export class DeliverymanHomePage implements OnInit {
   }
 
   async logout() {
+    this.userName = ''; // Clear the name immediately
     localStorage.removeItem('userSession');
-    
+
     try {
-      // Use runInInjectionContext for Firebase signOut
       await runInInjectionContext(this.injector, () => {
         return this.afAuth.signOut();
       });
-      
       console.log('User signed out');
-      this.router.navigate(['/login']);
+      // Use navigateRoot to clear navigation stack
+      this.router.navigate(['/login'], { replaceUrl: true });
     } catch (error) {
       console.error('Sign out error:', error);
-      this.router.navigate(['/login']);
+      this.router.navigate(['/login'], { replaceUrl: true }); // Ensure navigation even on error
     }
   }
 }

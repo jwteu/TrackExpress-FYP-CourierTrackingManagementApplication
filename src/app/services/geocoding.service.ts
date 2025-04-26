@@ -3,6 +3,8 @@ import { Observable, from, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { AngularFirestore } from '@angular/fire/compat/firestore';
 
+declare const google: any;
+
 @Injectable({
   providedIn: 'root'
 })
@@ -13,26 +15,28 @@ export class GeocodingService {
   getAddressFromCoordinates(lat: number, lng: number, options = { zoom: 18 }): Observable<any> {
     return new Observable(observer => {
       runInInjectionContext(this.injector, () => {
-        // Use a higher zoom level (18) for more precise addresses
-        from(fetch(
-          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=${options.zoom}&addressdetails=1`
-        )
-        .then(response => {
-          if (!response.ok) {
-            throw new Error('Failed to get address from coordinates');
+        // Use Google Maps Geocoder
+        const geocoder = new google.maps.Geocoder();
+        const latlng = new google.maps.LatLng(lat, lng);
+        
+        geocoder.geocode({ 'location': latlng }, (results: google.maps.GeocoderResult[], status: google.maps.GeocoderStatus) => {
+          if (status === google.maps.GeocoderStatus.OK && results && results.length > 0) {
+            // Use the most detailed result
+            observer.next({
+              formatted_address: results[0].formatted_address,
+              address_components: results[0].address_components,
+              geometry: results[0].geometry
+            });
+          } else {
+            // Fallback to coordinates
+            observer.next({ 
+              formatted_address: `${lat}, ${lng}`,
+              geometry: {
+                location: { lat: () => lat, lng: () => lng }
+              }
+            });
           }
-          return response.json();
-        }))
-        .pipe(
-          catchError(error => {
-            console.error('Error in reverse geocoding:', error);
-            return of({ display_name: `${lat}, ${lng}` });
-          })
-        )
-        .subscribe({
-          next: (data) => observer.next(data),
-          error: (err) => observer.error(err),
-          complete: () => observer.complete()
+          observer.complete();
         });
       });
     });
@@ -86,33 +90,22 @@ export class GeocodingService {
           return;
         }
         
-        const encodedAddress = encodeURIComponent(address);
+        // Use Google Maps Geocoder
+        const geocoder = new google.maps.Geocoder();
         
-        from(fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&q=${encodedAddress}&limit=1`
-        )
-        .then(response => {
-          if (!response.ok) {
-            throw new Error('Failed to get coordinates from address');
+        geocoder.geocode({ 'address': address }, (results: google.maps.GeocoderResult[], status: google.maps.GeocoderStatus) => {
+          if (status === google.maps.GeocoderStatus.OK && results && results.length > 0) {
+            const location = results[0].geometry.location;
+            
+            observer.next({
+              lat: location.lat(),
+              lon: location.lng(),
+              formatted_address: results[0].formatted_address
+            });
+          } else {
+            observer.next(null);
           }
-          return response.json();
-        }))
-        .pipe(
-          catchError(error => {
-            console.error('Error in geocoding:', error);
-            return of([]);
-          })
-        )
-        .subscribe({
-          next: (data) => {
-            if (data && data.length > 0) {
-              observer.next(data[0]);
-            } else {
-              observer.next(null);
-            }
-            observer.complete();
-          },
-          error: (err) => observer.error(err)
+          observer.complete();
         });
       });
     });
@@ -123,6 +116,7 @@ export class GeocodingService {
       runInInjectionContext(this.injector, () => {
         console.log(`Starting real-time location updates for tracking ID: ${trackingId}`);
         
+        // Use snapshotChanges for real-time updates
         const subscription = this.firestore.collection('assigned_parcels', ref => 
           ref.where('trackingId', '==', trackingId)
         ).snapshotChanges().subscribe({
@@ -140,8 +134,8 @@ export class GeocodingService {
             const lng = parcelData.locationLng;
             
             if (this.isValidLatitude(lat) && this.isValidLongitude(lng)) {
-              console.log(`Location update received for ${trackingId}:`, lat, lng, 
-                parcelData.locationUpdatedAt?.toDate?.() || 'no timestamp');
+              console.log(`Valid location update received for ${trackingId}:`, lat, lng, 
+                parcelData.locationDescription || 'No description');
               
               observer.next({
                 lat: lat,
@@ -160,7 +154,7 @@ export class GeocodingService {
           }
         });
         
-        // Return a function that properly unsubscribes
+        // Return a cleanup function
         return () => {
           console.log('Cleaning up location subscription');
           subscription.unsubscribe();

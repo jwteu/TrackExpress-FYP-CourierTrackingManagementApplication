@@ -81,90 +81,41 @@ export class AddParcelPage implements OnInit {
       spinner: 'circles'
     });
     await loading.present();
-  
+
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         try {
           const { latitude, longitude, accuracy } = position.coords;
           console.log(`Location detected: ${latitude}, ${longitude} (accuracy: ${accuracy}m)`);
           
-          // Use reverse geocoding to get a detailed address from coordinates
-          // Using OpenStreetMap's Nominatim API with more parameters
-          const response = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?` +
-            `format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`
-          );
+          // Use Google Maps reverse geocoding API
+          const geocoder = new google.maps.Geocoder();
+          const latlng = new google.maps.LatLng(latitude, longitude);
           
-          if (!response.ok) {
-            throw new Error('Failed to get address from coordinates');
-          }
-          
-          const data = await response.json();
-          console.log('Location data:', data);
-          
-          // Format the address with more details
-          let address = '';
-          
-          if (data.address) {
-            // More detailed address formatting
-            const addressComponents = [];
+          geocoder.geocode({ 'location': latlng }, (results, status) => {
+            loading.dismiss();
+            this.isGettingLocation = false;
             
-            // Building information
-            if (data.address.house_number) addressComponents.push(data.address.house_number);
-            if (data.address.building) addressComponents.push(data.address.building);
-            
-            // Street information
-            if (data.address.road || data.address.street) {
-              addressComponents.push(data.address.road || data.address.street);
+            if (status === google.maps.GeocoderStatus.OK && results && results.length > 0) {
+              // Use the most detailed result (index 0)
+              const address = results[0].formatted_address;
+              this.currentLocation = address;
+              this.parcelForm.patchValue({
+                pickupLocation: address
+              });
+              
+              this.showToast('Location detected successfully!');
+            } else {
+              // Fallback to coordinates if geocoding fails
+              const fallbackAddress = `Latitude: ${latitude}, Longitude: ${longitude}`;
+              this.currentLocation = fallbackAddress;
+              this.parcelForm.patchValue({
+                pickupLocation: fallbackAddress
+              });
+              
+              this.showToast('Got location coordinates, but couldn\'t get address.');
             }
-            
-            // Neighborhood information
-            if (data.address.neighbourhood) addressComponents.push(data.address.neighbourhood);
-            if (data.address.suburb) addressComponents.push(data.address.suburb);
-            
-            // City/town information
-            if (data.address.city) addressComponents.push(data.address.city);
-            else if (data.address.town) addressComponents.push(data.address.town);
-            else if (data.address.village) addressComponents.push(data.address.village);
-            
-            // Region information
-            if (data.address.county) addressComponents.push(data.address.county);
-            if (data.address.state || data.address.province) {
-              addressComponents.push(data.address.state || data.address.province);
-            }
-            
-            // Postal code
-            if (data.address.postcode) addressComponents.push(data.address.postcode);
-            
-            // Country
-            if (data.address.country) addressComponents.push(data.address.country);
-            
-            address = addressComponents.join(', ');
-            
-            // Add any additional information if not already included
-            if (data.display_name && !address) {
-              address = data.display_name;
-            }
-          } else {
-            // Fallback to display_name or coordinates
-            address = data.display_name || `Latitude: ${latitude}, Longitude: ${longitude}`;
-          }
-          
-          this.currentLocation = address;
-          this.parcelForm.patchValue({
-            pickupLocation: address
           });
-          
-          loading.dismiss();
-          this.isGettingLocation = false;
-          
-          const toast = await this.toastCtrl.create({
-            message: 'Location detected successfully!',
-            duration: 2000,
-            position: 'bottom',
-            color: 'success'
-          });
-          await toast.present();
         } catch (error) {
           console.error('Error getting address:', error);
           loading.dismiss();
@@ -202,9 +153,9 @@ export class AddParcelPage implements OnInit {
         await toast.present();
       },
       {
-        enableHighAccuracy: true, // Request the most accurate position available
-        timeout: 15000,          // Allow more time (15 seconds) to get a good position
-        maximumAge: 0            // Don't use cached position data
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 0
       }
     );
   }
@@ -223,78 +174,74 @@ export class AddParcelPage implements OnInit {
     await loading.present();
     
     try {
-      // Use Nominatim with a higher limit to get multiple results
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?` +
-        `format=json&q=${encodeURIComponent(receiverAddress)}&limit=5`
-      );
+      // Use Google's Geocoding API
+      const geocoder = new google.maps.Geocoder();
       
-      if (!response.ok) {
-        throw new Error('Failed to geocode address');
-      }
-      
-      const data = await response.json();
-      loading.dismiss();
-      
-      if (data && data.length > 0) {
-        // Show a list of potential matches for the user to choose from
-        const alert = await this.alertCtrl.create({
-          header: 'Select Correct Address',
-          message: 'Please choose the closest match to your address:',
-          inputs: data.map((result: any, index: number) => ({
-            type: 'radio',
-            label: result.display_name,
-            value: index.toString(),
-            checked: index === 0
-          })),
-          buttons: [
-            {
-              text: 'Cancel',
-              role: 'cancel'
-            },
-            {
-              text: 'Select',
-              handler: (value) => {
-                const selectedIndex = parseInt(value);
-                const selectedAddress = data[selectedIndex];
-                
-                // Save these coordinates to form fields
-                this.parcelForm.addControl('receiverLat', new FormControl(parseFloat(selectedAddress.lat)));
-                this.parcelForm.addControl('receiverLng', new FormControl(parseFloat(selectedAddress.lon)));
-                
-                // Update the address text field with the formatted address
-                this.parcelForm.patchValue({
-                  receiverAddress: selectedAddress.display_name
-                });
-                
-                this.showToast('Address verified successfully');
-              }
-            }
-          ]
-        });
-        
-        await alert.present();
-      } else {
+      geocoder.geocode({ 'address': receiverAddress }, (results, status) => {
         loading.dismiss();
-        const toast = await this.toastCtrl.create({
-          message: 'No addresses found. Try adding more details (city, postal code).',
-          duration: 3000,
-          position: 'bottom',
-          color: 'warning'
-        });
-        await toast.present();
-      }
+        
+        if (status === google.maps.GeocoderStatus.OK && results && results.length > 0) {
+          // If we have multiple results, let the user choose
+          if (results.length > 1) {
+            this.showAddressSelectionAlert(results);
+          } else {
+            // If only one result, use it directly
+            this.useGeocodedAddress(results[0]);
+          }
+        } else {
+          this.showToast('Address not found. Please provide more details.');
+        }
+      });
     } catch (error) {
       loading.dismiss();
       console.error('Error geocoding address:', error);
-      const toast = await this.toastCtrl.create({
-        message: 'Could not verify address location',
-        duration: 2000,
-        position: 'bottom',
-        color: 'danger'
-      });
-      await toast.present();
+      this.showToast('Could not verify address location');
     }
+  }
+
+  // New function to show address selection alert
+  async showAddressSelectionAlert(results: google.maps.GeocoderResult[]) {
+    const alert = await this.alertCtrl.create({
+      header: 'Select Correct Address',
+      message: 'Please choose the closest match to your address:',
+      inputs: results.map((result, index) => ({
+        type: 'radio',
+        label: result.formatted_address,
+        value: index.toString(),
+        checked: index === 0
+      })),
+      buttons: [
+        {
+          text: 'Cancel',
+          role: 'cancel'
+        },
+        {
+          text: 'Select',
+          handler: (value) => {
+            const selectedIndex = parseInt(value);
+            this.useGeocodedAddress(results[selectedIndex]);
+          }
+        }
+      ]
+    });
+    
+    await alert.present();
+  }
+
+  // New function to use the selected geocoded address
+  useGeocodedAddress(result: google.maps.GeocoderResult) {
+    const location = result.geometry.location;
+    
+    // Save these coordinates to form fields
+    this.parcelForm.addControl('receiverLat', new FormControl(location.lat()));
+    this.parcelForm.addControl('receiverLng', new FormControl(location.lng()));
+    
+    // Update the address text field with the formatted address
+    this.parcelForm.patchValue({
+      receiverAddress: result.formatted_address
+    });
+    
+    this.showToast('Address verified successfully');
   }
 
   async submit() {
