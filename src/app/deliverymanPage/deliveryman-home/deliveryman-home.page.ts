@@ -7,6 +7,7 @@ import { AngularFireAuth } from '@angular/fire/compat/auth';
 import { AngularFirestore } from '@angular/fire/compat/firestore'; // Add this import
 import { firstValueFrom } from 'rxjs';
 import { take } from 'rxjs/operators';
+import { LocationTrackingService } from '../../services/location-tracking.service';
 
 @Component({
   selector: 'app-deliveryman-home',
@@ -22,6 +23,8 @@ export class DeliverymanHomePage implements OnInit {
   // Add injector for Firebase operations
   private injector = inject(Injector);
   private firestore = inject(AngularFirestore); // Add this line
+  // Add this service to your existing injections
+  private locationService = inject(LocationTrackingService);
 
   constructor(
     private router: Router,
@@ -30,6 +33,8 @@ export class DeliverymanHomePage implements OnInit {
 
   ngOnInit() {
     this.checkUserSession();
+    // Force start location tracking with a slight delay to ensure auth is ready
+    setTimeout(() => this.startLocationTracking(), 1000);
   }
 
   // Replace the existing checkUserSession with this simpler version:
@@ -60,6 +65,23 @@ export class DeliverymanHomePage implements OnInit {
     } catch (error) {
       console.error('Error parsing user session:', error);
       this.logout();
+    }
+  }
+
+  // Add this new method
+  startLocationTracking() {
+    const sessionData = localStorage.getItem('userSession');
+    
+    if (sessionData) {
+      try {
+        const userSession = JSON.parse(sessionData);
+        if (userSession.uid && userSession.role === 'deliveryman') {
+          console.log('Explicitly starting location tracking service');
+          this.locationService.startTracking(userSession.uid, userSession.name);
+        }
+      } catch (error) {
+        console.error('Error parsing session for location tracking:', error);
+      }
     }
   }
 

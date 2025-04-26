@@ -4,6 +4,9 @@ import { BehaviorSubject, Subscription, interval } from 'rxjs';
 import { ParcelService } from './parcel.service';
 import { GeocodingService } from './geocoding.service';
 import firebase from 'firebase/compat/app';
+// Add these imports for Capacitor
+import { Capacitor } from '@capacitor/core';
+import { Geolocation } from '@capacitor/geolocation';
 
 @Injectable({
   providedIn: 'root'
@@ -65,9 +68,21 @@ export class LocationTrackingService {
   }
 
   public startTracking(userId: string, userName: string) {
+    console.log(`LocationTrackingService: Starting tracking for ${userName} (${userId})`);
     this.currentUserId = userId;
     this.currentUserName = userName;
-    this.startContinuousTracking();
+    
+    // Clear any existing tracking first
+    this.stopContinuousTracking();
+    
+    // Request permissions explicitly before starting tracking
+    this.requestLocationPermissions().then(granted => {
+      if (granted) {
+        this.startContinuousTracking();
+      } else {
+        console.warn('Location permissions denied, tracking disabled');
+      }
+    });
   }
 
   public stopTracking() {
@@ -167,6 +182,37 @@ export class LocationTrackingService {
       // Optionally log error
     } finally {
       this.isUpdating = false;
+    }
+  }
+
+  // Add this new method
+  private async requestLocationPermissions(): Promise<boolean> {
+    try {
+      // Check if running on a native platform
+      if (Capacitor.isNativePlatform() && Capacitor.isPluginAvailable('Geolocation')) {
+        const permStatus = await Geolocation.requestPermissions();
+        console.log('Location permission status:', permStatus);
+        return permStatus.location === 'granted';
+      } else {
+        // For web platform, we can check if browser geolocation is available
+        if ('geolocation' in navigator) {
+          console.log('Using browser geolocation API (permissions handled by browser)');
+          // For browsers, we'll do a test getCurrentPosition call to trigger permission prompt
+          try {
+            await new Promise<GeolocationPosition>((resolve, reject) => {
+              navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000 });
+            });
+            return true; // If we get here, permission was granted
+          } catch (err) {
+            console.warn('Browser denied geolocation permission:', err);
+            return false; // Permission was denied
+          }
+        }
+        return true; // If geolocation isn't available, just return true and let it fail later
+      }
+    } catch (error) {
+      console.error('Error requesting location permissions:', error);
+      return false;
     }
   }
 }
