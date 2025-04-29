@@ -64,7 +64,8 @@
             <ion-spinner *ngIf="loadingPending" name="dots" color="medium"></ion-spinner>
             <span *ngIf="!loadingPending">{{ pendingParcelsCount }}</span>
           </div>
-          <div class="stat-label">In Transit Parcel</div>
+          <!-- Change the text in the line below -->
+          <div class="stat-label">Processing</div> <!-- Changed from "In Transit Parcel" -->
         </div>
         <div class="stat-item">
           <ion-icon name="checkmark-done-outline" class="stat-icon"></ion-icon>

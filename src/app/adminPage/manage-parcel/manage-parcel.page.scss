@@ -37,35 +37,204 @@ ion-toolbar {
   }
 }
 
+// Search functionality styling
+.search-container {
+  padding: 8px 16px 0 16px;
+  margin-bottom: 10px;
+}
+
+.search-box {
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 16px;
+  padding: 10px 16px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  
+  &:focus-within {
+    box-shadow: 0 8px 20px rgba(255, 215, 0, 0.2);
+    border-color: rgba(255, 215, 0, 0.4);
+    transform: translateY(-2px);
+    background: rgba(255, 255, 255, 0.99);
+    
+    // Add more visible highlight on focus
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--yellow), #FFC300);
+      opacity: 1;
+    }
+    
+    ion-icon[name="search-outline"] {
+      color: var(--yellow);
+    }
+  }
+  
+  ion-icon[name="search-outline"] {
+    font-size: 22px;
+    color: var(--medium-gray);
+    margin-right: 12px;
+    transition: color 0.3s ease;
+  }
+}
+
+.search-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: 16px;
+  color: var(--dark-gray);
+  padding: 8px 0;
+  font-family: 'Poppins', sans-serif;
+  
+  &:focus {
+    outline: none;
+  }
+  
+  &::placeholder {
+    color: var(--medium-gray);
+    opacity: 0.7;
+    transition: opacity 0.3s ease;
+  }
+  
+  &:focus::placeholder {
+    opacity: 0.5;
+  }
+}
+
+.clear-button {
+  --padding-start: 6px;
+  --padding-end: 6px;
+  --color: var(--medium-gray);
+  height: 36px;
+  width: 36px;
+  margin: 0;
+  
+  ion-icon {
+    font-size: 22px;
+    transition: transform 0.2s ease;
+  }
+  
+  &:hover {
+    --color: var(--danger-red);
+    
+    ion-icon {
+      transform: scale(1.1);
+    }
+  }
+}
+
+// Add a search results indicator when filtering
+.search-results-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  margin: 6px 0 12px;
+  font-size: 14px;
+  color: var(--medium-gray);
+  
+  strong {
+    color: var(--dark-gray);
+  }
+  
+  .reset-search {
+    color: var(--info-blue-text);
+    text-decoration: underline;
+    cursor: pointer;
+    
+    &:hover {
+      color: var(--yellow);
+    }
+  }
+}
+
 .button-group {
   display: flex;
   justify-content: center;
-  padding: 16px 16px 24px 16px; // Adjust padding
+  padding: 12px 16px 24px 16px;
 }
 
+// Primary button styling
 .primary-button {
   --background: linear-gradient(90deg, var(--yellow) 0%, #FFC300 100%);
   --color: var(--dark-gray);
-  --border-radius: 12px;
-  font-size: 17px;
+  --border-radius: 16px;
+  font-size: 16px;
   font-weight: 600;
-  height: 50px;
-  width: auto;
-  min-width: 240px; // Slightly wider
+  height: 48px;
+  min-width: 180px;
   text-transform: none;
-  letter-spacing: 0.4px; // Slightly more spacing
-  box-shadow: 0 5px 18px rgba(255, 215, 0, 0.35); // Enhanced shadow
-  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.3s ease;
-
-  &:hover {
-     --background: linear-gradient(90deg, #FFC300 0%, var(--yellow) 100%);
-     box-shadow: 0 7px 22px rgba(255, 215, 0, 0.45); // Enhanced hover shadow
-     transform: translateY(-2px);
+  letter-spacing: 0.4px;
+  margin: 0;
+  box-shadow: 0 8px 20px rgba(255, 215, 0, 0.25);
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0));
+    z-index: 1;
   }
-
+  
+  &:hover {
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 0 12px 25px rgba(255, 215, 0, 0.35);
+    
+    &::after {
+      opacity: 1;
+    }
+  }
+  
   &:active {
-    transform: scale(0.96) translateY(1px);
-    box-shadow: 0 3px 12px rgba(255, 215, 0, 0.25); // Adjusted active shadow
+    transform: translateY(1px) scale(0.98);
+    box-shadow: 0 5px 15px rgba(255, 215, 0, 0.2);
+  }
+  
+  // Add shine effect on hover
+  &::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -60%;
+    width: 20%;
+    height: 200%;
+    opacity: 0;
+    transform: rotate(30deg);
+    background: rgba(255, 255, 255, 0.13);
+    transition: all 0.7s ease;
+  }
+  
+  &:hover::after {
+    left: 120%;
+    opacity: 1;
+    transition-duration: 0.7s;
+  }
+  
+  ion-icon {
+    margin-right: 8px;
+    font-size: 20px;
+  }
+}
+
+.empty-state {
+  ion-icon[name="search-outline"] {
+    color: var(--medium-gray);
+    opacity: 0.9;
   }
 }
 
@@ -113,40 +282,53 @@ ion-toolbar {
   }
 }
 
-ion-list {
-  background: transparent;
-  padding: 0 10px; // Slightly more horizontal padding for the list container
-  margin-top: 0; // Remove default list margin if any
+.list-container-block {
+  background: rgba(255, 255, 255, 0.7); // Slightly different glass effect for the block
+  backdrop-filter: blur(20px); // More blur for the container
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 24px; // Rounded corners for the block
+  margin: 20px 16px; // Margin around the block
+  padding: 8px 8px 16px 8px; // Padding inside the block (top, sides, bottom)
+  box-shadow: 0 12px 40px rgba(34, 40, 49, 0.1); // Prominent shadow for the block
+  border: 1px solid rgba(255, 255, 255, 0.6); // Subtle border
+  overflow: hidden; // Ensure children conform to border-radius
 }
 
-.parcel-item {
-  --border-radius: 18px; // More rounded
-  --padding-start: 18px; // More padding
-  --padding-end: 12px;
-  --inner-padding-top: 14px; // Add vertical padding inside item
-  --inner-padding-bottom: 14px;
-  --inner-padding-end: 12px;
-  background: rgba(255, 255, 255, 0.85); // Less transparent glass
-  backdrop-filter: blur(14px); // Adjusted blur
-  margin: 10px 6px; // Adjusted margin (more vertical, less horizontal)
-  box-shadow: 0 5px 20px rgba(34, 40, 49, 0.08); // Adjusted shadow
-  border: 1px solid rgba(255, 255, 255, 0.6); // Slightly more visible border
+.list-container-block ion-list {
+  background: transparent; // List itself is transparent
+  padding: 0; // Remove padding from ion-list itself
+  margin-top: 8px; // Space between top padding and first item
+}
+
+.list-container-block .parcel-item {
+  --border-radius: 16px; // Slightly less rounded than the container
+  background: rgba(255, 255, 255, 0.951); // Item background
+  backdrop-filter: blur(10px); // Less blur than the container
+  -webkit-backdrop-filter: blur(10px);
+  margin: 10px 8px; // Margin for items within the block padding
+  box-shadow: 0 4px 15px rgba(34, 40, 49, 0.06); // Softer shadow for items
+  border: 1px solid rgb(129, 129, 129);
+  // Keep existing transitions, animations, hover effects etc.
   transition: transform 0.25s ease, box-shadow 0.25s ease, background-color 0.25s ease;
   animation: slideInUp 0.55s ease-out forwards;
   opacity: 0;
-  animation-delay: calc(var(--ion-item-index, 0) * 45ms); // Slightly adjusted stagger
+  animation-delay: calc(var(--ion-item-index, 0) * 45ms);
+
+  // Remove the top gradient line if desired, as the block provides separation
+  // &::before { display: none; } // Uncomment this line to remove the top gradient on items
 
   &:hover {
-    transform: translateY(-4px) scale(1.02); // Enhanced hover effect
-    box-shadow: 0 10px 25px rgba(34, 40, 49, 0.12);
-    background-color: rgba(255, 255, 255, 0.95); // Lighten slightly on hover
+    transform: translateY(-4px) scale(1.01); // Keep hover effect
+    box-shadow: 0 8px 20px rgba(34, 40, 49, 0.1);
+    background-color: rgba(255, 255, 255, 0.95);
+    border-color: rgba(255, 215, 0, 0.3);
   }
 
   &.delivered-parcel {
-    background: rgba(232, 245, 233, 0.85); // Adjusted delivered bg
+    // Keep existing delivered styles
+    background: rgba(232, 245, 233, 0.85);
     border-color: rgba(46, 125, 50, 0.35);
-    opacity: 0.9; // Slightly less prominent when delivered
-
+    opacity: 0.9;
     &:hover {
        background-color: rgba(232, 245, 233, 0.95);
     }
@@ -177,93 +359,93 @@ ion-list {
       }
     }
   }
-}
 
-.barcode-thumbnail {
-  --size: 64px; // Slightly larger thumbnail
-  border-radius: 12px; // More rounded
-  overflow: hidden;
-  margin-right: 18px; // More space next to thumbnail
-  border: 1px solid rgba(0,0,0,0.06);
-  box-shadow: 0 3px 6px rgba(0,0,0,0.05);
-  align-self: center; // Vertically center thumbnail
-}
-
-.status-badge {
-  font-size: 12px; // Slightly larger badge text
-  font-weight: 600;
-  padding: 5px 10px; // More padding
-  border-radius: 10px; // More rounded badge
-  display: inline-block;
-  text-transform: capitalize;
-  margin-top: 2px; // Add slight margin if needed
-
-  // Add subtle borders to badges for definition
-  border: 1px solid transparent;
-
-  &.status-delivered {
-    background: var(--success-green-bg);
-    color: var(--success-green-text);
-    border-color: rgba(46, 125, 50, 0.2);
+  .barcode-thumbnail {
+    --size: 64px; // Slightly larger thumbnail
+    border-radius: 12px; // More rounded
+    overflow: hidden;
+    margin-right: 18px; // More space next to thumbnail
+    border: 1px solid rgba(0,0,0,0.06);
+    box-shadow: 0 3px 6px rgba(0,0,0,0.05);
+    align-self: center; // Vertically center thumbnail
   }
 
-  &.status-transit, &.status-in-transit {
-    background: var(--info-blue-bg);
-    color: var(--info-blue-text);
-    border-color: rgba(25, 118, 210, 0.2);
-  }
+  .status-badge {
+    font-size: 12px; // Slightly larger badge text
+    font-weight: 600;
+    padding: 5px 10px; // More padding
+    border-radius: 10px; // More rounded badge
+    display: inline-block;
+    text-transform: capitalize;
+    margin-top: 2px; // Add slight margin if needed
 
-  &.status-out-for-delivery {
-    background: var(--warning-orange-bg);
-    color: var(--warning-orange-text);
-    border-color: rgba(239, 108, 0, 0.2);
-  }
+    // Add subtle borders to badges for definition
+    border: 1px solid transparent;
 
-  &.status-pending {
-    background: var(--pending-gray-bg);
-    color: var(--pending-gray-text);
-    border-color: rgba(97, 97, 97, 0.2);
-  }
-}
-
-.action-buttons {
-  display: flex;
-  flex-direction: column; // Stack buttons vertically
-  align-items: center;
-  justify-content: center; // Center buttons vertically in their space
-  gap: 4px; // Space between buttons
-  margin-left: 8px; // Space between label and buttons
-
-  ion-button {
-    --padding-start: 6px; // Adjust padding for icon-only
-    --padding-end: 6px;
-    height: 38px; // Slightly larger tap target
-    width: 38px; // Make it square
-    --color: var(--medium-gray);
-    transition: color 0.2s ease, background-color 0.2s ease, transform 0.15s ease;
-    --border-radius: 10px; // Rounded buttons
-
-    &:hover {
-      --color: var(--dark-gray); // Darken icon on hover
-      background-color: rgba(0, 0, 0, 0.05); // Subtle background on hover
-      transform: scale(1.1); // Slight scale on hover
+    &.status-delivered {
+      background: var(--success-green-bg);
+      color: var(--success-green-text);
+      border-color: rgba(46, 125, 50, 0.2);
     }
 
-    ion-icon {
-      font-size: 20px; // Ensure icon size is appropriate
+    &.status-transit, &.status-in-transit {
+      background: var(--info-blue-bg);
+      color: var(--info-blue-text);
+      border-color: rgba(25, 118, 210, 0.2);
     }
 
-    &[color="primary"] { // Keep color prop for semantics if needed
-       &:hover {
-         --color: var(--info-blue-text);
-         background-color: var(--info-blue-bg);
-       }
+    &.status-out-for-delivery, &.status-out-of-delivery {
+      background: var(--warning-orange-bg);
+      color: var(--warning-orange-text);
+      border-color: rgba(239, 108, 0, 0.2);
     }
-    &[color="danger"] {
-       &:hover {
-         --color: var(--danger-red);
-         background-color: var(--danger-red-bg);
-       }
+
+    &.status-pending {
+      background: var(--pending-gray-bg);
+      color: var(--pending-gray-text);
+      border-color: rgba(97, 97, 97, 0.2);
+    }
+  }
+
+  .action-buttons {
+    display: flex;
+    flex-direction: column; // Stack buttons vertically
+    align-items: center;
+    justify-content: center; // Center buttons vertically in their space
+    gap: 4px; // Space between buttons
+    margin-left: 8px; // Space between label and buttons
+
+    ion-button {
+      --padding-start: 6px; // Adjust padding for icon-only
+      --padding-end: 6px;
+      height: 38px; // Slightly larger tap target
+      width: 38px; // Make it square
+      --color: var(--medium-gray);
+      transition: color 0.2s ease, background-color 0.2s ease, transform 0.15s ease;
+      --border-radius: 10px; // Rounded buttons
+
+      &:hover {
+        --color: var(--dark-gray); // Darken icon on hover
+        background-color: rgba(0, 0, 0, 0.05); // Subtle background on hover
+        transform: scale(1.1); // Slight scale on hover
+      }
+
+      ion-icon {
+        font-size: 20px; // Ensure icon size is appropriate
+      }
+
+      &[color="primary"] { // Keep color prop for semantics if needed
+         &:hover {
+           --color: var(--info-blue-text);
+           background-color: var(--info-blue-bg);
+         }
+      }
+      &[color="danger"] {
+         &:hover {
+           --color: var(--danger-red);
+           background-color: var(--danger-red-bg);
+         }
+      }
     }
   }
 }
@@ -284,4 +466,272 @@ ion-list {
 // e.g., <ion-item [style.--ion-item-index]="i" ...>
 ion-list ion-item {
   --ion-item-index: initial;
+}
+
+// Add this to your stylesheet
+
+.add-button {
+  --background: linear-gradient(90deg, var(--yellow) 0%, #FFC300 100%);
+  --color: var(--dark-gray);
+  --border-radius: 12px;
+  --padding-start: 12px;
+  --padding-end: 12px;
+  font-weight: 700;
+  font-size: 15px;
+  height: 40px;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+  margin-right: 4px;
+  
+  ion-icon {
+    margin-right: 6px;
+    font-size: 22px; // Larger icon
+  }
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(255, 215, 0, 0.4);
+  }
+}
+
+// This will keep text hidden on small screens but make icon even larger
+@media (max-width: 576px) {
+  .ion-hide-sm-down {
+    display: none;
+  }
+  
+  .add-button {
+    --padding-start: 10px;
+    --padding-end: 10px;
+    
+    ion-icon {
+      font-size: 24px; // Even larger icon on mobile
+      margin-right: 0;
+    }
+  }
+}
+
+// Add these styles to your file
+
+// Filter section
+.filter-section {
+  padding: 0 16px;
+  margin-bottom: 15px;
+}
+
+// Filter controls and results indicator
+.filter-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+}
+
+// Update the filter button style for icon-only
+.header-filter-button {
+  --color: var(--dark-gray);
+  position: relative;
+  margin-right: 8px;
+  
+  ion-icon {
+    color: var(--yellow);
+    font-size: 22px; // Slightly larger icon now that text is gone
+  }
+  
+  .filter-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 4px;
+    border-radius: 9px;
+    background: var(--yellow);
+    color: var(--dark-gray);
+    font-size: 11px;
+    font-weight: 600;
+    position: absolute;
+    top: -4px;
+    right: -4px; // Adjusted position for icon-only button
+  }
+}
+
+// Active filters display
+.active-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+// Filter chips for active filters
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  border-radius: 16px;
+  font-size: 13px;
+  color: var(--dark-gray);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  
+  ion-icon {
+    margin-left: 6px;
+    font-size: 16px;
+    cursor: pointer;
+    
+    &:hover {
+      color: var(--danger-red);
+    }
+  }
+}
+
+// Clear all filters button
+.clear-all {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  font-size: 13px;
+  color: var(--info-blue-text);
+  cursor: pointer;
+  margin-left: auto;
+  
+  &:hover {
+    color: var(--danger-red);
+    text-decoration: underline;
+  }
+}
+
+// Search results found text
+.search-results-indicator {
+  font-size: 14px;
+  color: var(--medium-gray);
+  
+  strong {
+    color: var(--dark-gray);
+  }
+}
+
+// Modal content styling
+.filter-modal-content {
+  --background: var(--white);
+  --padding-top: 16px;
+  --padding-bottom: 16px;
+}
+
+// Filter action buttons at bottom of modal
+.filter-actions {
+  padding: 16px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  
+  ion-button {
+    margin: 0;
+    
+    &.primary-button {
+      --background: linear-gradient(90deg, var(--yellow) 0%, #FFC300 100%);
+      --color: var(--dark-gray);
+    }
+  }
+}
+
+// Update ion-content to prevent page scrolling
+.fixed-content {
+  --overflow: hidden;
+}
+
+// Update list container for fixed height scrolling
+.list-container-block.scrollable {
+  height: calc(100vh - 220px); // Adjust this value based on your header/filter height
+  margin-bottom: 80px; // Space for FAB button
+  overflow-y: auto;
+  position: relative;
+  
+  /* Update scrollbar styling */
+  &::-webkit-scrollbar {
+    width: 6px; // Slightly thinner
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: rgb(255, 253, 237); // More transparent
+    border-radius: 4px;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: rgb(248, 235, 158); // Light gray, very subtle
+    border-radius: 4px;
+    
+    &:hover {
+      background: rgb(255, 250, 219); // Very light yellow on hover only
+    }
+  }
+}
+
+// Add new styles for FAB button
+.add-fab {
+  --background: linear-gradient(135deg, var(--yellow), #FFC300);
+  --background-activated: linear-gradient(135deg, #FFC300, var(--yellow));
+  --background-hover: linear-gradient(135deg, var(--yellow), #FFD700);
+  --color: var(--dark-gray);
+  --box-shadow: 0 6px 16px rgba(255, 215, 0, 0.35);
+  height: 60px;
+  width: 60px;
+  margin-bottom: 16px;
+  margin-right: 16px;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0));
+    z-index: 1;
+  }
+  
+  ion-icon {
+    font-size: 32px; // Larger plus icon
+    font-weight: 700;
+  }
+  
+  &:hover {
+    transform: scale(1.1);
+    --box-shadow: 0 8px 20px rgba(255, 215, 0, 0.5);
+  }
+}
+
+// Add shine effect animation for FAB
+@keyframes shine {
+  from {
+    transform: translateX(-100%) rotate(35deg);
+  }
+  to {
+    transform: translateX(100%) rotate(35deg);
+  }
+}
+
+.add-fab::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0),
+    rgba(255, 255, 255, 0.4),
+    rgba(255, 255, 255, 0)
+  );
+  transform: translateX(-100%) rotate(35deg);
+  animation: shine 3s infinite;
+  z-index: 1;
 }

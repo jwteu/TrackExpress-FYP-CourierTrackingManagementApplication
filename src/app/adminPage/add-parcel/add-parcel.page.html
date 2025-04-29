@@ -38,10 +38,17 @@
         <ion-text class="error-text" color="danger" *ngIf="parcelForm.get('senderEmail')?.touched && parcelForm.get('senderEmail')?.hasError('email')">
           Please enter a valid email.
         </ion-text>
+        <!-- Change this for sender address -->
         <ion-item class="input-item">
           <ion-label position="floating">Sender Address</ion-label>
-          <ion-textarea formControlName="senderAddress" rows="3"></ion-textarea>
+          <ion-input #senderAddressInput formControlName="senderAddress" type="text" (ionBlur)="geocodeAddress(parcelForm.get('senderAddress')?.value, 'sender')"></ion-input>
         </ion-item>
+         <ion-text class="error-text" color="danger" *ngIf="parcelForm.get('senderAddress')?.touched && parcelForm.get('senderAddress')?.invalid">
+           Address is required.
+         </ion-text>
+         <ion-text class="error-text" color="warning" *ngIf="parcelForm.get('senderAddress')?.valid && (!parcelForm.get('senderLat')?.value || !parcelForm.get('senderLng')?.value)">
+           Address not verified. Select a suggestion or check the format.
+         </ion-text>
       </ion-card-content>
     </ion-card>
 
@@ -72,15 +79,17 @@
         <ion-text class="error-text" color="danger" *ngIf="parcelForm.get('receiverEmail')?.touched && parcelForm.get('receiverEmail')?.hasError('email')">
           Please enter a valid email.
         </ion-text>
+        <!-- Change this for receiver address -->
         <ion-item class="input-item">
           <ion-label position="floating">Receiver Address</ion-label>
-          <div class="input-with-button">
-            <ion-textarea formControlName="receiverAddress" rows="3"></ion-textarea>
-            <ion-button fill="clear" size="small" (click)="geocodeReceiverAddress()">
-              <ion-icon name="map-outline"></ion-icon>
-            </ion-button>
-          </div>
+          <ion-input #receiverAddressInput formControlName="receiverAddress" type="text" (ionBlur)="geocodeAddress(parcelForm.get('receiverAddress')?.value, 'receiver')"></ion-input>
         </ion-item>
+         <ion-text class="error-text" color="danger" *ngIf="parcelForm.get('receiverAddress')?.touched && parcelForm.get('receiverAddress')?.invalid">
+           Address is required.
+         </ion-text>
+         <ion-text class="error-text" color="warning" *ngIf="parcelForm.get('receiverAddress')?.valid && (!parcelForm.get('receiverLat')?.value || !parcelForm.get('receiverLng')?.value)">
+           Address not verified. Select a suggestion or check the format.
+         </ion-text>
       </ion-card-content>
     </ion-card>
 
@@ -99,10 +108,16 @@
             </ion-button>
           </div>
         </ion-item>
+         <ion-text class="error-text" color="danger" *ngIf="parcelForm.get('pickupLocation')?.touched && parcelForm.get('pickupLocation')?.invalid">
+           Pickup location is required.
+         </ion-text>
         <ion-item class="input-item">
           <ion-label position="floating">Date</ion-label>
           <ion-input formControlName="date" type="date"></ion-input>
         </ion-item>
+         <ion-text class="error-text" color="danger" *ngIf="parcelForm.get('date')?.touched && parcelForm.get('date')?.invalid">
+           Date is required.
+         </ion-text>
       </ion-card-content>
     </ion-card>
 

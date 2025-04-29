@@ -1,15 +1,15 @@
-<ion-content [fullscreen]="true" class="profile-content">
-  <ion-header class="ion-no-border">
-    <ion-toolbar class="profile-toolbar">
-      <ion-buttons slot="start">
-        <ion-button (click)="goBack()" class="back-button">
-          <ion-icon name="arrow-back-outline"></ion-icon>
-        </ion-button>
-      </ion-buttons>
-      <ion-title>My Profile</ion-title>
-    </ion-toolbar>
-  </ion-header>
+<ion-header class="ion-no-border fixed-header">
+  <ion-toolbar class="profile-toolbar">
+    <ion-buttons slot="start">
+      <ion-button (click)="goBack()" class="back-button">
+        <ion-icon name="arrow-back-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+    <ion-title>My Profile</ion-title>
+  </ion-toolbar>
+</ion-header>
 
+<ion-content [fullscreen]="true" class="profile-content">
   <div class="profile-container" *ngIf="!isLoading">
     <!-- User avatar and name -->
     <div class="profile-header">

@@ -181,22 +181,22 @@ export class TakePhotoPage implements OnInit {
             return;
           }
           
-          // Filter out delivered parcels first to reduce network requests
-          const undeliveredParcels = assignedParcelsSnapshot.filter(
-            parcel => parcel.status !== 'Delivered' && !parcel.status?.includes('photo')
+          // Filter only for "Out for Delivery" parcels
+          const outForDeliveryParcels = assignedParcelsSnapshot.filter(
+            parcel => parcel.status === 'Out for Delivery'
           );
           
-          // Process all parcels in parallel
-          const parcelDetailPromises = undeliveredParcels.map(parcel =>
+          // Process only "Out for Delivery" parcels
+          const parcelDetailPromises = outForDeliveryParcels.map(parcel =>
             firstValueFrom(this.parcelService.getParcelDetails(parcel.trackingId))
           );
-
+          
           const parcelDetails = await Promise.all(parcelDetailPromises);
           
           // Build enriched parcels using the result arrays
           const enrichedParcels: Parcel[] = [];
           
-          undeliveredParcels.forEach((parcel, index) => {
+          outForDeliveryParcels.forEach((parcel, index) => {
             const details = parcelDetails[index];
             
             if (details) {
@@ -273,8 +273,8 @@ export class TakePhotoPage implements OnInit {
     }
     
     try {
-      // Use Photos source for more reliable behavior in PWA/browser environments
-      const source = this.isPlatformNative() ? CameraSource.Camera : CameraSource.Photos;
+      // Force camera source regardless of platform
+      const source = CameraSource.Camera;
       
       const image = await Camera.getPhoto({
         quality: 80,

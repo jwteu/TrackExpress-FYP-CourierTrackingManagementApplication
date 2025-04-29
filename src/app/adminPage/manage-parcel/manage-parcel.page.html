@@ -6,13 +6,55 @@
       </ion-button>
     </ion-buttons>
     <ion-title>Manage Parcels</ion-title>
+    <!-- Replace the filter button with this icon-only version -->
+    <ion-buttons slot="end">
+      <ion-button class="header-filter-button" (click)="presentFilterModal()">
+        <ion-icon name="options-outline"></ion-icon>
+        <span class="filter-badge" *ngIf="filterCount > 0">{{filterCount}}</span>
+      </ion-button>
+    </ion-buttons>
   </ion-toolbar>
 </ion-header>
 
-<ion-content class="ion-padding">
-  <div class="button-group">
-    <ion-button class="primary-button" (click)="addParcel()">Add Parcel</ion-button>
+<ion-content class="fixed-content">
+  <!-- Search Bar -->
+  <div class="search-container">
+  <div class="search-box">
+    <ion-icon name="search-outline"></ion-icon>
+    <input 
+      type="text" 
+      [(ngModel)]="searchQuery" 
+      (input)="performSearch()" 
+      placeholder="Search by tracking ID or sender name..." 
+      class="search-input"
+    />
+    <ion-button fill="clear" class="clear-button" *ngIf="searchQuery" (click)="clearSearch()">
+      <ion-icon name="close-circle-outline"></ion-icon>
+    </ion-button>
   </div>
+</div>
+
+<div class="filter-section">
+  <!-- Active Filters Display -->
+  <div class="active-filters" *ngIf="hasActiveFilters()">
+    <div class="filter-chip" *ngIf="statusFilter">
+      Status: {{statusFilter}}
+      <ion-icon name="close-circle" (click)="clearStatusFilter()"></ion-icon>
+    </div>
+    <div class="filter-chip" *ngIf="dateFilter">
+      Date: {{dateFilter | date:'MMM d, y'}}
+      <ion-icon name="close-circle" (click)="clearDateFilter()"></ion-icon>
+    </div>
+    <div class="clear-all" (click)="clearAllFilters()">Clear all</div>
+  </div>
+  
+  <!-- Filter Controls -->
+  <div class="filter-controls">
+    <div class="search-results-indicator" *ngIf="searchQuery || hasActiveFilters()">
+      <div>Found <strong>{{ filteredParcels.length }}</strong> parcels</div>
+    </div>
+  </div>
+</div>
 
   <!-- Loading Indicator -->
   <div *ngIf="loading" class="loading-container">
@@ -21,32 +63,117 @@
   </div>
 
   <!-- Empty State -->
-  <div *ngIf="!loading && parcels.length === 0" class="empty-state">
+  <div *ngIf="!loading && parcels.length === 0 && !searchQuery" class="empty-state">
     <ion-icon name="cube-outline"></ion-icon>
     <h3>No Parcels Found</h3>
     <p>Start by adding a new parcel.</p>
   </div>
 
-  <!-- Parcel List -->
-  <ion-list *ngIf="!loading && parcels.length">
-    <ion-item *ngFor="let parcel of parcels" class="parcel-item" button (click)="viewParcelDetail(parcel.id!)" detail="false" [class.delivered-parcel]="parcel.status === 'Delivered'">
-      <ion-thumbnail slot="start" class="barcode-thumbnail">
-        <img [src]="parcel.barcode" alt="Barcode">
-      </ion-thumbnail>
-      <ion-label>
-        <h3>{{ parcel.senderName }}</h3>
-        <p>Date: {{ parcel.date }}</p>
-        <p>Tracking ID: {{ parcel.trackingId }}</p>
-        <p>Status: <span class="status-badge" [ngClass]="'status-' + (parcel.status || 'pending').toLowerCase().replace(' ', '-')">{{ parcel.status || 'Pending' }}</span></p>
-      </ion-label>
-      <div class="action-buttons">
-        <ion-button fill="clear" (click)="editParcel(parcel.id!); $event.stopPropagation()">
-          <ion-icon name="create-outline" color="primary"></ion-icon>
+  <!-- No Results State -->
+  <div *ngIf="!loading && filteredParcels.length === 0 && searchQuery" class="empty-state">
+    <ion-icon name="search-outline"></ion-icon>
+    <h3>No Results Found</h3>
+    <p>No parcels match "{{searchQuery}}". Try a different search term.</p>
+  </div>
+
+  <!-- Parcel List Container Block with fixed height -->
+  <div class="list-container-block scrollable" *ngIf="!loading && filteredParcels.length">
+    <ion-list>
+      <ion-item *ngFor="let parcel of filteredParcels; let i = index" 
+                class="parcel-item" 
+                button 
+                (click)="viewParcelDetail(parcel.id!)" 
+                [style.--ion-item-index]="i" 
+                detail="false" 
+                [class.delivered-parcel]="parcel.status === 'Delivered'">
+        
+        <ion-thumbnail slot="start" class="barcode-thumbnail">
+          <img [src]="parcel.barcode" alt="Barcode">
+        </ion-thumbnail>
+        
+        <ion-label>
+          <h3>{{ parcel.senderName }}</h3>
+          <p>Date: {{ parcel.date }}</p>
+          <p>Tracking ID: <strong>{{ parcel.trackingId }}</strong></p> <!-- Made tracking ID bold -->
+          <p>Status: <span class="status-badge" [ngClass]="'status-' + (parcel.status || 'pending').toLowerCase().replace(' ', '-')">{{ parcel.status || 'Pending' }}</span></p>
+        </ion-label>
+        
+        <div class="action-buttons">
+          <ion-button fill="clear" (click)="editParcel(parcel.id!); $event.stopPropagation()">
+            <ion-icon name="create-outline" color="primary"></ion-icon>
+          </ion-button>
+          <ion-button fill="clear" (click)="deleteParcel(parcel.id!); $event.stopPropagation()">
+            <ion-icon name="trash-outline" color="danger"></ion-icon>
+          </ion-button>
+        </div>
+        
+      </ion-item>
+    </ion-list>
+  </div>
+  
+  <!-- Add Floating Action Button (FAB) at bottom -->
+  <ion-fab vertical="bottom" horizontal="end" slot="fixed">
+    <ion-fab-button class="add-fab" (click)="addParcel()">
+      <ion-icon name="add"></ion-icon>
+    </ion-fab-button>
+  </ion-fab>
+</ion-content>
+
+<!-- Filter Modal Template -->
+<ion-modal #filterModal trigger="open-filter-modal" [initialBreakpoint]="0.5" [breakpoints]="[0, 0.5, 0.8]">
+  <ng-template>
+    <ion-header>
+      <ion-toolbar>
+        <ion-title>Filter Parcels</ion-title>
+        <ion-buttons slot="end">
+          <ion-button (click)="filterModal.dismiss()">
+            <ion-icon name="close-outline"></ion-icon>
+          </ion-button>
+        </ion-buttons>
+      </ion-toolbar>
+    </ion-header>
+    <ion-content class="filter-modal-content">
+      <ion-list lines="full">
+        <!-- Status Filter -->
+        <ion-item>
+          <ion-label>Status</ion-label>
+          <ion-select [(ngModel)]="statusFilter" placeholder="Select status" (ionChange)="applyFilters()">
+            <ion-select-option [value]="null">All Statuses</ion-select-option>
+            <ion-select-option value="Pending">Pending</ion-select-option>
+            <ion-select-option value="In Transit">In Transit</ion-select-option>
+            <ion-select-option value="Out for Delivery">Out for Delivery</ion-select-option>
+          </ion-select>
+        </ion-item>
+        
+        <!-- Date Filter -->
+        <ion-item>
+          <ion-label>Date</ion-label>
+          <ion-datetime-button datetime="date-filter"></ion-datetime-button>
+        </ion-item>
+        
+        <ion-modal [keepContentsMounted]="true">
+          <ng-template>
+            <ion-datetime 
+              id="date-filter"
+              [(ngModel)]="dateFilter"
+              presentation="date"
+              (ionChange)="applyFilters()"
+              showDefaultButtons="true"
+              (ionCancel)="clearDateFilter()">
+            </ion-datetime>
+          </ng-template>
+        </ion-modal>
+      </ion-list>
+      
+      <!-- Filter Action Buttons -->
+      <div class="filter-actions">
+        <ion-button expand="block" fill="outline" (click)="clearAllFilters()">
+          Clear All Filters
         </ion-button>
-        <ion-button fill="clear" (click)="deleteParcel(parcel.id!); $event.stopPropagation()">
-          <ion-icon name="trash-outline" color="danger"></ion-icon>
+        <ion-button expand="block" class="primary-button" (click)="applyFilters(); filterModal.dismiss()">
+          Apply Filters
         </ion-button>
       </div>
-    </ion-item>
-  </ion-list>
-</ion-content>
+    </ion-content>
+  </ng-template>
+</ion-modal>

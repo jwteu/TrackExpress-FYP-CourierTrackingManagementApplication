@@ -1,13 +1,16 @@
-import { Component, CUSTOM_ELEMENTS_SCHEMA, OnInit, inject, Injector, runInInjectionContext } from '@angular/core';
+import { Component, OnInit, inject, ViewChild, ElementRef, NgZone, AfterViewInit, OnDestroy, Injector } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, FormControl } from '@angular/forms';
-import { AngularFirestore } from '@angular/fire/compat/firestore';
 import { Router } from '@angular/router';
-import { v4 as uuidv4 } from 'uuid';
+import { Location } from '@angular/common';
+import { AngularFirestore } from '@angular/fire/compat/firestore';
+import { LoadingController, ToastController, AlertController, IonicModule } from '@ionic/angular';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { IonicModule, LoadingController, ToastController, AlertController } from '@ionic/angular';
+import { CUSTOM_ELEMENTS_SCHEMA, runInInjectionContext } from '@angular/core';
 import * as JsBarcode from 'jsbarcode';
-import { Location } from '@angular/common';
+import { Subscription } from 'rxjs';
+
+declare var google: any; // Declare google
 
 @Component({
   selector: 'app-add-parcel',
@@ -17,11 +20,21 @@ import { Location } from '@angular/common';
   imports: [CommonModule, FormsModule, ReactiveFormsModule, IonicModule],
   schemas: [CUSTOM_ELEMENTS_SCHEMA]
 })
-export class AddParcelPage implements OnInit {
+export class AddParcelPage implements OnInit, AfterViewInit, OnDestroy { // Implement AfterViewInit and OnDestroy
   parcelForm: FormGroup;
   isGettingLocation = false;
   currentLocation: string = '';
-  
+
+  // Add ViewChild decorators for address inputs
+  @ViewChild('senderAddressInput', { static: false, read: ElementRef }) senderAddressInputRef!: ElementRef;
+  @ViewChild('receiverAddressInput', { static: false, read: ElementRef }) receiverAddressInputRef!: ElementRef;
+
+  private senderAutocomplete: any;
+  private receiverAutocomplete: any;
+  private senderAutocompleteListener: any;
+  private receiverAutocompleteListener: any;
+  private geocoder: any; // Add geocoder instance
+
   // Angular 19 injection pattern with Injector
   private fb = inject(FormBuilder);
   private firestore = inject(AngularFirestore);
@@ -30,39 +43,313 @@ export class AddParcelPage implements OnInit {
   private loadingCtrl = inject(LoadingController);
   private toastCtrl = inject(ToastController);
   private alertCtrl = inject(AlertController);
-  private injector = inject(Injector); // Add this line
-  
+  private zone = inject(NgZone); // Inject NgZone
+  private injector = inject(Injector);
+
   constructor() {
     this.parcelForm = this.fb.group({
       senderName: ['', [Validators.required, Validators.pattern('^[a-zA-Z ]*$')]],
       senderContact: ['', [Validators.required, Validators.pattern('^[0-9]*$')]],
       senderEmail: ['', [
-        Validators.required, 
+        Validators.required,
         Validators.email,
         Validators.pattern('^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,4}$')
       ]],
       senderAddress: ['', Validators.required],
+      senderLat: [null], // Add sender coordinates
+      senderLng: [null], // Add sender coordinates
       receiverName: ['', [Validators.required, Validators.pattern('^[a-zA-Z ]*$')]],
       receiverContact: ['', [Validators.required, Validators.pattern('^[0-9]*$')]],
       receiverEmail: ['', [
-        Validators.required, 
+        Validators.required,
         Validators.email,
         Validators.pattern('^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,4}$')
       ]],
       receiverAddress: ['', Validators.required],
+      receiverLat: [null], // Keep receiver coordinates
+      receiverLng: [null], // Keep receiver coordinates
       pickupLocation: ['', Validators.required],
       date: ['', Validators.required],
     });
   }
 
   ngOnInit() {
-    // Initialize with current date
     const today = new Date().toISOString().split('T')[0];
     this.parcelForm.patchValue({
       date: today
     });
+    this.geocoder = new google.maps.Geocoder(); // Initialize geocoder
   }
-  
+
+  ngAfterViewInit() {
+    // Initialize Autocomplete after view is ready
+    this.initAutocomplete();
+  }
+
+  ngOnDestroy() {
+    // Clean up listeners to prevent memory leaks
+    if (this.senderAutocompleteListener) {
+      google.maps.event.removeListener(this.senderAutocompleteListener);
+    }
+    if (this.receiverAutocompleteListener) {
+      google.maps.event.removeListener(this.receiverAutocompleteListener);
+    }
+    // Clear references if needed, though Angular handles component destruction
+    if (google && google.maps && google.maps.event) {
+        google.maps.event.clearInstanceListeners(this.senderAddressInputRef?.nativeElement);
+        google.maps.event.clearInstanceListeners(this.receiverAddressInputRef?.nativeElement);
+    }
+  }
+
+
+  private initAutocomplete() {
+  // Ensure Google Maps API is loaded
+  if (typeof google === 'undefined' || !google.maps) {
+    console.error('Google Maps API not loaded.');
+    this.showToast('Error initializing address autocomplete.', 'danger');
+    return;
+  }
+
+  // Check if Places API is available
+  if (!google.maps.places) {
+    console.error('Google Maps Places API not loaded.');
+    this.showToast('Address autocompletion is not available.', 'warning');
+    return;
+  }
+
+  const options = {
+    componentRestrictions: { country: 'my' }, // Restrict to Malaysia
+    fields: ['address_components', 'geometry', 'icon', 'name', 'formatted_address'],
+    types: ['address']
+  };
+
+  try {
+    // Initialize sender autocomplete
+    if (this.senderAddressInputRef?.nativeElement) {
+      // Get the actual native input element from ion-input - this is the key fix
+      setTimeout(() => {
+        // Find the input inside the shadow DOM
+        const nativeInputEl = this.senderAddressInputRef.nativeElement.querySelector('input');
+        
+        if (!nativeInputEl) {
+          console.error('Sender address native input element not found');
+          return;
+        }
+        
+        this.senderAutocomplete = new google.maps.places.Autocomplete(
+          nativeInputEl,
+          options
+        );
+        
+        this.senderAutocompleteListener = this.senderAutocomplete.addListener('place_changed', () => {
+          this.zone.run(() => {
+            const place = this.senderAutocomplete.getPlace();
+            if (place && place.geometry) {
+              this.useGeocodedAddress(place, 'sender');
+            } else {
+              console.warn("Autocomplete place not found for sender.");
+              this.geocodeAddress(this.parcelForm.get('senderAddress')?.value, 'sender');
+            }
+          });
+        });
+      }, 300);
+    }
+
+    // Initialize receiver autocomplete - use the same approach
+    if (this.receiverAddressInputRef?.nativeElement) {
+      setTimeout(() => {
+        // Find the input inside the shadow DOM
+        const nativeInputEl = this.receiverAddressInputRef.nativeElement.querySelector('input');
+        
+        if (!nativeInputEl) {
+          console.error('Receiver address native input element not found');
+          return;
+        }
+        
+        this.receiverAutocomplete = new google.maps.places.Autocomplete(
+          nativeInputEl,
+          options
+        );
+        
+        this.receiverAutocompleteListener = this.receiverAutocomplete.addListener('place_changed', () => {
+          this.zone.run(() => {
+            const place = this.receiverAutocomplete.getPlace();
+            if (place && place.geometry) {
+              this.useGeocodedAddress(place, 'receiver');
+            } else {
+              console.warn("Autocomplete place not found for receiver.");
+              this.geocodeAddress(this.parcelForm.get('receiverAddress')?.value, 'receiver');
+            }
+          });
+        });
+      }, 300);
+    }
+  } catch (error) {
+    console.error("Error initializing Google Maps Autocomplete:", error);
+    this.showToast('Failed to initialize address search.', 'danger');
+  }
+}
+
+  // Modified function to use the selected PlaceResult
+  useGeocodedAddress(place: any, type: 'sender' | 'receiver') {
+    if (!place.geometry || !place.geometry.location) {
+      this.showToast('Selected address is missing location data.', 'warning');
+      return;
+    }
+
+    const location = place.geometry.location;
+    const lat = location.lat();
+    const lng = location.lng();
+    let formattedAddress = place.formatted_address || '';
+    
+    // Remove ", Malaysia" from the end if present
+    formattedAddress = formattedAddress.replace(/, Malaysia$/, '');
+
+    console.log(`${type} address selected:`, formattedAddress, `(${lat}, ${lng})`);
+
+    // Update the correct form fields
+    if (type === 'sender') {
+      this.parcelForm.patchValue({
+        senderAddress: formattedAddress,
+        senderLat: lat,
+        senderLng: lng
+      });
+    } else {
+      this.parcelForm.patchValue({
+        receiverAddress: formattedAddress,
+        receiverLat: lat,
+        receiverLng: lng
+      });
+    }
+
+    this.showToast(`${type.charAt(0).toUpperCase() + type.slice(1)} address verified.`);
+  }
+
+  // Generic function to geocode manually entered text
+  async geocodeAddress(address: string, type: 'sender' | 'receiver') {
+    // *** ADD THIS CHECK ***
+    // If we already have coordinates from autocomplete, don't re-geocode on blur/submit
+    const latControl = type === 'sender' ? 'senderLat' : 'receiverLat';
+    if (this.parcelForm.get(latControl)?.value) {
+      console.log(`Coordinates already exist for ${type}, skipping manual geocode.`);
+      return; 
+    }
+    // *** END OF ADDED CHECK ***
+
+    if (!address || address.trim() === '') {
+      // Clear coordinates if address is empty
+       if (type === 'sender') {
+          this.parcelForm.patchValue({ senderLat: null, senderLng: null });
+       } else {
+          this.parcelForm.patchValue({ receiverLat: null, receiverLng: null });
+       }
+      return;
+    }
+
+    const loading = await this.loadingCtrl.create({
+      message: `Verifying ${type} address...`,
+      spinner: 'circles'
+    });
+    await loading.present();
+
+    this.geocoder.geocode({ 'address': address, componentRestrictions: { country: 'my' } }, (results: google.maps.GeocoderResult[], status: google.maps.GeocoderStatus) => {
+      loading.dismiss();
+      this.zone.run(() => { 
+          if (status === google.maps.GeocoderStatus.OK && results && results.length > 0) {
+             const placeResult: any = {
+              geometry: results[0].geometry,
+              formatted_address: results[0].formatted_address,
+              address_components: results[0].address_components,
+            };
+            // This call might still simplify the address if coordinates didn't exist before,
+            // but it won't overwrite a good autocomplete selection.
+            this.useGeocodedAddress(placeResult, type); 
+          } else {
+            console.warn(`Geocoding failed for ${type} address: ${status}`);
+            this.showToast(`Could not verify ${type} address. Please check and try again.`, 'warning');
+             if (type === 'sender') {
+                this.parcelForm.patchValue({ senderLat: null, senderLng: null });
+             } else {
+                this.parcelForm.patchValue({ receiverLat: null, receiverLng: null });
+             }
+          }
+      });
+    });
+  }
+
+
+  async submit() {
+    // Trigger geocoding for potentially manually edited fields before submitting
+    await this.geocodeAddress(this.parcelForm.get('senderAddress')?.value, 'sender');
+    await this.geocodeAddress(this.parcelForm.get('receiverAddress')?.value, 'receiver');
+
+    // Short delay to allow geocoding results to update the form
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    if (this.parcelForm.valid) {
+      // Check if coordinates are present
+      if (!this.parcelForm.get('senderLat')?.value || !this.parcelForm.get('senderLng')?.value) {
+         this.showToast('Sender address could not be verified. Please select from suggestions or check the address.', 'warning');
+         return;
+      }
+       if (!this.parcelForm.get('receiverLat')?.value || !this.parcelForm.get('receiverLng')?.value) {
+         this.showToast('Receiver address could not be verified. Please select from suggestions or check the address.', 'warning');
+         return;
+      }
+
+
+      const loading = await this.loadingCtrl.create({
+        message: 'Adding parcel and sending notifications...'
+      });
+      await loading.present();
+
+      try {
+        const trackingId = this.generateTrackingId();
+        const barcode = this.generateBarcode(trackingId);
+
+        // Get all form values including coordinates
+        const parcelData = {
+          ...this.parcelForm.value,
+          trackingId,
+          barcode,
+          createdAt: new Date().toISOString()
+        };
+
+        console.log('Parcel data:', parcelData);
+
+        // Fix: Wrap Firestore operation in runInInjectionContext
+        try {
+          await runInInjectionContext(this.injector, async () => {
+            await this.firestore.collection('parcels').add(parcelData);
+          });
+        } catch (firestoreError: unknown) {
+          console.error('Firestore error:', firestoreError);
+          throw new Error('Failed to save parcel data.');
+        }
+
+        await this.sendEmailNotifications(parcelData);
+
+        loading.dismiss();
+        this.showToast('Parcel registered successfully! Email notifications have been sent.', 'success');
+        this.location.back();
+
+      } catch (error) {
+        loading.dismiss();
+        console.error('Error in submit:', error);
+        this.showToast(`An error occurred: ${error instanceof Error ? error.message : 'Unknown error'}`, 'danger');
+      }
+    } else {
+      this.showToast('Please fill out all required fields correctly.', 'warning');
+       // Log invalid controls for debugging
+       Object.keys(this.parcelForm.controls).forEach(key => {
+         const controlErrors = this.parcelForm.get(key)?.errors;
+         if (controlErrors != null) {
+           console.error('Control:', key, 'Errors:', controlErrors);
+         }
+       });
+    }
+  }
+
   async getDeviceLocation() {
     if (!navigator.geolocation) {
       const toast = await this.toastCtrl.create({
@@ -87,54 +374,42 @@ export class AddParcelPage implements OnInit {
         try {
           const { latitude, longitude, accuracy } = position.coords;
           console.log(`Location detected: ${latitude}, ${longitude} (accuracy: ${accuracy}m)`);
-          
-          // Use Google Maps reverse geocoding API
-          const geocoder = new google.maps.Geocoder();
+
+          // Use the initialized geocoder
           const latlng = new google.maps.LatLng(latitude, longitude);
-          
-          geocoder.geocode({ 'location': latlng }, (results, status) => {
+
+          this.geocoder.geocode({ 'location': latlng }, (results: google.maps.GeocoderResult[], status: google.maps.GeocoderStatus) => {
             loading.dismiss();
             this.isGettingLocation = false;
-            
-            if (status === google.maps.GeocoderStatus.OK && results && results.length > 0) {
-              // Use the most detailed result (index 0)
-              const address = results[0].formatted_address;
-              this.currentLocation = address;
-              this.parcelForm.patchValue({
-                pickupLocation: address
-              });
-              
-              this.showToast('Location detected successfully!');
-            } else {
-              // Fallback to coordinates if geocoding fails
-              const fallbackAddress = `Latitude: ${latitude}, Longitude: ${longitude}`;
-              this.currentLocation = fallbackAddress;
-              this.parcelForm.patchValue({
-                pickupLocation: fallbackAddress
-              });
-              
-              this.showToast('Got location coordinates, but couldn\'t get address.');
-            }
+            this.zone.run(() => { // Run in zone
+                if (status === google.maps.GeocoderStatus.OK && results && results.length > 0) {
+                  const address = results[0].formatted_address;
+                  this.currentLocation = address;
+                  this.parcelForm.patchValue({
+                    pickupLocation: address
+                  });
+                  this.showToast('Location detected successfully!');
+                } else {
+                  const fallbackAddress = `Latitude: ${latitude}, Longitude: ${longitude}`;
+                  this.currentLocation = fallbackAddress;
+                  this.parcelForm.patchValue({
+                    pickupLocation: fallbackAddress
+                  });
+                  this.showToast('Got location coordinates, but couldn\'t get address.', 'warning');
+                }
+            });
           });
         } catch (error) {
+           loading.dismiss(); // Ensure loading dismissed on error
+           this.isGettingLocation = false; // Ensure flag reset on error
           console.error('Error getting address:', error);
-          loading.dismiss();
-          this.isGettingLocation = false;
-          
-          const toast = await this.toastCtrl.create({
-            message: 'Failed to get address. Please enter manually.',
-            duration: 3000,
-            position: 'bottom',
-            color: 'danger'
-          });
-          await toast.present();
+          this.showToast('Failed to get address. Please enter manually.', 'danger');
         }
       },
       async (error) => {
+           loading.dismiss(); // Ensure loading dismissed on error
+           this.isGettingLocation = false; // Ensure flag reset on error
         console.error('Geolocation error:', error);
-        loading.dismiss();
-        this.isGettingLocation = false;
-        
         let errorMessage = 'Failed to get your location.';
         if (error.code === 1) {
           errorMessage = 'Location permission denied. Please enable location services.';
@@ -144,13 +419,7 @@ export class AddParcelPage implements OnInit {
           errorMessage = 'Location request timed out. Please try again.';
         }
         
-        const toast = await this.toastCtrl.create({
-          message: errorMessage,
-          duration: 3000,
-          position: 'bottom',
-          color: 'danger'
-        });
-        await toast.present();
+        this.showToast(errorMessage, 'danger');
       },
       {
         enableHighAccuracy: true,
@@ -158,179 +427,6 @@ export class AddParcelPage implements OnInit {
         maximumAge: 0
       }
     );
-  }
-
-  async geocodeReceiverAddress() {
-    const receiverAddress = this.parcelForm.get('receiverAddress')?.value;
-    
-    if (!receiverAddress) {
-      return;
-    }
-    
-    const loading = await this.loadingCtrl.create({
-      message: 'Finding address...',
-      spinner: 'circles'
-    });
-    await loading.present();
-    
-    try {
-      // Use Google's Geocoding API
-      const geocoder = new google.maps.Geocoder();
-      
-      geocoder.geocode({ 'address': receiverAddress }, (results, status) => {
-        loading.dismiss();
-        
-        if (status === google.maps.GeocoderStatus.OK && results && results.length > 0) {
-          // If we have multiple results, let the user choose
-          if (results.length > 1) {
-            this.showAddressSelectionAlert(results);
-          } else {
-            // If only one result, use it directly
-            this.useGeocodedAddress(results[0]);
-          }
-        } else {
-          this.showToast('Address not found. Please provide more details.');
-        }
-      });
-    } catch (error) {
-      loading.dismiss();
-      console.error('Error geocoding address:', error);
-      this.showToast('Could not verify address location');
-    }
-  }
-
-  // New function to show address selection alert
-  async showAddressSelectionAlert(results: google.maps.GeocoderResult[]) {
-    const alert = await this.alertCtrl.create({
-      header: 'Select Correct Address',
-      message: 'Please choose the closest match to your address:',
-      inputs: results.map((result, index) => ({
-        type: 'radio',
-        label: result.formatted_address,
-        value: index.toString(),
-        checked: index === 0
-      })),
-      buttons: [
-        {
-          text: 'Cancel',
-          role: 'cancel'
-        },
-        {
-          text: 'Select',
-          handler: (value) => {
-            const selectedIndex = parseInt(value);
-            this.useGeocodedAddress(results[selectedIndex]);
-          }
-        }
-      ]
-    });
-    
-    await alert.present();
-  }
-
-  // New function to use the selected geocoded address
-  useGeocodedAddress(result: google.maps.GeocoderResult) {
-    const location = result.geometry.location;
-    
-    // Save these coordinates to form fields
-    this.parcelForm.addControl('receiverLat', new FormControl(location.lat()));
-    this.parcelForm.addControl('receiverLng', new FormControl(location.lng()));
-    
-    // Update the address text field with the formatted address
-    this.parcelForm.patchValue({
-      receiverAddress: result.formatted_address
-    });
-    
-    this.showToast('Address verified successfully');
-  }
-
-  async submit() {
-    if (this.parcelForm.valid) {
-      // Show loading spinner
-      const loading = await this.loadingCtrl.create({
-        message: 'Adding parcel and sending notifications...'
-      });
-      await loading.present();
-  
-      try {
-        // Generate a shorter, more scannable tracking ID
-        const trackingId = this.generateTrackingId();
-        
-        // Use the tracking ID directly for the barcode
-        const barcode = this.generateBarcode(trackingId);
-        
-        // Get receiver coordinates (if available)
-        const receiverLat = this.parcelForm.get('receiverLat')?.value;
-        const receiverLng = this.parcelForm.get('receiverLng')?.value;
-        
-        const parcelData = {
-          ...this.parcelForm.value,
-          trackingId,
-          barcode,
-          // Include these coordinates if they exist
-          receiverLat: receiverLat || null,
-          receiverLng: receiverLng || null,
-          createdAt: new Date().toISOString()
-        };
-  
-        // Log the form data
-        console.log('Parcel data:', parcelData);
-  
-        // Add to Firestore with proper injection context
-        try {
-          // Use runInInjectionContext to ensure Firebase operations run in the correct context
-          const docRef = await runInInjectionContext(this.injector, async () => {
-            return await this.firestore.collection('parcels').add(parcelData);
-          });
-          console.log('Document written with ID: ', docRef.id);
-        } catch (firestoreError: unknown) {
-          console.error('Firestore write error:', firestoreError);
-          if (firestoreError instanceof Error) {
-            throw new Error(`Firestore write failed: ${firestoreError.message}`);
-          } else {
-            throw new Error(`Firestore write failed: ${JSON.stringify(firestoreError)}`);
-          }
-        }
-  
-        // Send email notifications
-        await this.sendEmailNotifications(parcelData);
-  
-        loading.dismiss();
-  
-        // Show success message
-        const toast = await this.toastCtrl.create({
-          message: 'Parcel registered successfully! Email notifications have been sent.',
-          duration: 3000,
-          position: 'bottom',
-          color: 'success'
-        });
-        await toast.present();
-  
-        // Navigate back
-        this.location.back();
-      } catch (error) {
-        loading.dismiss();
-        console.error('Error in submit:', error);
-  
-        // Show error toast with detailed message
-        const toast = await this.toastCtrl.create({
-          message: `An error occurred: ${error instanceof Error ? error.message : 'Unknown error'}`,
-          duration: 3000,
-          position: 'bottom',
-          color: 'danger'
-        });
-        await toast.present();
-      }
-    } else {
-      // Show validation error
-      const toast = await this.toastCtrl.create({
-        message: 'Please fill out all required fields correctly.',
-        duration: 3000,
-        position: 'bottom',
-        color: 'warning'
-      });
-      await toast.present();
-    }
   }
 
   async sendEmailNotifications(parcelData: any) {
@@ -447,21 +543,18 @@ export class AddParcelPage implements OnInit {
     // Create a shorter tracking ID (10 characters)
     return 'TR' + Math.random().toString(36).substr(2, 8).toUpperCase();
   }
-  
+
   generateBarcode(trackingId: string): string {
     const canvas = document.createElement('canvas');
-    
-    // Use the tracking ID directly for the barcode
-    JsBarcode(canvas, trackingId, { 
-      format: 'CODE128',    // CODE128 is widely supported by most scanners
-      width: 2,             // Wider bars are easier to scan
-      height: 80,           // Taller barcode for better scanning
-      displayValue: true,   // Show the value below the barcode
-      fontSize: 14,         // Larger text size
-      margin: 10,           // Add margin around the barcode
-      background: '#ffffff' // White background for better contrast
+    JsBarcode(canvas, trackingId, {
+      format: 'CODE128',
+      width: 2,
+      height: 80,
+      displayValue: true,
+      fontSize: 14,
+      margin: 10,
+      background: '#ffffff'
     });
-    
     return canvas.toDataURL('image/png');
   }
 
@@ -469,12 +562,13 @@ export class AddParcelPage implements OnInit {
     this.location.back();
   }
 
-  private async showToast(message: string) {
+  // Updated showToast to accept color
+  private async showToast(message: string, color: string = 'success') { // Default to success
     const toast = await this.toastCtrl.create({
       message,
-      duration: 2000,
+      duration: 3000, // Increased duration
       position: 'bottom',
-      color: 'success'
+      color: color // Use the passed color
     });
     await toast.present();
   }
