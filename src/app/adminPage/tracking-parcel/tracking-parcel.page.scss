@@ -672,6 +672,18 @@ ion-card-content {
         color: var(--yellow);
       }
     }
+
+    &.unassigned {
+      .timeline-content {
+        border-left-color: #888888;
+        background-color: rgba(240, 240, 240, 0.5);
+      }
+      
+      .timeline-icon {
+        background-color: #888888;
+        color: white;
+      }
+    }
   }
 }
 
@@ -737,4 +749,24 @@ ion-card-content {
   .tracking-container {
     padding: 16px;
   }
+}
+
+.unassigned-marker {
+  filter: grayscale(100%) opacity(60%);
+}
+
+.unassigned-route {
+  stroke-dasharray: 5, 10;
+  stroke: #888888;
+  opacity: 0.5;
+}
+
+.route-tooltip {
+  background: rgba(0, 0, 0, 0.7);
+  border: none;
+  border-radius: 4px;
+  color: white;
+  font-weight: bold;
+  padding: 5px 10px;
+  font-size: 12px;
 }

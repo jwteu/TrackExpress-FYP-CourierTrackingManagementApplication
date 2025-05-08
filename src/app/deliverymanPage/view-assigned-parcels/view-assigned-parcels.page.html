@@ -34,7 +34,7 @@
           <!-- Replace the status segment in the form -->
           <div class="form-field">
             <ion-label>Status</ion-label>
-            <ion-segment formControlName="status">
+            <ion-segment formControlName="status" (ionChange)="onStatusChange($event)">
               <ion-segment-button value="In Transit">
                 <ion-icon name="airplane-outline"></ion-icon>
                 <ion-label class="small-text">In Transit</ion-label>
@@ -44,6 +44,19 @@
                 <ion-label class="small-text">Out for Delivery</ion-label>
               </ion-segment-button>
             </ion-segment>
+          </div>
+
+          <!-- Add this new distribution hub selection -->
+          <div class="form-field" *ngIf="showHubSelection">
+            <ion-label>Distribution Hub</ion-label>
+            <ion-select formControlName="distributionHubId" placeholder="Select hub location">
+              <ion-select-option *ngFor="let hub of distributionHubs" [value]="hub.id">
+                {{ hub.name }}
+              </ion-select-option>
+            </ion-select>
+            <small class="helper-text" *ngIf="parcelForm.get('distributionHubId')?.hasError('required') && parcelForm.get('distributionHubId')?.touched">
+              Please select a distribution hub
+            </small>
           </div>
           
           <div class="form-actions">
@@ -97,12 +110,12 @@
                [class.selected]="parcel.selected" 
                [attr.tabindex]="i">
             
-            <!-- Circle selection on left side - made bigger -->
+            <!-- Circle selection on left side -->
             <div class="selection-circle" (click)="toggleSelection(parcel)">
               <ion-icon [name]="parcel.selected ? 'checkmark-circle' : 'ellipse-outline'"></ion-icon>
             </div>
             
-            <!-- Main content (clickable for detailed view) -->
+            <!-- Main content -->
             <div class="parcel-content">
               <div class="parcel-header">
                 <div class="tracking-id">{{ parcel.trackingId }}</div>
@@ -115,6 +128,10 @@
                 <div class="detail-item">
                   <ion-icon name="location-outline"></ion-icon>
                   <span>{{ parcel.receiverAddress || 'No address' }}</span>
+                  <!-- Enhanced navigation button - icon only with hover effect -->
+                  <button class="navigation-button" (click)="openDirectionsInMaps(parcel, $event)" title="Get directions">
+                    <ion-icon name="navigate"></ion-icon>
+                  </button>
                 </div>
                 
                 <div class="detail-item">
@@ -127,6 +144,8 @@
                   <span>{{ parcel.locationDescription }}</span>
                 </div>
               </div>
+              
+              <!-- Remove the parcel-actions div with the button -->
             </div>
           </div>
         </div>

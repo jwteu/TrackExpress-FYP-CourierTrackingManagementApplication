@@ -33,8 +33,12 @@ interface AssignedParcelData {
   locationLng?: number;
   currentLocation?: string;
   locationDescription?: string;
-  status?: string; // Add the status property
-  // Add other properties as needed
+  status?: string;
+  destinationLat?: number; // Add this field
+  destinationLng?: number; // Add this field
+  destinationName?: string; // Add this field
+  distributionHubId?: string; // Add this field
+  distributionHubName?: string; // Add this field
 }
 
 interface EstimatedDelivery {
@@ -565,66 +569,148 @@ export class TrackingParcelPage implements OnInit, AfterViewInit, OnDestroy {
     let currentLng = KL_LNG;
     let currentLocation = 'Origin';
     
-    // For "Out for Delivery" status, prioritize the most recent location from tracking events
-    if (parcelData.status === 'Out for Delivery' && parcelData.locationLat && parcelData.locationLng) {
-      // Use the deliveryman's last known coordinates
-      currentLat = parcelData.locationLat;
-      currentLng = parcelData.locationLng;
-      currentLocation = parcelData.locationDescription || 'Current Delivery Location';
-      console.log('Using deliveryman location for Out for Delivery:', currentLocation, currentLat, currentLng);
-    } 
-    // Try to get current location from tracking events for other statuses
-    else if (this.trackingEvents.length > 0) {
-      // Get most recent event that might have location data
-      const latestEvent = [...this.trackingEvents]
-        .filter(e => e.location && e.location !== 'Unknown location' && e.location !== parcelData['receiverAddress'])
-        .sort((a, b) => {
-          const timeA = a.timestamp?.seconds ? a.timestamp.seconds : 
-                      (a.timestamp instanceof Date ? a.timestamp.getTime() / 1000 : 0);
-          const timeB = b.timestamp?.seconds ? b.timestamp.seconds : 
-                      (b.timestamp instanceof Date ? b.timestamp.getTime() / 1000 : 0);
-          return timeB - timeA; // Most recent first
-        })[0];
-      
-      if (latestEvent?.location) {
-        currentLocation = latestEvent.location;
+    // Set default destination coordinates
+    let destLat = KL_LAT + 0.02;
+    let destLng = KL_LNG + 0.02;
+    let destinationName = '';
+    
+    try {
+      // CASE 1: PENDING PARCEL (not assigned to deliveryman)
+      if (parcelData.status === 'Pending' || parcelData.status === 'Registered') {
+        console.log('Handling pending parcel - showing pickup to receiver route');
         
-        try {
-          // Try geocoding the location text
-          const geoData = await firstValueFrom(
-            this.geocodingService.getCoordinatesFromAddress(currentLocation)
-          );
-          
-          if (geoData?.lat && geoData?.lon) {
-            currentLat = parseFloat(geoData.lat);
-            currentLng = parseFloat(geoData.lon);
-            console.log('Using location from tracking events:', currentLocation, currentLat, currentLng);
+        // For current location (origin), use pickup location coordinates if available
+        if (parcelData.pickupLat && parcelData.pickupLng) {
+          currentLat = parcelData.pickupLat;
+          currentLng = parcelData.pickupLng;
+          currentLocation = parcelData.pickupLocation || 'Pickup Location';
+        } else if (parcelData.pickupLocation) {
+          // Try to geocode the pickup location if we only have the address
+          try {
+            const pickupGeocode = await runInInjectionContext(this.injector, () => {
+              return firstValueFrom(this.geocodingService.getCoordinatesFromAddress(parcelData.pickupLocation));
+            });
+            
+            if (pickupGeocode && pickupGeocode.lat && pickupGeocode.lon) {
+              currentLat = pickupGeocode.lat;
+              currentLng = pickupGeocode.lon;
+              currentLocation = parcelData.pickupLocation;
+              console.log(`Using geocoded pickup location: ${currentLat}, ${currentLng}`);
+            }
+          } catch (error) {
+            console.warn('Could not geocode pickup address:', error);
           }
-        } catch (error) {
-          console.warn('Could not geocode event location, using fallback');
         }
-      }
-    }
-    
-    // Get destination coordinates - always needed
-    let destLat = currentLat + 0.02; // Default: slightly offset from current
-    let destLng = currentLng + 0.02;
-    const receiverAddress = parcelData['receiverAddress'];
-    
-    if (receiverAddress) {
-      try {
-        const geoData = await firstValueFrom(
-          this.geocodingService.getCoordinatesFromAddress(receiverAddress)
-        );
         
-        if (geoData?.lat && geoData?.lon) {
-          destLat = parseFloat(geoData.lat);
-          destLng = parseFloat(geoData.lon);
-          console.log('Destination coordinates:', destLat, destLng);
+        // For destination, use receiver coordinates if available
+        if (parcelData.receiverLat && parcelData.receiverLng) {
+          destLat = parcelData.receiverLat;
+          destLng = parcelData.receiverLng;
+          destinationName = parcelData.receiverAddress || 'Delivery Address';
+        } else if (parcelData.receiverAddress) {
+          // Try to geocode the receiver address
+          try {
+            const receiverGeocode = await runInInjectionContext(this.injector, () => {
+              return firstValueFrom(this.geocodingService.getCoordinatesFromAddress(parcelData.receiverAddress));
+            });
+            
+            if (receiverGeocode && receiverGeocode.lat && receiverGeocode.lon) {
+              destLat = receiverGeocode.lat;
+              destLng = receiverGeocode.lon;
+              destinationName = parcelData.receiverAddress;
+              console.log(`Using geocoded receiver address: ${destLat}, ${destLng}`);
+            }
+          } catch (error) {
+            console.warn('Could not geocode receiver address:', error);
+          }
         }
-      } catch (error) {
-        console.warn('Could not geocode destination, using fallback');
+      } 
+      // CASE 2: IN TRANSIT (parcel assigned to deliveryman, going to distribution hub)
+      else if (parcelData.status === 'In Transit') {
+        console.log('Handling In Transit parcel - showing deliveryman to hub route');
+        
+        // For current location, use the deliveryman's last known location
+        if (parcelData.locationLat && parcelData.locationLng) {
+          currentLat = parcelData.locationLat;
+          currentLng = parcelData.locationLng;
+          currentLocation = parcelData.locationDescription || 'Deliveryman Location';
+        }
+        
+        // For destination, use the selected distribution hub
+        if (parcelData.destinationLat && parcelData.destinationLng) {
+          destLat = parcelData.destinationLat;
+          destLng = parcelData.destinationLng;
+          destinationName = parcelData.distributionHubName || parcelData.destinationName || 'Distribution Hub';
+        }
+      } 
+      // CASE 3: OUT FOR DELIVERY (parcel assigned to deliveryman, going to receiver)
+      else if (parcelData.status === 'Out for Delivery') {
+        console.log('Handling Out for Delivery parcel - showing deliveryman to receiver route');
+        
+        // For current location, use the deliveryman's last known location
+        if (parcelData.locationLat && parcelData.locationLng) {
+          currentLat = parcelData.locationLat;
+          currentLng = parcelData.locationLng;
+          currentLocation = parcelData.locationDescription || 'Deliveryman Location';
+        }
+        
+        // For destination, try to use receiver coordinates
+        if (parcelData.receiverLat && parcelData.receiverLng) {
+          destLat = parcelData.receiverLat;
+          destLng = parcelData.receiverLng;
+          destinationName = parcelData.receiverAddress || 'Delivery Address';
+        } else if (parcelData.receiverAddress) {
+          // Try to geocode the receiver address
+          try {
+            const receiverGeocode = await runInInjectionContext(this.injector, () => {
+              return firstValueFrom(this.geocodingService.getCoordinatesFromAddress(parcelData.receiverAddress));
+            });
+            
+            if (receiverGeocode && receiverGeocode.lat && receiverGeocode.lon) {
+              destLat = receiverGeocode.lat;
+              destLng = receiverGeocode.lon;
+              destinationName = parcelData.receiverAddress;
+            }
+          } catch (error) {
+            console.error('Error geocoding receiver address:', error);
+          }
+        }
       }
+      // CASE 4: DEFAULT - Any other status
+      else {
+        console.log(`Handling parcel with status ${parcelData.status} - using default routes`);
+        
+        // For current location, try to use tracking events
+        if (this.trackingEvents.length > 0) {
+          // Find the most recent event with location data
+          for (let i = this.trackingEvents.length - 1; i >= 0; i--) {
+            const event = this.trackingEvents[i];
+            if (event.location) {
+              currentLocation = event.location;
+              break;
+            }
+          }
+        }
+        
+        // For destination, try to use receiver address
+        if (parcelData.receiverAddress) {
+          try {
+            const geocodeResult = await runInInjectionContext(this.injector, () => {
+              return firstValueFrom(this.geocodingService.getCoordinatesFromAddress(parcelData.receiverAddress));
+            });
+            
+            if (geocodeResult && geocodeResult.lat && geocodeResult.lon) {
+              destLat = geocodeResult.lat;
+              destLng = geocodeResult.lon;
+              destinationName = parcelData.receiverAddress;
+            }
+          } catch (error) {
+            console.error('Error geocoding receiver address:', error);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error processing parcel coordinates:', error);
     }
     
     // Set coordinates, ensuring we always have valid numbers
@@ -638,82 +724,186 @@ export class TrackingParcelPage implements OnInit, AfterViewInit, OnDestroy {
     
     console.log('Final map coordinates:', this.mapCoordinates);
     
-    // Initialize the map with a delay to ensure DOM is ready
-    setTimeout(() => {
-      if (this.mapElement && this.mapElement.nativeElement) {
-        this.initializeMap();
-      }
-    }, 300);
+    // Ensure any existing map is properly destroyed before initializing a new one
+    if (this.map) {
+      console.log('Destroying existing map before creating new one');
+      this.cleanupMap();
+    }
+    
+    // Add a slightly longer delay to ensure DOM is ready
+    await new Promise(resolve => setTimeout(resolve, 500));
+    this.initializeMap();
   }
 
-  async initializeMap(): Promise<boolean> {
-    console.log('Initializing map with coordinates:', this.mapCoordinates);
-
-    if (!this.mapCoordinates || !this.mapElement?.nativeElement) {
-      console.error('Missing map coordinates or element');
-      return false;
+  // Add this method to properly clean up the map
+  private cleanupMap() {
+    if (this.currentLocationMarker) {
+      this.currentLocationMarker.remove();
+      this.currentLocationMarker = null;
     }
-
-    // --- FIX: Destroy previous map instance if it exists ---
+    
+    if (this.destinationMarker) {
+      this.destinationMarker.remove();
+      this.destinationMarker = null;
+    }
+    
+    if (this.routeLine && this.map) {
+      this.map.removeLayer(this.routeLine);
+      this.routeLine = null;
+    }
+    
+    if (this.routeOutline && this.map) {
+      this.map.removeLayer(this.routeOutline);
+      this.routeOutline = null;
+    }
+    
     if (this.map) {
-      this.map.off();
       this.map.remove();
       this.map = null;
     }
-    // Clear the map container's innerHTML to avoid duplicate map errors
-    this.mapElement.nativeElement.innerHTML = '';
+    
+    this.mapLoaded = false;
+  }
 
-    try {
-      const { currentLat, currentLng, destLat, destLng } = this.mapCoordinates;
+  // Add this property to your component
+  private mapInitializationInProgress = false;
+  private mapInitDebounceTimer: any = null;
 
-      // Ensure Leaflet is loaded
-      if (typeof L === 'undefined') {
-        await this.loadLeafletDynamically();
-      }
-
-      // Create new map instance
-      this.map = L.map(this.mapElement.nativeElement).setView([currentLat, currentLng], 13);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors'
-      }).addTo(this.map);
-
-      // Add current location marker
-      this.currentLocationMarker = L.marker([currentLat, currentLng], {
-        icon: L.divIcon({
-          html: `<div style="font-size: 14px; background: #FFDE59; border-radius: 50%; box-shadow: 0 2px 8px rgba(0,0,0,0.4); width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; position: relative;">
-            <ion-icon name="bicycle-outline" style="font-size: 24px; color: #333;"></ion-icon>
-            <div style="position: absolute; bottom: -20px; white-space: nowrap; background: rgba(0,0,0,0.7); color: white; padding: 2px 5px; border-radius: 3px; font-size: 10px;">Current Location</div>
-          </div>`,
-          className: '',
-          iconSize: [40, 40],
-          iconAnchor: [20, 20]
-        })
-      }).addTo(this.map)
-        .bindPopup(`Current Location: ${this.mapCoordinates.currentLocation}`);
-
-      // Add destination marker
-      this.destinationMarker = L.marker([destLat, destLng], {
-        icon: L.divIcon({
-          html: `<div style="font-size: 14px; background: white; border-radius: 50%; box-shadow: 0 2px 8px rgba(0,0,0,0.4); width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; position: relative;">
-            <ion-icon name="home-outline" style="font-size: 24px; color: #333;"></ion-icon>
-            <div style="position: absolute; bottom: -20px; white-space: nowrap; background: rgba(0,0,0,0.7); color: white; padding: 2px 5px; border-radius: 3px; font-size: 10px;">Destination</div>
-          </div>`,
-          className: '',
-          iconSize: [40, 40],
-          iconAnchor: [20, 20]
-        })
-      }).addTo(this.map)
-        .bindPopup(`Destination: ${this.parcel?.receiverAddress || 'Delivery Address'}`);
-
-      // Draw the route
-      await this.drawRouteWithOpenRouteService(currentLat, currentLng, destLat, destLng);
-
-      this.mapLoaded = true;
-      return true;
-    } catch (error) {
-      console.error('Error in map initialization:', error);
-      return false;
+  async initializeMap(): Promise<boolean> {
+    // Debounce map initialization to prevent multiple simultaneous attempts
+    if (this.mapInitDebounceTimer) {
+      clearTimeout(this.mapInitDebounceTimer);
     }
+    
+    return new Promise((resolve) => {
+      this.mapInitDebounceTimer = setTimeout(async () => {
+        // Check if initialization is already in progress
+        if (this.mapInitializationInProgress) {
+          console.log('Map initialization already in progress, skipping');
+          resolve(false);
+          return;
+        }
+        
+        this.mapInitializationInProgress = true;
+        console.log('Initializing map with coordinates:', this.mapCoordinates);
+
+        if (!this.mapCoordinates || !this.mapElement?.nativeElement) {
+          console.error('Missing map coordinates or element');
+          this.mapInitializationInProgress = false;
+          resolve(false);
+          return;
+        }
+
+        // --- IMPROVED MAP CLEANUP ---
+        try {
+          // First, clean up any existing map instance
+          if (this.map) {
+            console.log('Cleaning up existing map instance');
+            
+            // Remove markers first
+            if (this.currentLocationMarker) {
+              this.currentLocationMarker.remove();
+              this.currentLocationMarker = null;
+            }
+            
+            if (this.destinationMarker) {
+              this.destinationMarker.remove();
+              this.destinationMarker = null;
+            }
+            
+            // Remove routes
+            if (this.routeLine) {
+              this.map.removeLayer(this.routeLine);
+              this.routeLine = null;
+            }
+            
+            if (this.routeOutline) {
+              this.map.removeLayer(this.routeOutline);
+              this.routeOutline = null;
+            }
+            
+            // Unsubscribe all events
+            this.map.off();
+            // Remove the map
+            this.map.remove();
+            this.map = null;
+          }
+          
+          // Clear the DOM element
+          if (this.mapElement && this.mapElement.nativeElement) {
+            this.mapElement.nativeElement.innerHTML = '';
+          }
+          
+          // Small delay to ensure DOM is ready after clearing
+          await new Promise(r => setTimeout(r, 50));
+          
+          const { currentLat, currentLng, destLat, destLng } = this.mapCoordinates;
+
+          // Ensure Leaflet is loaded
+          if (typeof L === 'undefined') {
+            await this.loadLeafletDynamically();
+          }
+
+          // Double-check if the element is still available (navigation could have happened)
+          if (!this.mapElement?.nativeElement || !this.mapElement.nativeElement.parentElement) {
+            console.error('Map container is no longer in the DOM');
+            this.mapInitializationInProgress = false;
+            resolve(false);
+            return;
+          }
+
+          // Create new map instance
+          this.map = L.map(this.mapElement.nativeElement, {
+            zoomControl: true,
+            attributionControl: false
+          }).setView([currentLat, currentLng], 13);
+          
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+          }).addTo(this.map);
+
+          // Rest of your map initialization code...
+          // Add current location marker
+          this.currentLocationMarker = L.marker([currentLat, currentLng], {
+            icon: L.divIcon({
+              html: `<div style="font-size: 14px; background: #FFDE59; border-radius: 50%; box-shadow: 0 2px 8px rgba(0,0,0,0.4); width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; position: relative;">
+                <ion-icon name="bicycle-outline" style="font-size: 24px; color: #333;"></ion-icon>
+                <div style="position: absolute; bottom: -20px; white-space: nowrap; background: rgba(0,0,0,0.7); color: white; padding: 2px 5px; border-radius: 3px; font-size: 10px;">Current Location</div>
+              </div>`,
+              className: '',
+              iconSize: [40, 40],
+              iconAnchor: [20, 20]
+            })
+          }).addTo(this.map)
+            .bindPopup(`Current Location: ${this.mapCoordinates.currentLocation}`);
+
+          // Add destination marker
+          this.destinationMarker = L.marker([destLat, destLng], {
+            icon: L.divIcon({
+              html: `<div style="font-size: 14px; background: white; border-radius: 50%; box-shadow: 0 2px 8px rgba(0,0,0,0.4); width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; position: relative;">
+                <ion-icon name="home-outline" style="font-size: 24px; color: #333;"></ion-icon>
+                <div style="position: absolute; bottom: -20px; white-space: nowrap; background: rgba(0,0,0,0.7); color: white; padding: 2px 5px; border-radius: 3px; font-size: 10px;">Destination</div>
+              </div>`,
+              className: '',
+              iconSize: [40, 40],
+              iconAnchor: [20, 20]
+            })
+          }).addTo(this.map)
+            .bindPopup(`Destination: ${this.parcel?.receiverAddress || 'Delivery Address'}`);
+
+          // Draw the route
+          await this.drawRouteWithOpenRouteService(currentLat, currentLng, destLat, destLng);
+
+          this.mapLoaded = true;
+          this.mapInitializationInProgress = false;
+          resolve(true);
+        } catch (error) {
+          console.error('Error in map initialization:', error);
+          this.mapInitializationInProgress = false;
+          resolve(false);
+        }
+      }, 300); // Small debounce delay
+    });
   }
 
   updateMapWithNewLocation(lat: number, lng: number, locationDescription: string, isNewHandler: boolean = false) {
@@ -749,50 +939,26 @@ export class TrackingParcelPage implements OnInit, AfterViewInit, OnDestroy {
     this.mapCoordinates!.currentLng = lng;
     this.mapCoordinates!.currentLocation = locationDescription || 'Current Location';
 
-    // If this is a new
+    // Update the marker position with animation
     if (isNewHandler) {
-      // First animate to a slightly zoomed out view
-      this.map.flyTo(
-        [this.mapCoordinates!.currentLat, this.mapCoordinates!.currentLng],
-        13, // Zoomed out a bit
-        {
-          animate: true,
-          duration: 1
-        }
-      );
-      
-      // Then zoom back in after a short delay
-      setTimeout(() => {
-        this.map.flyTo(
-          [this.mapCoordinates!.currentLat, this.mapCoordinates!.currentLng],
-          15,
-          {
-            animate: true,
-            duration: 1
-          }
-        );
-      }, 1000);
+      // For new handler, use a fly animation
+      this.map.flyTo([lat, lng], 14, {
+        animate: true,
+        duration: 1.5
+      });
+
+      // Update the marker position
+      this.currentLocationMarker.setLatLng([lat, lng]);
     } else {
-      // Regular update - smoothly move the marker
+      // For regular updates, smoothly update the marker position
       this.currentLocationMarker.setLatLng([lat, lng]);
       
-      // Only update the map view if it's a significant move
-      const mapCenter = this.map.getCenter();
-      const distance = this.calculateDistance(
-        mapCenter.lat, mapCenter.lng,
-        lat, lng
-      );
-      
-      // If moved more than 500 meters from center, animate the map
-      if (distance > 0.5) {
-        this.map.flyTo(
-          [lat, lng],
-          this.map.getZoom(),
-          {
-            animate: true,
-            duration: 0.8
-          }
-        );
+      // Center the map if we're actively tracking
+      if (this.isLocationTracking && !this.hubModeActive) {
+        this.map.panTo([lat, lng], {
+          animate: true,
+          duration: 0.5
+        });
       }
     }
 
@@ -803,8 +969,35 @@ export class TrackingParcelPage implements OnInit, AfterViewInit, OnDestroy {
     }
     this.currentLocationMarker.setPopupContent(popupContent);
 
-    // Draw the updated route
-    this.drawRouteWithOpenRouteService(lat, lng, this.mapCoordinates!.destLat, this.mapCoordinates!.destLng);
+    // IMPORTANT: Draw route from current location to destination for all parcel statuses
+    // Always use receiver address as destination if available
+    if (this.mapCoordinates?.destLat && this.mapCoordinates?.destLng) {
+      console.log('Drawing route to destination:', this.mapCoordinates.destLat, this.mapCoordinates.destLng);
+      
+      this.drawRouteWithOpenRouteService(
+        lat, lng,  // FROM current location
+        this.mapCoordinates.destLat, this.mapCoordinates.destLng,  // TO destination
+        isNewHandler
+      );
+      
+      // Update destination marker
+      if (this.destinationMarker) {
+        this.destinationMarker.setLatLng([this.mapCoordinates.destLat, this.mapCoordinates.destLng]);
+        
+        // Set appropriate popup content based on status
+        if (this.parcel && this.parcel.status === 'In Transit') {
+          this.destinationMarker.setPopupContent(
+            `Distribution Hub: ${this.parcel.distributionHubName || this.parcel.destinationName || 'Distribution Center'}`
+          );
+        } else {
+          this.destinationMarker.setPopupContent(
+            `Destination: ${this.parcel?.receiverAddress || 'Delivery Address'}`
+          );
+        }
+      }
+    } else {
+      console.log('No valid destination coordinates found, cannot draw route');
+    }
   }
 
   private isValidCoordinate(coord: any): boolean {
@@ -817,136 +1010,182 @@ export class TrackingParcelPage implements OnInit, AfterViewInit, OnDestroy {
            Math.abs(coord) <= 180;  
   }
 
-  async drawRouteWithOpenRouteService(startLat: number, startLng: number, endLat: number, endLng: number) {
-    try {
-      // Remove previous route if exists
-      if (this.routeLine) {
-        this.map.removeLayer(this.routeLine);
-        this.routeLine = null;
+  async drawRouteWithOpenRouteService(startLat: number, startLng: number, endLat: number, endLng: number, isNewHandler: boolean = false) {
+  try {
+    // Remove previous route if exists by reference
+    if (this.routeLine && this.map.hasLayer(this.routeLine)) {
+      this.map.removeLayer(this.routeLine);
+    }
+    this.routeLine = null;
+
+    if (this.routeOutline && this.map.hasLayer(this.routeOutline)) {
+      this.map.removeLayer(this.routeOutline);
+    }
+    this.routeOutline = null;
+
+    // More robust cleanup: Iterate over all layers and remove any with a 'route-polyline' class
+    if (this.map) {
+      this.map.eachLayer((layer: any) => {
+        if (layer.options && layer.options.className === 'route-polyline') {
+          this.map.removeLayer(layer);
+        }
+      });
+    }
+
+    // IMPORTANT: Add validation before making API call
+    if (!this.isValidCoordinate(startLat) || !this.isValidCoordinate(startLng) || 
+        !this.isValidCoordinate(endLat) || !this.isValidCoordinate(endLng)) {
+      console.warn('Invalid coordinates for routing:', startLat, startLng, endLat, endLng);
+      this.drawSimpleRoute(startLat, startLng, endLat, endLng);
+      return;
+    }
+
+    // Format coordinates for OpenRouteService API
+    // NOTE: We're requesting extra_info for more detailed path data
+    const body = JSON.stringify({
+      coordinates: [[startLng, startLat], [endLng, endLat]],
+      preference: "recommended",
+      format: "geojson",
+      instructions: false,
+      elevation: false,
+      extra_info: ["steepness", "waytype", "surface"],
+      geometry_simplify: false
+    });
+
+    console.log(`Requesting route from [${startLng},${startLat}] to [${endLng},${endLat}]`);
+
+    const response = await fetch(
+      `https://api.openrouteservice.org/v2/directions/driving-car/geojson`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': ORS_API_KEY // Make sure ORS_API_KEY is defined correctly
+        },
+        body: body
       }
-      if (this.routeOutline) {
-        this.map.removeLayer(this.routeOutline);
-        this.routeOutline = null;
+    );
+
+    if (!response.ok) {
+      // *** Log detailed error response ***
+      const errorText = await response.text(); // Get error details from API if possible
+      console.error(`API error: ${response.status} ${response.statusText}`, errorText);
+      throw new Error(`Failed to fetch route: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    // *** Log the full API response ***
+    // Use JSON.stringify to see the structure clearly in the console
+    console.log('Full Route data received:', JSON.stringify(data, null, 2));
+
+    // Check if the expected data structure exists
+    if (data.features && data.features.length > 0 && data.features[0].geometry && data.features[0].geometry.coordinates) {
+      const coords = data.features[0].geometry.coordinates.map((c: number[]) => [c[1], c[0]]); // Swap LngLat to LatLng for Leaflet
+
+      // *** Log the number of points received ***
+      console.log(`Route received with ${coords.length} points.`);
+
+      if (coords.length < 5) { // Add a warning if very few points are received
+          console.warn(`Warning: Received very few points (${coords.length}) for the route. API might be simplifying heavily.`);
       }
 
-      // IMPORTANT: Add validation before making API call
-      if (!this.isValidCoordinate(startLat) || !this.isValidCoordinate(startLng) || 
-          !this.isValidCoordinate(endLat) || !this.isValidCoordinate(endLng)) {
-        console.warn('Invalid coordinates for routing:', startLat, startLng, endLat, endLng);
-        this.drawSimpleRoute(startLat, startLng, endLat, endLng);
-        return;
-      }
+      // Draw the main route line
+      this.routeLine = L.polyline(coords, {
+        color: this.hubModeActive ? '#6c757d' : '#FFDE59', // Use your theme color
+        weight: 6,
+        opacity: this.hubModeActive ? 0.7 : 0.9,
+        lineCap: 'round',
+        lineJoin: 'round',
+        dashArray: this.hubModeActive ? '10, 10' : null,
+        className: 'route-polyline' // Add className
+      }).addTo(this.map);
 
-      // Format coordinates for OpenRouteService API - THIS IS THE FIX
-      const body = JSON.stringify({
-        coordinates: [[startLng, startLat], [endLng, endLat]],
-        preference: "recommended",
-        format: "geojson"
+      // Draw the outline
+      this.routeOutline = L.polyline(coords, {
+        color: '#333333', // Dark outline
+        weight: 10,
+        opacity: 0.3,
+        lineCap: 'round',
+        lineJoin: 'round',
+        className: 'route-polyline' // Add className
+      }).addTo(this.map);
+
+      this.routeOutline.bringToBack(); // Ensure outline is behind main line
+      this.routeLine.bringToFront();
+
+      // Fit map to route bounds
+      this.map.fitBounds(this.routeLine.getBounds(), {
+        padding: [40, 40], // Add some padding
+        maxZoom: 15 // Limit max zoom level
       });
 
-      // Call OpenRouteService Directions API with updated endpoint and method
-      const response = await fetch(
-        `https://api.openrouteservice.org/v2/directions/driving-car/geojson`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': ORS_API_KEY
-          },
-          body: body
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch route: ${response.status} ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      console.log('Route data received:', data);
-
-      // Decode the polyline geometry
-      if (data.features && data.features.length > 0) {
-        const coords = data.features[0].geometry.coordinates.map((c: number[]) => [c[1], c[0]]);
-
-        // Draw the main route line
-        this.routeLine = L.polyline(coords, {
-          color: this.hubModeActive ? '#6c757d' : '#FFDE59',
-          weight: 6,
-          opacity: this.hubModeActive ? 0.7 : 0.9,
-          lineCap: 'round',
-          lineJoin: 'round',
-          dashArray: this.hubModeActive ? '10, 10' : null
-        }).addTo(this.map);
-
-        // Draw the outline
-        this.routeOutline = L.polyline(coords, {
-          color: '#333333',
-          weight: 10,
-          opacity: 0.3,
-          lineCap: 'round',
-          lineJoin: 'round'
-        }).addTo(this.map);
-
-        this.routeOutline.bringToBack();
-        this.routeLine.bringToFront();
-
-        // Fit map to route with padding and max zoom
-        this.map.fitBounds(this.routeLine.getBounds(), {
-          padding: [40, 40],
-          maxZoom: 15
-        });
-      } else {
-        throw new Error('No route found in response');
-      }
-    } catch (error) {
-      console.error('Error drawing route:', error);
-      // Fallback to a simple straight line route
-      this.drawSimpleRoute(startLat, startLng, endLat, endLng);
+    } else {
+      // *** Log if no features/coordinates found ***
+      console.warn('No route features or coordinates found in API response.');
+      throw new Error('No route found in response');
     }
+  } catch (error) {
+    // *** Ensure the error itself is logged ***
+    console.error('Error drawing route with OpenRouteService:', error);
+    // Fallback to a simple straight line route
+    this.drawSimpleRoute(startLat, startLng, endLat, endLng);
   }
+}
 
   drawSimpleRoute(startLat: number, startLng: number, endLat: number, endLng: number) {
     try {
-      // Remove previous route if exists
-      if (this.routeLine) {
-        this.map.removeLayer(this.routeLine);
-        this.routeLine = null;
-      }
-      if (this.routeOutline) {
-        this.map.removeLayer(this.routeOutline);
-        this.routeOutline = null;
-      }
-
-      // Create a straight line between points
+      // Clean up ALL existing route layers first
+      this.cleanupAllRouteLayers();
+    
+      // Create a straight line between points - only from current to destination
       this.routeLine = L.polyline([
-        [startLat, startLng],
-        [endLat, endLng]
+          [startLat, startLng],
+          [endLat, endLng]
       ], {
-        color: this.hubModeActive ? '#6c757d' : '#FFDE59',
-        weight: 5,
-        opacity: 0.8,
-        dashArray: '10, 10',
+          color: this.hubModeActive ? '#6c757d' : '#FFDE59',
+          weight: 5,
+          opacity: 0.8,
+          dashArray: '10, 10',
+          className: 'route-polyline'
       }).addTo(this.map);
-
+    
       // Fit map to show both points
       this.map.fitBounds(this.routeLine.getBounds(), { 
-        padding: [50, 50],
-        maxZoom: 14
+          padding: [50, 50],
+          maxZoom: 14 
       });
-
-      // Calculate approximate distance
+    
       if (this.mapCoordinates) {
-        const distance = this.calculateDistance(
-          startLat, startLng,
-          endLat, endLng
-        );
-        
-        this.mapCoordinates.distance = `~${distance.toFixed(1)} km`;
+          const distance = this.calculateDistance(startLat, startLng, endLat, endLng);
+          this.mapCoordinates.distance = `${distance.toFixed(2)} km`;
       }
     } catch (error) {
       console.error('Error drawing simple route:', error);
     }
   }
 
+  // Add this helper method for thorough route cleanup
+  private cleanupAllRouteLayers() {
+    // Remove by reference if possible
+    if (this.routeLine && this.map && this.map.hasLayer(this.routeLine)) {
+      this.map.removeLayer(this.routeLine);
+    }
+    this.routeLine = null;
+
+    if (this.routeOutline && this.map && this.map.hasLayer(this.routeOutline)) {
+      this.map.removeLayer(this.routeOutline);
+    }
+    this.routeOutline = null;
+
+    // Be thorough - remove ALL layers with route-polyline class
+    if (this.map) {
+      this.map.eachLayer((layer: any) => {
+        if (layer.options && layer.options.className === 'route-polyline') {
+          this.map.removeLayer(layer);
+        }
+      });
+    }
+  }
+  
   calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
     // Simple haversine formula
     const R = 6371; // Earth radius in km

@@ -1,6 +1,6 @@
 import { Component, OnInit, OnDestroy, ViewChild, ElementRef, inject, Injector, runInInjectionContext, NgZone, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators, AbstractControl, ValidationErrors, ValidatorFn } from '@angular/forms';
 import { IonicModule, NavController, LoadingController, ToastController, AlertController } from '@ionic/angular';
 import { Router, RouterModule } from '@angular/router';
 import { AngularFireAuth } from '@angular/fire/compat/auth';
@@ -31,8 +31,19 @@ interface Parcel {
   locationDescription?: string;
   photoURL?: string;
   completedAt?: any;
-  deliverymanName?: string;
   deliverymanId?: string;
+  deliverymanName?: string;
+  distributionHubId?: string; // Add this property
+}
+
+// Add this interface
+interface DistributionHub {
+  id: string;
+  name: string;
+  location: string;
+  state: string;
+  lat: number;
+  lng: number;
 }
 
 @Component({
@@ -92,11 +103,136 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
   // Debug flag to help with troubleshooting
   public debugMode: boolean = false;
 
+  // Add these properties
+  distributionHubs: DistributionHub[] = [
+    // Federal Territories
+    { 
+      id: 'hub_kl', 
+      name: 'Kuala Lumpur Central Hub', 
+      location: 'Kuala Lumpur City Center', 
+      state: 'Kuala Lumpur',
+      lat: 3.1390, 
+      lng: 101.6869 
+    },
+    { 
+      id: 'hub_putrajaya', 
+      name: 'Putrajaya Distribution Center', 
+      location: 'Putrajaya Administrative Center', 
+      state: 'Putrajaya',
+      lat: 2.9264, 
+      lng: 101.6964 
+    },
+    // Northern Region
+    { 
+      id: 'hub_kedah', 
+      name: 'Alor Setar Logistics Hub', 
+      location: 'Alor Setar, Kedah', 
+      state: 'Kedah',
+      lat: 6.1264, 
+      lng: 100.3673 
+    },
+    { 
+      id: 'hub_penang', 
+      name: 'Penang Island Gateway', 
+      location: 'George Town, Penang', 
+      state: 'Penang',
+      lat: 5.4141, 
+      lng: 100.3288 
+    },
+    { 
+      id: 'hub_perak', 
+      name: 'Ipoh Distribution Point', 
+      location: 'Ipoh, Perak', 
+      state: 'Perak',
+      lat: 4.5921, 
+      lng: 101.0901 
+    },
+    // Central Region
+    { 
+      id: 'hub_selangor', 
+      name: 'Shah Alam Logistics Center', 
+      location: 'Shah Alam, Selangor', 
+      state: 'Selangor',
+      lat: 3.0733, 
+      lng: 101.5185 
+    },
+    { 
+      id: 'hub_nsembilan', 
+      name: 'Seremban Distribution Hub', 
+      location: 'Seremban, Negeri Sembilan', 
+      state: 'Negeri Sembilan',
+      lat: 2.7258, 
+      lng: 101.9424 
+    },
+    // Southern Region
+    { 
+      id: 'hub_melaka', 
+      name: 'Melaka Historic Hub', 
+      location: 'Melaka City, Melaka', 
+      state: 'Melaka',
+      lat: 2.1945, 
+      lng: 102.2501 
+    },
+    { 
+      id: 'hub_johor', 
+      name: 'Johor Bahru Southern Gateway', 
+      location: 'Johor Bahru, Johor', 
+      state: 'Johor',
+      lat: 1.4927, 
+      lng: 103.7414 
+    },
+    // East Coast
+    { 
+      id: 'hub_pahang', 
+      name: 'Kuantan East Coast Center', 
+      location: 'Kuantan, Pahang', 
+      state: 'Pahang',
+      lat: 3.8077, 
+      lng: 103.3260 
+    },
+    { 
+      id: 'hub_terengganu', 
+      name: 'Kuala Terengganu Hub', 
+      location: 'Kuala Terengganu, Terengganu', 
+      state: 'Terengganu',
+      lat: 5.3302, 
+      lng: 103.1408 
+    },
+    { 
+      id: 'hub_kelantan', 
+      name: 'Kota Bharu Distribution Point', 
+      location: 'Kota Bharu, Kelantan', 
+      state: 'Kelantan',
+      lat: 6.1248, 
+      lng: 102.2572 
+    },
+    // East Malaysia
+    { 
+      id: 'hub_sabah', 
+      name: 'Kota Kinabalu Borneo Hub', 
+      location: 'Kota Kinabalu, Sabah', 
+      state: 'Sabah',
+      lat: 5.9804, 
+      lng: 116.0735 
+    },
+    { 
+      id: 'hub_sarawak', 
+      name: 'Kuching Logistics Center', 
+      location: 'Kuching, Sarawak', 
+      state: 'Sarawak',
+      lat: 1.5535, 
+      lng: 110.3593 
+    }
+  ];
+
+  showHubSelection: boolean = true; // Default to showing hub selection
+
   constructor() {
     // Initialize form
     this.parcelForm = this.formBuilder.group({
       trackingId: ['', [Validators.required, Validators.pattern('^TR[A-Z0-9]{8}$')]],
-      status: ['In Transit', Validators.required]
+      status: ['In Transit', Validators.required],
+      distributionHubId: ['', this.conditionalValidator(() => this.showHubSelection, Validators.required)]
     });
   }
 
@@ -107,6 +243,16 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
     
     // Reset state variables
     this.resetState();
+    
+    // Update form initialization
+    this.parcelForm = this.formBuilder.group({
+      trackingId: ['', [Validators.required, Validators.pattern('^TR[A-Z0-9]{8}$')]],
+      status: ['In Transit', Validators.required],
+      distributionHubId: ['', this.conditionalValidator(() => this.showHubSelection, Validators.required)]
+    });
+
+    // Set initial showHubSelection based on default status
+    this.showHubSelection = this.parcelForm.get('status')?.value === 'In Transit';
     
     // Check local storage first to determine if session is valid
     const sessionData = localStorage.getItem('userSession');
@@ -551,23 +697,17 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
   async addParcel() {
     // Verify user session is still valid before proceeding
     if (!this.currentUserId || !this.currentUserName || !this.verifySessionFreshness()) {
-      this.showToast('Your session is invalid. Please login again.');
-      this.handleInvalidSession('Session invalid during add parcel');
       return;
     }
 
     if (this.parcelForm.invalid) {
-      this.showToast('Please enter a valid tracking ID (format: TRXXXXXXXX)');
+      this.showToast('Please fill all required fields correctly');
       return;
     }
     
     const trackingId = this.parcelForm.get('trackingId')?.value.trim().toUpperCase();
     const status = this.parcelForm.get('status')?.value;
-    
-    if (!trackingId || !status) {
-      this.showToast('Please fill out all required fields');
-      return;
-    }
+    const distributionHubId = this.parcelForm.get('distributionHubId')?.value;
     
     const loading = await this.loadingCtrl.create({
       message: 'Adding parcel and getting accurate location...'
@@ -577,171 +717,131 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
     this.isAddingParcel = true;
     
     try {
-      // Check if parcel exists first
-      const parcelDetails = await runInInjectionContext(this.injector, async () => {
-        return await firstValueFrom(this.parcelService.getParcelDetails(trackingId));
-      });
+      // Get the current location first
+      const position = await this.getBrowserLocationWithHighAccuracy();
+      const { latitude, longitude } = position.coords;
       
-      if (!parcelDetails) {
-        throw new Error(`Parcel with tracking ID ${trackingId} not found`);
+      // Get address description from coordinates
+      const locationDescription = await this.getAddressFromCoordinates(latitude, longitude);
+      
+      // Get original parcel data
+      const parcelSnapshot = await firstValueFrom(
+        this.parcelService.getParcelDetails(trackingId)
+      );
+      
+      if (!parcelSnapshot) {
+        throw new Error(`No parcel found with ID ${trackingId}`);
       }
-      
-      // Check if parcel is already assigned to another deliveryman
-      const isAssigned = await runInInjectionContext(this.injector, async () => {
-        return await firstValueFrom(this.parcelService.isParcelAssigned(trackingId));
-      });
+
+      // Check if the parcel is already assigned
+      const isAssigned = await firstValueFrom(
+        this.parcelService.isParcelAssigned(trackingId)
+      );
       
       if (isAssigned) {
-        // Check if it's assigned to the current user
-        const alreadyOwned = this.assignedParcels.some(p => p.trackingId === trackingId);
-        if (alreadyOwned) {
-          this.showToast(`Parcel ${trackingId} is already in your list`);
-          loading.dismiss();
-          this.isAddingParcel = false;
-          return;
-        }
-        throw new Error(`Parcel ${trackingId} is already assigned to another delivery person`);
+        throw new Error(`Parcel ${trackingId} is already assigned`);
       }
       
-      // Get current location with high accuracy (important!)
-      console.log('Getting current location for new parcel...');
-      
-      // Temporarily disable minimum distance requirement for new parcels
-      const originalMinDistance = this.minimumUpdateDistance;
-      this.minimumUpdateDistance = 0;
-      
-      let location: Position;
-      let locationDescription = 'Current Location';
-      
-      try {
-        // First try to get location with Capacitor if available
-        if (Capacitor.isPluginAvailable('Geolocation')) {
-          try {
-            // Request permissions first
-            const permStatus = await Geolocation.requestPermissions();
-            console.log('Geolocation permission status:', permStatus);
-            
-            location = await Geolocation.getCurrentPosition({
-              enableHighAccuracy: true,
-              timeout: 15000
-            });
-            console.log('Capacitor location:', location);
-          } catch (capacitorError) {
-            console.log('Capacitor geolocation error, falling back to browser API:', capacitorError);
-            location = await this.getBrowserLocationWithHighAccuracy();
-          }
-        } else {
-          // Fall back to browser API
-          location = await this.getBrowserLocationWithHighAccuracy();
-        }
-        
-        // Get address for the location
-        try {
-          const addressResult = await runInInjectionContext(this.injector, async () => {
-            return await firstValueFrom(this.geocodingService.getAddressFromCoordinates(
-              location.coords.latitude, 
-              location.coords.longitude
-            ));
-          });
-          
-          if (addressResult && addressResult.formatted_address) {
-            locationDescription = addressResult.formatted_address;
-            console.log('Geocoded address:', locationDescription);
-          }
-        } catch (geoError) {
-          console.warn('Could not geocode address:', geoError);
-          locationDescription = `Near ${location.coords.latitude.toFixed(4)}, ${location.coords.longitude.toFixed(4)}`;
-        }
-      } catch (locationError) {
-        console.error('Failed to get current location:', locationError);
-        this.showToast('Unable to get your current location. Using default.');
-        
-        // Use default coordinates for Malaysia
-        location = {
-          coords: {
-            latitude: 3.1390,
-            longitude: 101.6869,
-            accuracy: 500,
-            altitude: null,
-            altitudeAccuracy: null,
-            heading: null,
-            speed: null
-          },
-          timestamp: Date.now()
-        };
-        locationDescription = 'Unknown location in Malaysia';
-      } finally {
-        // Restore original minimum distance
-        this.minimumUpdateDistance = originalMinDistance;
-      }
-      
-      // Prepare assigned parcel data
-      const assignedParcelData = {
-        trackingId: trackingId,
+      // Create the base parcel data
+      const parcelData = {
+        trackingId,
         name: this.currentUserName,
         userId: this.currentUserId,
-        userEmail: (await this.auth.currentUser)?.email,
-        status: status,
-        addedDate: new Date(),
-        locationLat: location.coords.latitude,
-        locationLng: location.coords.longitude,
-        locationDescription: locationDescription,
-        locationUpdatedAt: new Date()
+        status,
+        locationLat: latitude,
+        locationLng: longitude,
+        locationDescription,
+        addedDate: firebase.firestore.FieldValue.serverTimestamp(),
+        locationUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
       };
       
-      console.log('Adding assigned parcel with data:', assignedParcelData);
-      
-      // Use runInInjectionContext for Firebase operations
-      const docRef = await runInInjectionContext(this.injector, async () => {
-        // Add to assigned_parcels
-        const docId = await firstValueFrom(this.parcelService.addAssignedParcel(assignedParcelData));
+      // IMPORTANT: Add destination coordinates based on status
+      if (status === 'In Transit' && distributionHubId) {
+        // For In Transit: Find the selected distribution hub
+        const selectedHub = this.distributionHubs.find(hub => hub.id === distributionHubId);
         
-        // Update main parcel status
-        await firstValueFrom(this.parcelService.updateParcelStatus(parcelDetails.id, {
-          status: status,
+        if (selectedHub) {
+          // Store hub data in the parcel
+          Object.assign(parcelData, {
+            destinationLat: selectedHub.lat,
+            destinationLng: selectedHub.lng,
+            destinationName: selectedHub.name,
+            distributionHubId: selectedHub.id,
+            distributionHubName: selectedHub.name
+          });
+        }
+      }
+      else if (status === 'Out for Delivery') {
+        // For Out for Delivery: Use the receiver address coordinates
+        Object.assign(parcelData, {
+          destinationLat: parcelSnapshot.receiverLat || null,
+          destinationLng: parcelSnapshot.receiverLng || null,
+          receiverAddress: parcelSnapshot.receiverAddress || 'Unknown Address',
+          receiverName: parcelSnapshot.receiverName || 'Unknown'
+        });
+      }
+      
+      // Add the parcel to assigned parcels
+      const assignedParcelId = await firstValueFrom(
+        this.parcelService.addAssignedParcel(parcelData)
+      );
+      
+      // Update the main parcel status
+      await firstValueFrom(
+        this.parcelService.updateParcelStatus(parcelSnapshot.id, {
+          status,
           deliverymanId: this.currentUserId,
           deliverymanName: this.currentUserName,
-          updatedAt: new Date()
-        }));
-        
-        // Add tracking event
-        await firstValueFrom(this.trackingHistoryService.addTrackingEvent({
-          trackingId: trackingId,
-          parcelId: parcelDetails.id,
-          status: status,
-          title: status, // Just use the status directly as the title
-          description: `Parcel ${status.toLowerCase()} - assigned to ${this.currentUserName}`,
-          timestamp: new Date(),
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        })
+      );
+      
+      // Add a tracking history event
+      await firstValueFrom(
+        this.trackingHistoryService.addTrackingEvent({
+          trackingId,
+          parcelId: parcelSnapshot.id,
+          status,
+          title: status,
+          description: this.getStatusDescription(status),
+          timestamp: firebase.firestore.Timestamp.now(),
           location: locationDescription,
-          deliverymanId: this.currentUserId ?? undefined,
-          deliverymanName: this.currentUserName ?? undefined
-        }));
-        
-        return docId;
-      });
+          deliverymanId: this.currentUserId,
+          deliverymanName: this.currentUserName
+        })
+      );
       
-      console.log('Assigned parcel document ID:', docRef);
-      
-      loading.dismiss();
-      this.isAddingParcel = false;
-      this.showToast(`Parcel ${trackingId} added successfully`);
-      
-      // Reset form
+      // Reset form and reload parcels
       this.parcelForm.reset({
-        trackingId: '',
-        status: 'In Transit'
+        status: 'In Transit',
+        distributionHubId: ''
       });
       
-      // Reload assigned parcels
-      this.loadAssignedParcels();
+      // Send notification to receiver if Out for Delivery
+      if (status === 'Out for Delivery' && parcelSnapshot.receiverEmail) {
+        try {
+          await firstValueFrom(
+            this.parcelService.sendEmailNotification(
+              parcelSnapshot.receiverEmail,
+              parcelSnapshot.receiverName || 'Valued Customer',
+              trackingId,
+              status,
+              locationDescription
+            )
+          );
+        } catch (notificationError) {
+          console.error('Failed to send notification:', notificationError);
+        }
+      }
       
-      // Force immediate location update to ensure tracking page gets data
-      setTimeout(() => this.forceLocationUpdate(), 1000);
+      this.loadAssignedParcels();
+      this.showToast(`Parcel ${trackingId} added successfully`);
     } catch (error: any) {
+      console.error('Error adding parcel:', error);
+      this.showToast(`Error: ${error.message || 'Failed to add parcel'}`);
+    } finally {
       loading.dismiss();
       this.isAddingParcel = false;
-      console.error('Error adding parcel:', error);
-      this.showToast(`Error: ${error.message}`);
     }
   }
 
@@ -1392,7 +1492,7 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
     }
   }
 
-  // Add this method to your component
+  // Add this method to your ViewAssignedParcelsPage class
   private calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
     const R = 6371e3; // Earth radius in meters
     const φ1 = this.deg2rad(lat1);
@@ -1431,5 +1531,172 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
       console.warn('No geolocation capabilities detected on this device');
       this.showToast('Warning: Device may not support location services', 3000);
     }
+  }
+
+  // Add this method to handle status changes
+  onStatusChange(event: any) {
+    const status = event.detail.value;
+    this.showHubSelection = status === 'In Transit';
+    
+    // Update validators based on status
+    if (this.showHubSelection) {
+      this.parcelForm.get('distributionHubId')?.setValidators(Validators.required);
+    } else {
+      this.parcelForm.get('distributionHubId')?.clearValidators();
+      this.parcelForm.get('distributionHubId')?.setValue('');
+    }
+    this.parcelForm.get('distributionHubId')?.updateValueAndValidity();
+  }
+
+  // Add this conditional validator helper
+  conditionalValidator(condition: () => boolean, validator: ValidatorFn): ValidatorFn {
+    return (control: AbstractControl): ValidationErrors | null => {
+      if (!condition()) {
+        return null;
+      }
+      return validator(control);
+    };
+  }
+
+  // Add this method to your ViewAssignedParcelsPage class
+  private async getAddressFromCoordinates(latitude: number, longitude: number): Promise<string> {
+    try {
+      // Use the geocoding service to get an address from coordinates
+      const result = await firstValueFrom(
+        this.geocodingService.getAddressFromCoordinates(latitude, longitude)
+      );
+      
+      if (result && result.formatted_address) {
+        return result.formatted_address;
+      }
+      
+      // Fallback if no address found
+      return `Near ${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+    } catch (error) {
+      console.error('Error getting address from coordinates:', error);
+      // Return a fallback location description with the coordinates
+      return `Location: ${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+    }
+  }
+
+  // Add this method to your ViewAssignedParcelsPage class
+  private getStatusDescription(status: string): string {
+    switch (status.toLowerCase()) {
+      case 'registered':
+        return 'Parcel registered for delivery';
+      case 'in transit':
+        return 'Parcel is in transit to distribution center';
+      case 'out for delivery':
+        return 'Parcel is out for delivery to recipient';
+      case 'delivered':
+        return 'Parcel has been delivered successfully';
+      default:
+        return `Status: ${status}`;
+    }
+  }
+
+  async openDirectionsInMaps(parcel: Parcel, event?: Event) {
+    // Prevent triggering parent click events if called from a button
+    if (event) {
+      event.stopPropagation();
+    }
+    
+    try {
+      // Determine destination based on parcel status
+      let destinationAddress: string;
+      let destinationName: string;
+      
+      if (parcel.status?.toLowerCase() === 'in transit') {
+        // For In Transit parcels, use the distribution hub
+        if (!parcel.distributionHubId) {
+          this.showToast('No distribution hub assigned to this parcel');
+          return;
+        }
+        
+        // Find the hub details from our stored array
+        const hub = this.distributionHubs.find(h => h.id === parcel.distributionHubId);
+        if (!hub) {
+          this.showToast('Distribution hub information not found');
+          return;
+        }
+        
+        destinationAddress = hub.location + ', ' + hub.state + ', Malaysia';
+        destinationName = hub.name;
+      } else {
+        // For Out for Delivery parcels, use the receiver address
+        if (!parcel.receiverAddress) {
+          this.showToast('No receiver address available for this parcel');
+          return;
+        }
+        
+        destinationAddress = parcel.receiverAddress;
+        destinationName = 'Recipient: ' + (parcel.receiverName || 'Unknown');
+      }
+      
+      const loading = await this.loadingCtrl.create({
+        message: 'Preparing navigation...',
+        duration: 10000 // 10 second timeout
+      });
+      
+      await loading.present();
+      
+      try {
+        // Get current position with high accuracy
+        const position = await this.getBrowserLocationWithHighAccuracy();
+        const { latitude, longitude } = position.coords;
+        
+        // Dismiss loading indicator
+        await loading.dismiss();
+        
+        // Format the destination address for URL encoding
+        const destination = encodeURIComponent(destinationAddress);
+        
+        // Create navigation URL based on platform
+        let navigationUrl: string;
+        
+        if (this.isPlatformNative()) {
+          // For native apps (iOS or Android)
+          if (this.isIOS()) {
+            // iOS uses Apple Maps
+            navigationUrl = `maps://?saddr=${latitude},${longitude}&daddr=${destination}`;
+          } else {
+            // Android uses Google Maps
+            navigationUrl = `google.navigation:q=${destination}&mode=d`;
+          }
+          
+          // Open the URL using platform-specific methods (without @capacitor/browser)
+          if (window.open) {
+            window.open(navigationUrl, '_system');
+          } else {
+            // Fallback for older devices
+            window.location.href = navigationUrl;
+          }
+        } else {
+          // For web browsers, use Google Maps website
+          navigationUrl = `https://www.google.com/maps/dir/?api=1&origin=${latitude},${longitude}&destination=${destination}&travelmode=driving`;
+          window.open(navigationUrl, '_blank');
+        }
+        
+        console.log(`Opening navigation to ${parcel.status} destination:`, destinationName);
+      } catch (error) {
+        await loading.dismiss().catch(() => {});
+        console.error('Error getting location:', error);
+        this.showToast('Could not get your current location. Please check your device settings and try again.');
+      }
+    } catch (error) {
+      console.error('Error opening directions:', error);
+      this.showToast('Could not open directions. Please try again.');
+    }
+  }
+
+  // Helper function to detect iOS
+  private isIOS(): boolean {
+    const userAgent = window.navigator.userAgent.toLowerCase();
+    return /iphone|ipad|ipod/.test(userAgent);
+  }
+
+  // Add this method to check if running on a native platform
+  private isPlatformNative(): boolean {
+    return (window as any).Capacitor?.isNativePlatform() || false;
   }
 }

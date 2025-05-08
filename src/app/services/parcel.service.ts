@@ -297,18 +297,33 @@ export class ParcelService {
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
                   });
 
-                  // Create a tracking history document
+                  // Create tracking history document - IMPORTANT: Remove undefined values
                   const trackingHistoryRef = trackingHistoryCollection.doc().ref;
-                  batch.set(trackingHistoryRef, {
+                  
+                  // Create a clean object without undefined values
+                  const trackingHistoryData: any = {
                     parcelId,
                     trackingId,
                     status: trackingInfo.status,
                     description: statusDescription,
-                    location: trackingInfo.location,
-                    deliverymanName: trackingInfo.deliverymanName,
-                    photoURL: trackingInfo.photoURL,
                     timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-                  });
+                  };
+                  
+                  // Only add these fields if they're not undefined
+                  if (trackingInfo.location !== undefined) {
+                    trackingHistoryData.location = trackingInfo.location;
+                  }
+                  
+                  if (trackingInfo.deliverymanName !== undefined && trackingInfo.deliverymanName !== null) {
+                    trackingHistoryData.deliverymanName = trackingInfo.deliverymanName;
+                  }
+                  
+                  if (trackingInfo.photoURL !== undefined && trackingInfo.photoURL !== null) {
+                    trackingHistoryData.photoURL = trackingInfo.photoURL;
+                  }
+                  
+                  // Set the clean data object
+                  batch.set(trackingHistoryRef, trackingHistoryData);
 
                   // Commit the batch
                   batch
