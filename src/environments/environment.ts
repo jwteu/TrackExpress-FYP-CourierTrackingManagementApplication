@@ -3,15 +3,15 @@
 // The list of file replacements can be found in `angular.json`.
 
 export const environment = {
-  production: true,
+  production: false,
   firebaseConfig: {
-    apiKey: "AIzaSyBiq8ry6CqKtTChjMRVyi5NO7LDNkKrDGg",
+    apiKey: "AIzaSyCciU8TuiNtUg7ZNgiwsecGxQGR3Iv9k1c",
     authDomain: "courier-tracking-95976.firebaseapp.com",
+    databaseURL: "https://courier-tracking-95976-default-rtdb.firebaseio.com",
     projectId: "courier-tracking-95976",
     storageBucket: "courier-tracking-95976.firebasestorage.app",
     messagingSenderId: "188993241505",
-    appId: "1:188993241505:web:08769282bae76425af8be0",
-    measurementId: "G-V8P2JV0ZG9"
+    appId: "1:188993241505:android:d8ebd27b1b4d0293af8be0"
   }
 };
 

@@ -35,3 +35,57 @@
 /* @import "@ionic/angular/css/palettes/dark.always.css"; */
 /* @import "@ionic/angular/css/palettes/dark.class.css"; */
 @import "@ionic/angular/css/palettes/dark.system.css";
+
+// Safe area insets - Improved version for status bar
+:root {
+  --ion-safe-area-top: env(safe-area-inset-top, 24px); // Increased default height
+  --ion-safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --ion-safe-area-left: env(safe-area-inset-left, 0px);
+  --ion-safe-area-right: env(safe-area-inset-right, 0px);
+}
+
+/* Apply to EVERY ion-header to fix status bar overlap */
+ion-header {
+  padding-top: var(--ion-safe-area-top);
+}
+
+/* Ensure all page content respects the status bar */
+ion-content {
+  --padding-top: var(--ion-safe-area-top);
+}
+
+/* Fix for pages with no header */
+.ion-page:not(:has(ion-header)) {
+  padding-top: var(--ion-safe-area-top);
+}
+
+/* Platform specific fixes */
+.ios ion-header {
+  padding-top: var(--ion-safe-area-top);
+}
+
+/* Fix for Android specifically */
+.md ion-header {
+  padding-top: var(--ion-safe-area-top);
+}
+
+/* Fix for ion-toolbar in header specifically */
+ion-toolbar {
+  --min-height: 56px;
+  --padding-top: var(--ion-safe-area-top);
+  padding-left: var(--ion-safe-area-left);
+  padding-right: var(--ion-safe-area-right);
+}
+
+ion-header.no-border::after {
+  display: none;
+}
+
+ion-tabs ion-tab-bar {
+  padding-bottom: var(--ion-safe-area-bottom);
+  height: calc(56px + var(--ion-safe-area-bottom));
+}
+
+ion-fab[vertical="bottom"] {
+  bottom: calc(10px + var(--ion-safe-area-bottom));
+}

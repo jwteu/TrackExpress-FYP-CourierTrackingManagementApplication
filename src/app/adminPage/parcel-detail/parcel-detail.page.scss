@@ -66,6 +66,36 @@ ion-toolbar {
   }
 }
 
+ion-button.primary-button {
+  margin-top: 16px;
+  margin-bottom: 24px;
+  --background: var(--ion-color-primary);
+  --color: var(--ion-color-primary-contrast);
+  font-weight: 500;
+  
+  ion-icon {
+    margin-right: 8px;
+  }
+}
+
+// Add an animation for the button when processing
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.processing {
+  animation: pulse 1.5s infinite;
+  pointer-events: none;
+}
+
 ion-card {
   background: var(--card-bg);
   backdrop-filter: var(--card-backdrop-filter);

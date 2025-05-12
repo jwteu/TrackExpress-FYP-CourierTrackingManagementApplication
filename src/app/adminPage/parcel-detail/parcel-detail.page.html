@@ -7,8 +7,9 @@
     </ion-buttons>
     <ion-title>Parcel Details</ion-title>
     <ion-buttons slot="end">
-      <ion-button (click)="printParcel()" *ngIf="!loading && !loadingError">
-        <ion-icon name="print-outline"></ion-icon>
+      <!-- Single PDF button for all platforms -->
+      <ion-button (click)="generateAndSharePDF()" *ngIf="!loading && !loadingError">
+        <ion-icon name="document-text-outline"></ion-icon>
       </ion-button>
     </ion-buttons>
   </ion-toolbar>
@@ -133,10 +134,10 @@
       </ion-card-content>
     </ion-card>
 
-    <!-- Print Button -->
-    <ion-button class="primary-button" expand="block" (click)="printParcel()">
-      <ion-icon name="print-outline" slot="start"></ion-icon>
-      Print Parcel Details
+    <!-- Generate PDF Button -->
+    <ion-button class="primary-button" expand="block" (click)="generateAndSharePDF()">
+      <ion-icon name="document-text-outline" slot="start"></ion-icon>
+      Generate PDF
     </ion-button>
   </div>
 </ion-content>

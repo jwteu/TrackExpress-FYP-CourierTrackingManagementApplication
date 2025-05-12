@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "188993241505",
+    "firebase_url": "https://courier-tracking-95976-default-rtdb.firebaseio.com",
+    "project_id": "courier-tracking-95976",
+    "storage_bucket": "courier-tracking-95976.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:188993241505:android:d8ebd27b1b4d0293af8be0",
+        "android_client_info": {
+          "package_name": "io.ionic.starter"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCciU8TuiNtUg7ZNgiwsecGxQGR3Iv9k1c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
