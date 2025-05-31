@@ -1,14 +1,15 @@
-import { Component, OnInit, inject, ViewChild, ElementRef, NgZone, AfterViewInit, OnDestroy, Injector } from '@angular/core';
-import { FormBuilder, FormGroup, Validators, FormControl } from '@angular/forms';
+import { Component, OnInit, AfterViewInit, OnDestroy, ViewChild, ElementRef, inject, NgZone, CUSTOM_ELEMENTS_SCHEMA, Injector, runInInjectionContext } from '@angular/core';
+import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { AngularFirestore } from '@angular/fire/compat/firestore';
 import { Router } from '@angular/router';
 import { Location } from '@angular/common';
-import { AngularFirestore } from '@angular/fire/compat/firestore';
-import { LoadingController, ToastController, AlertController, IonicModule } from '@ionic/angular';
+import { LoadingController, ToastController, AlertController } from '@ionic/angular';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { CUSTOM_ELEMENTS_SCHEMA, runInInjectionContext } from '@angular/core';
-import * as JsBarcode from 'jsbarcode';
-import { Subscription } from 'rxjs';
+import { IonicModule } from '@ionic/angular';
+import { Capacitor } from '@capacitor/core';
+import { LocationEnablerService } from '../../services/location-enabler.service';
+import JsBarcode from 'jsbarcode';
 
 declare var google: any; // Declare google
 
@@ -45,6 +46,7 @@ export class AddParcelPage implements OnInit, AfterViewInit, OnDestroy { // Impl
   private alertCtrl = inject(AlertController);
   private zone = inject(NgZone); // Inject NgZone
   private injector = inject(Injector);
+  private locationEnabler = inject(LocationEnablerService);
 
   constructor() {
     this.parcelForm = this.fb.group({
@@ -289,14 +291,13 @@ export class AddParcelPage implements OnInit, AfterViewInit, OnDestroy { // Impl
     if (this.parcelForm.valid) {
       // Check if coordinates are present
       if (!this.parcelForm.get('senderLat')?.value || !this.parcelForm.get('senderLng')?.value) {
-         this.showToast('Sender address could not be verified. Please select from suggestions or check the address.', 'warning');
-         return;
+        this.showToast('Sender address could not be verified. Please select from suggestions or check the address.', 'warning');
+        return;
       }
-       if (!this.parcelForm.get('receiverLat')?.value || !this.parcelForm.get('receiverLng')?.value) {
-         this.showToast('Receiver address could not be verified. Please select from suggestions or check the address.', 'warning');
-         return;
+      if (!this.parcelForm.get('receiverLat')?.value || !this.parcelForm.get('receiverLng')?.value) {
+        this.showToast('Receiver address could not be verified. Please select from suggestions or check the address.', 'warning');
+        return;
       }
-
 
       const loading = await this.loadingCtrl.create({
         message: 'Adding parcel and sending notifications...'
@@ -317,36 +318,42 @@ export class AddParcelPage implements OnInit, AfterViewInit, OnDestroy { // Impl
 
         console.log('Parcel data:', parcelData);
 
-        // Fix: Wrap Firestore operation in runInInjectionContext
-        try {
-          await runInInjectionContext(this.injector, async () => {
-            await this.firestore.collection('parcels').add(parcelData);
-          });
-        } catch (firestoreError: unknown) {
-          console.error('Firestore error:', firestoreError);
-          throw new Error('Failed to save parcel data.');
-        }
+        // Wrap Firestore operation in runInInjectionContext
+        const injector = this.injector;
+        await runInInjectionContext(injector, async () => {
+          await this.firestore.collection('parcels').add(parcelData);
+        });
 
         await this.sendEmailNotifications(parcelData);
 
         loading.dismiss();
-        this.showToast('Parcel registered successfully! Email notifications have been sent.', 'success');
-        this.location.back();
-
+        
+        this.parcelForm.reset();
+        this.parcelForm.patchValue({
+          date: new Date().toISOString().split('T')[0]
+        });
+        
+        const alert = await this.alertCtrl.create({
+          header: 'Success',
+          message: `Parcel added successfully with tracking ID: ${trackingId}`,
+          buttons: ['OK']
+        });
+        
+        await alert.present();
       } catch (error) {
+        console.error('Error adding parcel:', error);
         loading.dismiss();
-        console.error('Error in submit:', error);
-        this.showToast(`An error occurred: ${error instanceof Error ? error.message : 'Unknown error'}`, 'danger');
+        this.showToast('An error occurred while adding the parcel. Please try again.', 'danger');
       }
     } else {
       this.showToast('Please fill out all required fields correctly.', 'warning');
-       // Log invalid controls for debugging
-       Object.keys(this.parcelForm.controls).forEach(key => {
-         const controlErrors = this.parcelForm.get(key)?.errors;
-         if (controlErrors != null) {
-           console.error('Control:', key, 'Errors:', controlErrors);
-         }
-       });
+      // Log invalid controls for debugging
+      Object.keys(this.parcelForm.controls).forEach(key => {
+        const control = this.parcelForm.get(key);
+        if (control?.invalid) {
+          console.log(`Control ${key} is invalid:`, control.errors);
+        }
+      });
     }
   }
 
@@ -362,12 +369,24 @@ export class AddParcelPage implements OnInit, AfterViewInit, OnDestroy { // Impl
       return;
     }
     
+    // First check if location is enabled
+    const locationEnabled = await this.locationEnabler.ensureLocationEnabled();
+    if (!locationEnabled) {
+      this.showToast('Location services must be enabled to detect your current location.', 'warning');
+      return;
+    }
+    
     this.isGettingLocation = true;
     const loading = await this.loadingCtrl.create({
       message: 'Getting your location...',
       spinner: 'circles'
     });
     await loading.present();
+
+    // If on Android, request high accuracy mode first
+    if (Capacitor.getPlatform() === 'android') {
+      await this.locationEnabler.requestHighAccuracyLocation();
+    }
 
     navigator.geolocation.getCurrentPosition(
       async (position) => {
@@ -407,12 +426,35 @@ export class AddParcelPage implements OnInit, AfterViewInit, OnDestroy { // Impl
         }
       },
       async (error) => {
-           loading.dismiss(); // Ensure loading dismissed on error
-           this.isGettingLocation = false; // Ensure flag reset on error
+        loading.dismiss();
+        this.isGettingLocation = false;
         console.error('Geolocation error:', error);
+        
+        // Improved error handling
         let errorMessage = 'Failed to get your location.';
         if (error.code === 1) {
-          errorMessage = 'Location permission denied. Please enable location services.';
+          errorMessage = 'Location permission denied. Please enable location permissions in your device settings.';
+          // Show option to open settings on permission denied
+          const alert = await this.alertCtrl.create({
+            header: 'Location Permission Required',
+            message: 'This feature requires location permission. Would you like to open settings to enable it?',
+            buttons: [
+              {
+                text: 'Cancel',
+                role: 'cancel'
+              },
+              {
+                text: 'Open Settings',
+                handler: () => {
+                  if (Capacitor.isNativePlatform()) {
+                    // This will open location settings on Android
+                    this.locationEnabler.requestHighAccuracyLocation();
+                  }
+                }
+              }
+            ]
+          });
+          await alert.present();
         } else if (error.code === 2) {
           errorMessage = 'Location unavailable. Please try again.';
         } else if (error.code === 3) {

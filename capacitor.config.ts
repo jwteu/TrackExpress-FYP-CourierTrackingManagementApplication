@@ -12,19 +12,19 @@ const config: CapacitorConfig = {
       requestPermissions: true
     },
     SplashScreen: {
-      launchShowDuration: 1000,
-      backgroundColor: "#222831",
+      launchShowDuration: 1300,
       androidSplashResourceName: "splash",
-      androidScaleType: "FIT_CENTER" // Changed from CENTER_CROP to FIT_CENTER
+      androidScaleType: "FIT_CENTER",
+      autoHide: true 
     },
     StatusBar: {
-      androidOverlaysWebView: false, // Keep this false
-      style: "DARK", // Dark text for better visibility on yellow
-      backgroundColor: "#FFD700" // Yellow color
+      androidOverlaysWebView: false,
+      style: "DARK",
+      backgroundColor: "#FFD700" // Keep yellow for status bar only
     }
   },
   android: {
-    captureInput: false, // Temporarily test this
+    captureInput: false,
     webContentsDebuggingEnabled: true
   }
 };

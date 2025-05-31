@@ -4,17 +4,18 @@
   --dark-gray: #222831;
   --white: #FFFFFF;
   --soft-gray: #F5F6FA;
-  --medium-gray: #95A5A6; // Slightly adjusted medium gray for better contrast
+  --medium-gray: #95A5A6;
   --success-green-bg: #E8F5E9;
   --success-green-text: #2E7D32;
-  --info-blue-bg: #E3F2FD;
-  --info-blue-text: #1976D2;
+  // Change blue to yellow variants
+  --filter-yellow-bg: #FFF9E5;
+  --filter-yellow-text: #B8860B;
   --warning-orange-bg: #FFF3E0;
   --warning-orange-text: #EF6C00;
   --pending-gray-bg: #EEEEEE;
   --pending-gray-text: #616161;
   --danger-red: #E74C3C;
-  --danger-red-bg: #FDEDED; // Background for danger actions/hover
+  --danger-red-bg: #FDEDED;
 }
 
 ion-content {
@@ -99,14 +100,25 @@ ion-toolbar {
     outline: none;
   }
   
+  // Default placeholder for larger screens
   &::placeholder {
     color: var(--medium-gray);
     opacity: 0.7;
     transition: opacity 0.3s ease;
+    content: "Search by tracking ID or sender name...";
   }
   
   &:focus::placeholder {
     opacity: 0.5;
+  }
+  
+  // Responsive placeholders using media queries
+  @media (max-width: 600px) {
+    font-size: 15px; // Slightly smaller font on mobile
+  }
+  
+  @media (max-width: 480px) {
+    font-size: 14px; // Even smaller font for very small screens
   }
 }
 
@@ -147,7 +159,7 @@ ion-toolbar {
   }
   
   .reset-search {
-    color: var(--info-blue-text);
+    color: var(--filter-yellow-text); // Changed from blue to yellow
     text-decoration: underline;
     cursor: pointer;
     
@@ -388,10 +400,11 @@ ion-toolbar {
       border-color: rgba(46, 125, 50, 0.2);
     }
 
+    // Change transit status to yellow theme instead of blue
     &.status-transit, &.status-in-transit {
-      background: var(--info-blue-bg);
-      color: var(--info-blue-text);
-      border-color: rgba(25, 118, 210, 0.2);
+      background: var(--filter-yellow-bg);
+      color: var(--filter-yellow-text);
+      border-color: rgba(184, 134, 11, 0.3);
     }
 
     &.status-out-for-delivery, &.status-out-of-delivery {
@@ -436,8 +449,8 @@ ion-toolbar {
 
       &[color="primary"] { // Keep color prop for semantics if needed
          &:hover {
-           --color: var(--info-blue-text);
-           background-color: var(--info-blue-bg);
+           --color: var(--filter-yellow-text); // Changed from blue to yellow
+           background-color: var(--filter-yellow-bg);
          }
       }
       &[color="danger"] {
@@ -534,8 +547,8 @@ ion-list ion-item {
   margin-right: 8px;
   
   ion-icon {
-    color: var(--yellow);
-    font-size: 22px; // Slightly larger icon now that text is gone
+    color: var(--yellow); // Keep yellow for the icon
+    font-size: 22px;
   }
   
   .filter-badge {
@@ -552,7 +565,7 @@ ion-list ion-item {
     font-weight: 600;
     position: absolute;
     top: -4px;
-    right: -4px; // Adjusted position for icon-only button
+    right: -4px;
   }
 }
 
@@ -571,17 +584,18 @@ ion-list ion-item {
   display: inline-flex;
   align-items: center;
   padding: 6px 12px;
-  background: rgba(255, 255, 255, 0.8);
-  border: 1px solid rgba(255, 215, 0, 0.3);
+  background: var(--filter-yellow-bg); // Changed from white to yellow background
+  border: 1px solid rgba(255, 215, 0, 0.4); // More visible yellow border
   border-radius: 16px;
   font-size: 13px;
   color: var(--dark-gray);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 2px 8px rgba(255, 215, 0, 0.15); // Yellow shadow
   
   ion-icon {
     margin-left: 6px;
     font-size: 16px;
     cursor: pointer;
+    color: var(--filter-yellow-text); // Yellow icon color
     
     &:hover {
       color: var(--danger-red);
@@ -595,13 +609,17 @@ ion-list ion-item {
   align-items: center;
   padding: 6px 12px;
   font-size: 13px;
-  color: var(--info-blue-text);
+  color: var(--filter-yellow-text); // Changed from blue to yellow
   cursor: pointer;
   margin-left: auto;
+  background: var(--filter-yellow-bg); // Add background
+  border-radius: 12px;
+  border: 1px solid rgba(255, 215, 0, 0.3);
   
   &:hover {
     color: var(--danger-red);
     text-decoration: underline;
+    background: rgba(255, 215, 0, 0.1);
   }
 }
 
@@ -635,6 +653,16 @@ ion-list ion-item {
     &.primary-button {
       --background: linear-gradient(90deg, var(--yellow) 0%, #FFC300 100%);
       --color: var(--dark-gray);
+    }
+    
+    // Update outline button to yellow theme
+    &[fill="outline"] {
+      --border-color: var(--yellow);
+      --color: var(--filter-yellow-text);
+      
+      &:hover {
+        --background: var(--filter-yellow-bg);
+      }
     }
   }
 }

@@ -123,54 +123,116 @@ ion-menu {
   }
 }
 
-// NEW: Stats Card Styling
+// NEW: Stats Card Styling - Fixed for one line on all devices
 .stats-card {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); // Responsive grid
-  gap: 15px; // Gap between stat items
+  display: flex; // Changed from grid to flex
+  justify-content: space-between; // Evenly distribute items
+  align-items: stretch; // Make all items same height
   width: 100%;
-  max-width: 500px; // Max width for stats section
+  max-width: 500px;
   padding: 20px;
   background: var(--glass-bg);
-  backdrop-filter: blur(18px); // Slightly more blur for stats
+  backdrop-filter: blur(18px);
   border-radius: 18px;
-  box-shadow: 0 6px 25px var(--shadow-light); // Lighter shadow for stats
+  box-shadow: 0 6px 25px var(--shadow-light);
   border: 1px solid var(--glass-border);
-  animation: popIn 0.8s var(--ease-in-out-cubic) 0.2s backwards; // Stagger animation
+  animation: popIn 0.8s var(--ease-in-out-cubic) 0.2s backwards;
+  
+  // Ensure no wrapping on small screens
+  flex-wrap: nowrap;
+  gap: 8px; // Reduced gap for smaller screens
 
   .stat-item {
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
     text-align: center;
-    padding: 10px 5px;
-    background: rgba(255, 255, 255, 0.3); // Subtle inner background
+    padding: 10px 4px; // Reduced horizontal padding
+    background: rgba(255, 255, 255, 0.3);
     border-radius: 12px;
     transition: transform 0.2s ease, background 0.2s ease;
-
+    
+    // Make each item take equal width
+    flex: 1;
+    min-width: 0; // Allow flex items to shrink below their content size
+    
     &:hover {
       transform: translateY(-3px);
       background: rgba(255, 255, 255, 0.5);
     }
 
     .stat-icon {
-      font-size: 28px; // Icon size
-      color: var(--gold-accent); // Use accent color
-      margin-bottom: 8px;
+      font-size: 24px; // Slightly smaller icon for mobile
+      color: var(--gold-accent);
+      margin-bottom: 6px; // Reduced margin
       opacity: 0.9;
+      
+      // Responsive icon size
+      @media (min-width: 768px) {
+        font-size: 28px;
+        margin-bottom: 8px;
+      }
     }
 
     .stat-value {
-      font-size: 24px; // Value size
+      font-size: 20px; // Smaller for mobile
       font-weight: 700;
       color: var(--dark-gray);
-      line-height: 1.2;
+      line-height: 1.1;
+      
+      // Responsive value size
+      @media (min-width: 768px) {
+        font-size: 24px;
+        line-height: 1.2;
+      }
+      
+      // Handle loading spinner
+      ion-spinner {
+        width: 20px;
+        height: 20px;
+        
+        @media (min-width: 768px) {
+          width: 24px;
+          height: 24px;
+        }
+      }
     }
 
     .stat-label {
-      font-size: 12px; // Label size
+      font-size: 10px; // Smaller for mobile
       color: var(--medium-gray);
       font-weight: 500;
+      word-break: break-word; // Allow text to break if needed
+      hyphens: auto; // Enable hyphenation
+      
+      // Responsive label size
+      @media (min-width: 768px) {
+        font-size: 12px;
+      }
+      
+      // For very small screens, use shorter text
+      @media (max-width: 320px) {
+        font-size: 9px;
+      }
+    }
+  }
+  
+  // Additional responsive adjustments
+  @media (max-width: 480px) {
+    padding: 15px 10px; // Reduced padding on small screens
+    gap: 4px; // Even smaller gap
+    
+    .stat-item {
+      padding: 8px 2px; // Minimal padding for very small screens
+      border-radius: 8px; // Smaller border radius
+    }
+  }
+  
+  // For very large screens, add max-width to stat items
+  @media (min-width: 1024px) {
+    .stat-item {
+      max-width: 140px; // Prevent items from getting too wide
     }
   }
 }

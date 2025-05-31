@@ -1,0 +1,62 @@
+// Add custom alert styling
+:host {
+  // Custom alert button styles
+  .alert-button-cancel {
+    color: var(--ion-color-medium) !important;
+  }
+  
+  .alert-button-confirm {
+    color: var(--ion-color-danger) !important;
+    font-weight: 600 !important;
+  }
+}
+
+// Global alert styles
+ion-alert {
+  --backdrop-opacity: 0.7;
+  
+  .alert-wrapper {
+    --background: #ffffff;
+    --color: #222831;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  }
+  
+  .alert-head {
+    padding: 20px 20px 0 20px;
+  }
+  
+  .alert-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #222831;
+  }
+  
+  .alert-message {
+    font-size: 14px;
+    color: #555;
+    padding: 16px 20px;
+  }
+  
+  .alert-button-group {
+    padding: 0 8px 16px 8px;
+    
+    .alert-button {
+      border-radius: 8px;
+      margin: 0 4px;
+      height: 40px;
+      font-size: 15px;
+      
+      &.alert-button-cancel {
+        background: #f5f5f5;
+        color: #666;
+      }
+      
+      &.alert-button-confirm {
+        background: #ff4444;
+        color: white;
+        font-weight: 600;
+      }
+    }
+  }
+}

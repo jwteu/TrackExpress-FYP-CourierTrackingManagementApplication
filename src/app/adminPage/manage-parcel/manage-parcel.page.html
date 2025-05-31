@@ -6,10 +6,10 @@
       </ion-button>
     </ion-buttons>
     <ion-title>Manage Parcels</ion-title>
-    <!-- Replace the filter button with this icon-only version -->
+    <!-- Replace the filter button with this more recognizable filter icon -->
     <ion-buttons slot="end">
       <ion-button class="header-filter-button" (click)="presentFilterModal()">
-        <ion-icon name="options-outline"></ion-icon>
+        <ion-icon name="funnel-outline"></ion-icon>
         <span class="filter-badge" *ngIf="filterCount > 0">{{filterCount}}</span>
       </ion-button>
     </ion-buttons>
@@ -25,7 +25,7 @@
       type="text" 
       [(ngModel)]="searchQuery" 
       (input)="performSearch()" 
-      placeholder="Search by tracking ID or sender name..." 
+      placeholder="Search tracking id or sender name" 
       class="search-input"
     />
     <ion-button fill="clear" class="clear-button" *ngIf="searchQuery" (click)="clearSearch()">

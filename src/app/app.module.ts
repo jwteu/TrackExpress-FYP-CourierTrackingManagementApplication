@@ -12,22 +12,23 @@ import { AngularFirestoreModule } from '@angular/fire/compat/firestore';
 import { environment } from '../environments/environment'; 
 
 import { CloudinaryService } from './services/cloudinary.service';
+import { LocationAccuracy } from '@awesome-cordova-plugins/location-accuracy/ngx';
 
 @NgModule({
-  // Remove AppComponent from declarations and add to imports if it's standalone
   declarations: [], 
   imports: [
     BrowserModule,
     IonicModule.forRoot(),
     AppRoutingModule,
-    AppComponent, // Import the standalone component here
+    AppComponent,
     AngularFireModule.initializeApp(environment.firebaseConfig),
     AngularFireAuthModule,
     AngularFirestoreModule
   ],
   providers: [
     { provide: RouteReuseStrategy, useClass: IonicRouteStrategy },
-    CloudinaryService
+    CloudinaryService,
+    LocationAccuracy
   ],
   bootstrap: [AppComponent],
 })

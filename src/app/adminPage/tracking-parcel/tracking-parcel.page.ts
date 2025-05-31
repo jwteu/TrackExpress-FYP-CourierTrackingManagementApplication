@@ -864,18 +864,19 @@ export class TrackingParcelPage implements OnInit, AfterViewInit, OnDestroy {
 
           // Rest of your map initialization code...
           // Add current location marker
-          this.currentLocationMarker = L.marker([currentLat, currentLng], {
-            icon: L.divIcon({
-              html: `<div style="font-size: 14px; background: #FFDE59; border-radius: 50%; box-shadow: 0 2px 8px rgba(0,0,0,0.4); width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; position: relative;">
-                <ion-icon name="bicycle-outline" style="font-size: 24px; color: #333;"></ion-icon>
-                <div style="position: absolute; bottom: -20px; white-space: nowrap; background: rgba(0,0,0,0.7); color: white; padding: 2px 5px; border-radius: 3px; font-size: 10px;">Current Location</div>
-              </div>`,
-              className: '',
-              iconSize: [40, 40],
-              iconAnchor: [20, 20]
-            })
-          }).addTo(this.map)
-            .bindPopup(`Current Location: ${this.mapCoordinates.currentLocation}`);
+          // Create current location marker with updated icon
+this.currentLocationMarker = L.marker([currentLat, currentLng], {
+  icon: L.divIcon({
+    html: `<div style="font-size: 16px; background: linear-gradient(45deg, #FFD700, #FFC300); border-radius: 50%; box-shadow: 0 2px 8px rgba(0,0,0,0.4); width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; position: relative; border: 3px solid white;">
+      <ion-icon name="location-outline" style="font-size: 26px; color: #222831;"></ion-icon>
+      <div style="position: absolute; bottom: -25px; white-space: nowrap; background: rgba(0,0,0,0.8); color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600;">Current Location</div>
+    </div>`,
+    className: '',
+    iconSize: [44, 44],
+    iconAnchor: [22, 22]
+  })
+}).addTo(this.map)
+  .bindPopup(`Current Location: ${this.mapCoordinates.currentLocation}`);
 
           // Add destination marker
           this.destinationMarker = L.marker([destLat, destLng], {

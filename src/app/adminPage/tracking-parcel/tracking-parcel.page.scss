@@ -246,16 +246,27 @@ ion-card-content {
 }
 
 .map-container {
-  margin: 24px 0; // Consistent margin
+  margin: 24px 0;
   background: var(--white);
   border-radius: 12px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 
-  h3 {
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--dark-gray);
-    padding: 16px 16px 8px;
+  // NEW: Improved header layout
+  .map-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px;
+    border-bottom: 1px solid var(--soft-gray);
+    
+    h3 {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--dark-gray);
+      margin: 0; // Remove default margin
+      flex: 1; // Take available space
+      white-space: nowrap; // Keep title in one line
+    }
   }
 }
 
@@ -366,31 +377,37 @@ ion-card-content {
 .open-map-btn {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px; // Increased gap
   background: var(--yellow);
   color: var(--dark-gray);
   border: none;
-  border-radius: 22px;
-  padding: 8px 18px;
+  border-radius: 22px; // Increased border radius
+  padding: 10px 16px; // Increased padding
   font-weight: 600;
-  font-size: 15px;
+  font-size: 15px; // Increased font size
   box-shadow: 0 2px 8px rgba(255, 215, 0, 0.15);
   cursor: pointer;
   transition: background 0.2s, box-shadow 0.2s, transform 0.2s;
   outline: none;
   position: relative;
-  padding-right: 20px; // Add more padding for the LIVE indicator
+  margin-left: 12px;
+  flex-shrink: 0;
 
   ion-icon {
-    font-size: 20px;
+    font-size: 20px; // Increased icon size
     color: var(--dark-gray);
-    margin-right: 4px;
+    margin-right: 4px; // Increased margin
+  }
+
+  span {
+    font-weight: 600;
+    letter-spacing: 0.3px;
   }
 
   &:hover, &:focus {
     background: #ffe066;
     box-shadow: 0 4px 16px rgba(255, 215, 0, 0.25);
-    transform: translateY(-2px) scale(1.04);
+    transform: translateY(-1px) scale(1.05); // Slightly increased scale
   }
 
   &:active {
@@ -400,38 +417,32 @@ ion-card-content {
 
   .real-time-indicator {
     position: absolute;
-    top: -8px;
+    top: -8px; // Adjusted position for larger button
     right: -8px;
     background: #ff4444;
     color: white;
-    font-size: 10px;
-    padding: 2px 6px;
-    border-radius: 10px;
+    font-size: 10px; // Slightly larger font
+    padding: 2px 6px; // Increased padding
+    border-radius: 10px; // Increased border radius
     display: flex;
     align-items: center;
     box-shadow: 0 2px 5px rgba(0,0,0,0.2);
     
     .pulse-dot {
-      width: 6px;
+      width: 6px; // Slightly larger dot
       height: 6px;
       background-color: white;
       border-radius: 50%;
-      margin-right: 3px;
+      margin-right: 3px; // Increased margin
       display: inline-block;
       animation: pulse-animation 1.5s infinite;
     }
     
     span {
       font-weight: bold;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.3px; // Reduced letter spacing
     }
   }
-}
-
-@keyframes pulse {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.1); }
-  100% { transform: scale(1); }
 }
 
 .destination-info {
@@ -748,6 +759,43 @@ ion-card-content {
 
   .tracking-container {
     padding: 16px;
+  }
+}
+
+// Responsive adjustments for very small screens
+@media (max-width: 400px) {
+  .map-header {
+    padding: 12px;
+    
+    h3 {
+      font-size: 14px;
+    }
+  }
+  
+  .open-map-btn {
+    padding: 8px 12px; // Still reasonably sized on mobile
+    font-size: 14px;
+    
+    ion-icon {
+      font-size: 18px;
+    }
+    
+    // Keep text visible on mobile now that button is bigger
+    span {
+      display: inline; // Show text on mobile too
+    }
+  }
+}
+
+// For medium screens, make button even more prominent
+@media (min-width: 768px) {
+  .open-map-btn {
+    padding: 12px 20px; // Even bigger on larger screens
+    font-size: 16px;
+    
+    ion-icon {
+      font-size: 22px;
+    }
   }
 }
 

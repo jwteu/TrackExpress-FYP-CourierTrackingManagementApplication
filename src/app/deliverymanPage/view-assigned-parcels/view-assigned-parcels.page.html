@@ -19,11 +19,10 @@
               <ion-input formControlName="trackingId" placeholder="Enter tracking ID"></ion-input>
               <div class="input-buttons">
                 <ion-button fill="clear" size="small" (click)="startBarcodeScanner()" [disabled]="isAddingParcel">
-                  <ion-icon name="scan-outline"></ion-icon>
+                  <ion-icon name="scan-outline"></ion-icon> 
                 </ion-button>
-                <ion-button fill="clear" size="small" (click)="uploadBarcode()" [disabled]="isAddingParcel">
-                  <ion-icon name="image-outline"></ion-icon>
-                </ion-button>
+                <!-- Upload button now always visible -->
+               
               </div>
             </div>
             <small class="helper-text" *ngIf="parcelForm.get('trackingId')?.invalid && parcelForm.get('trackingId')?.touched">
@@ -127,8 +126,13 @@
               <div class="parcel-body">
                 <div class="detail-item">
                   <ion-icon name="location-outline"></ion-icon>
-                  <span>{{ parcel.receiverAddress || 'No address' }}</span>
-                  <!-- Enhanced navigation button - icon only with hover effect -->
+                  <!-- Conditional display based on status - REMOVED redundant labels -->
+                  <ng-container *ngIf="parcel.status?.toLowerCase() === 'in transit'; else receiverAddress">
+                    <span>{{ getHubNameById(parcel.distributionHubId) || 'Distribution Hub' }}</span>
+                  </ng-container>
+                  <ng-template #receiverAddress>
+                    <span>{{ parcel.receiverAddress || 'No address' }}</span>
+                  </ng-template>
                   <button class="navigation-button" (click)="openDirectionsInMaps(parcel, $event)" title="Get directions">
                     <ion-icon name="navigate"></ion-icon>
                   </button>
@@ -164,22 +168,15 @@
   <input type="file" #fileInput hidden accept="image/*" (change)="processUploadedImage($event)">
 
   <!-- Update the scanner overlay to only have an X button -->
-  <div class="scanner-overlay" *ngIf="isScanningBarcode" [attr.inert]="!isScanningBarcode ? '' : null">
-    <div class="scanner-container">
-      <div class="scanner-header">
-        <ion-button fill="clear" (click)="stopBarcodeScanner()">
-          <ion-icon name="close-outline" slot="icon-only" color="light"></ion-icon>
-        </ion-button>
+  <div class="processing-overlay" *ngIf="isScanningBarcode" [attr.inert]="!isScanningBarcode ? '' : null">
+    <div class="processing-container">
+      <div class="processing-header">
+        <h3>Processing Image</h3>
       </div>
       
-      <div class="scanner-viewport">
-        <!-- This is the important element! Make sure it's properly sized -->
-        <div #scanner class="scanner-element"></div>
-        <div class="scan-region-highlight"></div>
-      </div>
-      
-      <div class="scanner-footer">
-        <p>Position the barcode within the frame</p>
+      <div class="processing-content">
+        <ion-spinner name="circles"></ion-spinner>
+        <p>Analyzing image for barcodes...</p>
       </div>
     </div>
   </div>

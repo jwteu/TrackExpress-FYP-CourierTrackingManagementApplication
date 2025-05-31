@@ -51,7 +51,7 @@
         <ion-card-title>{{ parcel.trackingId }}</ion-card-title>
       </ion-card-header>
       <ion-card-content>
-        <!-- Progress Tracker -->
+        <!-- Progress Tracker with Updated Icons -->
         <div class="progress-tracker">
           <div class="progress-step" [ngClass]="{'active': isEventActive('Registered')}">
             <div class="step-icon">
@@ -62,7 +62,8 @@
           <div class="progress-line" [ngClass]="{'active': isEventActive('In Transit')}"></div>
           <div class="progress-step" [ngClass]="{'active': isEventActive('In Transit')}">
             <div class="step-icon">
-              <ion-icon name="airplane-outline"></ion-icon>
+              <!-- Changed from airplane-outline to car-outline for better delivery representation -->
+              <ion-icon name="car-outline"></ion-icon>
             </div>
             <div class="step-label">Delivering</div>
           </div>
@@ -92,17 +93,17 @@
           </div>
         </div>
 
-        <!-- Map (Hidden if Delivered or Photo Available) -->
+        <!-- Map Container with Fixed Header Layout -->
         <div class="map-container" *ngIf="parcel && mapCoordinates && parcel.status !== 'Delivered' && !parcel.photoURL">
-          <div class="map-header" style="display: flex; align-items: center; justify-content: space-between; padding: 0 16px 0 16px;">
-            <h3 style="margin: 0;">Delivery Route</h3>
+          <div class="map-header">
+            <h3>Delivery Route</h3>
             <button class="open-map-btn" (click)="openExternalMap()" aria-label="Open in Map">
               <div class="real-time-indicator" *ngIf="isLocationTracking">
                 <span class="pulse-dot"></span>
                 <span>LIVE</span>
               </div>
               <ion-icon name="map-outline"></ion-icon>
-              <span>Open Map</span>
+              <span>Map</span>
             </button>
           </div>
           <div class="map-wrapper">
@@ -133,7 +134,7 @@
               <ion-icon name="location-outline"></ion-icon>
             </div>
             <div class="destination-details">
-              <p class="destination-title">Destination</p>
+              <p class="destination-title">Receiver Address</p>
               <p class="destination-address">{{ parcel.receiverAddress || 'Unknown' }}</p>
             </div>
           </div>

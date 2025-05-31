@@ -13,14 +13,16 @@ import firebase from 'firebase/compat/app';
 import { ParcelService } from '../../services/parcel.service';
 import { GeocodingService } from '../../services/geocoding.service';
 import { TrackingHistoryService } from '../../services/tracking-history.service';
+import { LocationEnablerService } from '../../services/location-enabler.service';
+import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 
 // Define a complete interface with all properties needed
 interface Parcel {
   id?: string;
   trackingId: string;
   name: string;
-  locationLat: number;
-  locationLng: number;
+  locationLat: number | null; // Allow null values
+  locationLng: number | null; // Allow null values
   addedDate: any;
   receiverAddress?: string;
   receiverName?: string;
@@ -33,7 +35,8 @@ interface Parcel {
   completedAt?: any;
   deliverymanId?: string;
   deliverymanName?: string;
-  distributionHubId?: string; // Add this property
+  distributionHubId?: string;
+  locationUpdatedAt?: any; // Add this missing field
 }
 
 // Add this interface
@@ -44,6 +47,18 @@ interface DistributionHub {
   state: string;
   lat: number;
   lng: number;
+}
+
+// Add this interface definition
+interface TrackingEvent {
+  trackingId: string;
+  parcelId: string;
+  status: string;
+  description: string;
+  timestamp: any; // Firebase timestamp
+  location: string;
+  deliverymanId: string;
+  deliverymanName: string;
 }
 
 @Component({
@@ -92,6 +107,7 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
   private geocodingService = inject(GeocodingService);
   private trackingHistoryService = inject(TrackingHistoryService);
   private firestore = inject(AngularFirestore);
+  private locationEnabler = inject(LocationEnablerService);
 
   // Session and location tracking
   private sessionCheckInterval: any;
@@ -226,6 +242,7 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
   ];
 
   showHubSelection: boolean = true; // Default to showing hub selection
+  public showUploadOption: boolean = false; // Set to false to hide the upload functionality
 
   constructor() {
     // Initialize form
@@ -695,73 +712,86 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
   }
 
   async addParcel() {
-    // Verify user session is still valid before proceeding
-    if (!this.currentUserId || !this.currentUserName || !this.verifySessionFreshness()) {
-      return;
-    }
-
     if (this.parcelForm.invalid) {
-      this.showToast('Please fill all required fields correctly');
+      this.showToast('Please fill in all required fields correctly.', 3000);
+      Object.values(this.parcelForm.controls).forEach(control => {
+        control.markAsTouched();
+      });
       return;
     }
-    
-    const trackingId = this.parcelForm.get('trackingId')?.value.trim().toUpperCase();
-    const status = this.parcelForm.get('status')?.value;
-    const distributionHubId = this.parcelForm.get('distributionHubId')?.value;
-    
-    const loading = await this.loadingCtrl.create({
-      message: 'Adding parcel and getting accurate location...'
-    });
-    
-    await loading.present();
+
     this.isAddingParcel = true;
-    
+    const loading = await this.loadingCtrl.create({ message: 'Assigning Parcel...' });
+    await loading.present();
+
     try {
-      // Get the current location first
-      const position = await this.getBrowserLocationWithHighAccuracy();
-      const { latitude, longitude } = position.coords;
-      
-      // Get address description from coordinates
-      const locationDescription = await this.getAddressFromCoordinates(latitude, longitude);
-      
-      // Get original parcel data
-      const parcelSnapshot = await firstValueFrom(
-        this.parcelService.getParcelDetails(trackingId)
-      );
-      
+      const { trackingId, status, distributionHubId } = this.parcelForm.value;
+
+      // Verify parcel exists and is not already assigned by this user with the same status
+      const parcelSnapshot = await firstValueFrom(this.parcelService.getParcelDetails(trackingId));
       if (!parcelSnapshot) {
-        throw new Error(`No parcel found with ID ${trackingId}`);
+        throw new Error(`Parcel with Tracking ID ${trackingId} not found.`);
       }
 
-      // Check if the parcel is already assigned
-      const isAssigned = await firstValueFrom(
-        this.parcelService.isParcelAssigned(trackingId)
-      );
-      
-      if (isAssigned) {
-        throw new Error(`Parcel ${trackingId} is already assigned`);
+      const isAlreadyAssigned = await firstValueFrom(this.parcelService.isParcelAssigned(trackingId));
+      if (isAlreadyAssigned) {
+        // Check if it's assigned to the current user with the same status
+        const existingAssignment = this.assignedParcels.find(p => p.trackingId === trackingId && p.status === status);
+        if (existingAssignment) {
+          throw new Error(`Parcel ${trackingId} is already assigned to you with status "${status}".`);
+        }
       }
       
-      // Create the base parcel data
-      const parcelData = {
+      let latitude: number | null = null;
+      let longitude: number | null = null;
+      let locationDescription = 'Last known location not available';
+
+      try {
+        const position = await this.getBrowserLocationWithHighAccuracy();
+        latitude = position.coords.latitude;
+        longitude = position.coords.longitude;
+        
+        // Add null check before using latitude and longitude
+        if (typeof latitude === 'number' && typeof longitude === 'number') {
+          const addressResult = await firstValueFrom(this.geocodingService.getAddressFromCoordinates(latitude, longitude));
+          locationDescription = addressResult?.formatted_address || `Near ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+        } else {
+          locationDescription = 'Could not determine precise coordinates';
+        }
+      } catch (locationError) {
+        console.warn('Could not get precise location for parcel assignment:', locationError);
+        this.showToast('Could not get current location. Using default. Ensure location services are enabled.', 3000);
+      }
+
+      const parcelData: Parcel = {
         trackingId,
-        name: this.currentUserName,
-        userId: this.currentUserId,
+        name: this.currentUserName!,
+        userId: this.currentUserId!,
         status,
         locationLat: latitude,
         locationLng: longitude,
         locationDescription,
         addedDate: firebase.firestore.FieldValue.serverTimestamp(),
-        locationUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        locationUpdatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        receiverAddress: parcelSnapshot.receiverAddress || 'Unknown Address',
+        receiverName: parcelSnapshot.receiverName || 'Unknown',
+        // Ensure other necessary fields from parcelSnapshot are carried over if needed for assigned_parcels
       };
-      
-      // IMPORTANT: Add destination coordinates based on status
+
+      // Prepare data for updating the main parcel document in the 'parcels' collection
+      const mainParcelUpdateData: any = {
+        status: status,
+        deliverymanId: this.currentUserId,
+        deliverymanName: this.currentUserName,
+        lastAssignedToDeliverymanId: this.currentUserId,
+        lastAssignedToDeliverymanName: this.currentUserName,
+        lastStatusUpdate: firebase.firestore.FieldValue.serverTimestamp()
+      };
+
       if (status === 'In Transit' && distributionHubId) {
-        // For In Transit: Find the selected distribution hub
         const selectedHub = this.distributionHubs.find(hub => hub.id === distributionHubId);
-        
         if (selectedHub) {
-          // Store hub data in the parcel
+          // Add hub information to assigned_parcels data (you already do this)
           Object.assign(parcelData, {
             destinationLat: selectedHub.lat,
             destinationLng: selectedHub.lng,
@@ -769,79 +799,54 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
             distributionHubId: selectedHub.id,
             distributionHubName: selectedHub.name
           });
+          
+          // IMPORTANT: Also add hub information to the main parcels document
+          mainParcelUpdateData.distributionHubId = selectedHub.id;
+          mainParcelUpdateData.distributionHubName = selectedHub.name;
+          mainParcelUpdateData.destinationLat = selectedHub.lat;
+          mainParcelUpdateData.destinationLng = selectedHub.lng;
+          mainParcelUpdateData.destinationName = selectedHub.name;
         }
       }
-      else if (status === 'Out for Delivery') {
-        // For Out for Delivery: Use the receiver address coordinates
-        Object.assign(parcelData, {
-          destinationLat: parcelSnapshot.receiverLat || null,
-          destinationLng: parcelSnapshot.receiverLng || null,
-          receiverAddress: parcelSnapshot.receiverAddress || 'Unknown Address',
-          receiverName: parcelSnapshot.receiverName || 'Unknown'
-        });
-      }
       
-      // Add the parcel to assigned parcels
+      // Add the parcel to assigned_parcels collection
       const assignedParcelId = await firstValueFrom(
         this.parcelService.addAssignedParcel(parcelData)
       );
-      
-      // Update the main parcel status
+      console.log(`Parcel ${trackingId} added to assigned_parcels with ID: ${assignedParcelId}`);
+
+      // Update the main parcel document in parcels collection
       await firstValueFrom(
-        this.parcelService.updateParcelStatus(parcelSnapshot.id, {
-          status,
-          deliverymanId: this.currentUserId,
-          deliverymanName: this.currentUserName,
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        })
+        this.parcelService.updateParcelStatus(parcelSnapshot.id!, mainParcelUpdateData)
       );
-      
-      // Add a tracking history event
-      await firstValueFrom(
-        this.trackingHistoryService.addTrackingEvent({
-          trackingId,
-          parcelId: parcelSnapshot.id,
-          status,
-          title: status,
-          description: this.getStatusDescription(status),
-          timestamp: firebase.firestore.Timestamp.now(),
-          location: locationDescription,
-          deliverymanId: this.currentUserId,
-          deliverymanName: this.currentUserName
-        })
-      );
-      
-      // Reset form and reload parcels
-      this.parcelForm.reset({
-        status: 'In Transit',
-        distributionHubId: ''
-      });
-      
-      // Send notification to receiver if Out for Delivery
-      if (status === 'Out for Delivery' && parcelSnapshot.receiverEmail) {
-        try {
-          await firstValueFrom(
-            this.parcelService.sendEmailNotification(
-              parcelSnapshot.receiverEmail,
-              parcelSnapshot.receiverName || 'Valued Customer',
-              trackingId,
-              status,
-              locationDescription
-            )
-          );
-        } catch (notificationError) {
-          console.error('Failed to send notification:', notificationError);
-        }
+      console.log(`Main parcel ${trackingId} (Doc ID: ${parcelSnapshot.id}) status updated to ${status} with relevant hub/deliveryman info.`);
+
+      // Add tracking history event
+      const trackingEvent: TrackingEvent = {
+        trackingId: trackingId,
+        parcelId: parcelSnapshot.id!,
+        status: status,
+        description: this.getStatusDescription(status),
+        timestamp: firebase.firestore.Timestamp.now(),
+        location: locationDescription,
+        deliverymanId: this.currentUserId!,
+        deliverymanName: this.currentUserName!
+      };
+      if (status === 'In Transit' && mainParcelUpdateData.distributionHubName) {
+        trackingEvent.description = `In Transit to ${mainParcelUpdateData.distributionHubName}`;
       }
-      
-      this.loadAssignedParcels();
-      this.showToast(`Parcel ${trackingId} added successfully`);
+      await firstValueFrom(this.trackingHistoryService.addTrackingEvent(trackingEvent));
+
+      this.showToast(`Parcel ${trackingId} assigned with status: ${status}`);
+      this.parcelForm.reset({ status: 'In Transit' }); // Reset form, default status to 'In Transit'
+      this.loadAssignedParcels(); // Refresh the list
+
     } catch (error: any) {
       console.error('Error adding parcel:', error);
-      this.showToast(`Error: ${error.message || 'Failed to add parcel'}`);
+      this.showToast(`Error: ${error.message || 'Could not assign parcel.'}`, 4000);
     } finally {
-      loading.dismiss();
       this.isAddingParcel = false;
+      await loading.dismiss();
     }
   }
 
@@ -850,6 +855,13 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
     console.log('Manual location update requested');
     if (this.isUpdatingLocation) {
       this.showToast('Location update already in progress');
+      return;
+    }
+    
+    // First ensure location is enabled
+    const locationEnabled = await this.locationEnabler.ensureLocationEnabled();
+    if (!locationEnabled) {
+      this.showToast('Please enable location services to update your location');
       return;
     }
     
@@ -885,62 +897,94 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
     }
   }
 
-  startBarcodeScanner() {
+  async startBarcodeScanner() {
     if (this.isScanningBarcode) return;
     
     this.isScanningBarcode = true;
     this.cdr.detectChanges();
-
-    setTimeout(() => {
-      if (!this.scannerElement?.nativeElement) {
-        console.error('Scanner element not found');
+    
+    try {
+      // Use the native camera to take a photo with high quality
+      const image = await Camera.getPhoto({
+        quality: 100,
+        resultType: CameraResultType.DataUrl,
+        source: CameraSource.Camera,
+        width: 1600, // Higher resolution for better scanning
+        height: 1200,
+        correctOrientation: true
+        // Remove preserveAspectRatio: true as it's not a valid option
+      });
+      
+      if (!image.dataUrl) {
+        this.showToast('Failed to capture image');
         this.isScanningBarcode = false;
         this.cdr.detectChanges();
         return;
       }
       
-      Quagga.init({
-        inputStream: {
-          name: "Live",
-          type: "LiveStream",
-          target: this.scannerElement.nativeElement,
-          constraints: {
-            width: window.innerWidth,
-            height: 300,
-            facingMode: "environment"
-          },
-        },
-        locator: {
-          patchSize: "medium",
-          halfSample: true
-        },
-        numOfWorkers: navigator.hardwareConcurrency || 2,
+      // Now process the image with Quagga to find barcodes
+      this.processImageWithQuagga(image.dataUrl);
+    } catch (error) {
+      console.error('Camera error:', error);
+      this.showToast('Failed to access camera. Please check permissions.');
+      this.isScanningBarcode = false;
+      this.cdr.detectChanges();
+    }
+  }
+
+  // Add this new method to process the captured image
+  private processImageWithQuagga(imageData: string) {
+    const img = new Image();
+    img.onload = () => {
+      // Create a canvas to draw the image for Quagga to process
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      
+      if (!ctx) {
+        this.showToast('Failed to process the image');
+        this.isScanningBarcode = false;
+        this.cdr.detectChanges();
+        return;
+      }
+      
+      // Draw the image on canvas
+      ctx.drawImage(img, 0, 0, img.width, img.height);
+      
+      // Use Quagga to detect barcode in static image mode
+      Quagga.decodeSingle({
         decoder: {
-          readers: ["code_128_reader", "ean_reader", "upc_reader"]
-        }
-      }, (err) => {
-        if (err) {
-          console.error('Quagga initialization error:', err);
+          readers: ["code_128_reader", "ean_reader", "upc_reader", "code_39_reader", "code_93_reader"]
+        },
+        locate: true,
+        src: canvas.toDataURL()
+      }, (result) => {
+        this.zone.run(() => {
           this.isScanningBarcode = false;
-          this.cdr.detectChanges();
-          return;
-        }
-        
-        console.log('Quagga initialized successfully');
-        Quagga.start();
-        
-        Quagga.onDetected((result) => {
-          this.playSuccessBeep();
-          const code = this.processDetectedCode(result.codeResult.code);
           
-          this.zone.run(() => {
+          if (result && result.codeResult) {
+            this.playSuccessBeep();
+            const code = this.processDetectedCode(result.codeResult.code);
             this.parcelForm.patchValue({ trackingId: code });
-            this.stopBarcodeScanner();
             this.showToast(`Detected barcode: ${code}`);
-          });
+          } else {
+            this.showToast('No barcode detected. Please try again.');
+          }
+          
+          this.cdr.detectChanges();
         });
       });
-    }, 800);
+    };
+    
+    img.onerror = () => {
+      this.showToast('Failed to load the captured image');
+      this.isScanningBarcode = false;
+      this.cdr.detectChanges();
+    };
+    
+    // Load the image
+    img.src = imageData;
   }
 
   stopBarcodeScanner() {
@@ -1287,26 +1331,19 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
 
   // Add these new methods to your component
   private startLocationUpdates() {
-    // Stop any existing interval first
-    this.stopLocationUpdates();
-
-    console.log('Starting location updates every 2 minutes');
-    // Update location every 2 minutes (120 seconds)
-    this.locationUpdateInterval = setInterval(async () => {
-      console.log('2-minute interval triggered: Updating location.');
-      await this.updateCurrentLocation();
-    }, 120 * 1000); // 120 seconds
+    if (this.locationUpdateInterval) {
+      clearInterval(this.locationUpdateInterval);
+    }
     
-    // Also update immediately when the page loads or after parcels are assigned
-    setTimeout(() => {
-      // Only trigger initial update if we have parcels
-      if (this.assignedParcels.length > 0) {
-        console.log('Initial location update for assigned parcels');
-        this.updateCurrentLocation();
-      } else {
-        console.log('No parcels assigned yet, skipping initial location update');
-      }
-    }, 1000); // Update shortly after init
+    console.log('Starting location updates...');
+    
+    // Only check location once per session
+    this.updateCurrentLocation(); // Just try to update immediately
+      
+    // Set up periodic updates without checking location every time
+    this.locationUpdateInterval = setInterval(() => {
+      this.updateCurrentLocation();
+    }, 120000); // Update every 2 minutes
   }
 
   private stopLocationUpdates() {
@@ -1335,7 +1372,7 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
       console.log('No parcels to update location for. Skipping update.');
       return;
     }
-
+    
     this.isUpdatingLocation = true;
     console.log('Attempting to get current location for update...');
 
@@ -1345,14 +1382,7 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
       
       if (Capacitor.isPluginAvailable('Geolocation')) {
         try {
-          // Request permissions explicitly
-          const permissionStatus = await Geolocation.requestPermissions();
-          console.log('Location permission status:', permissionStatus);
-          
-          if (permissionStatus.location === 'denied') {
-            throw new Error('Location permission denied');
-          }
-          
+          // Get location - just try directly
           position = await Geolocation.getCurrentPosition({
             enableHighAccuracy: true,
             timeout: 15000
@@ -1360,13 +1390,43 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
           
           console.log('Got location via Capacitor:', position);
         } catch (capacitorError) {
-          console.warn('Capacitor geolocation failed, trying browser API:', capacitorError);
-          position = await this.getBrowserLocationWithHighAccuracy();
+          // Only if we get an error, ensure location is enabled
+          console.warn('Capacitor geolocation failed, checking if location is enabled:', capacitorError);
+          
+          const locationEnabled = await this.locationEnabler.ensureLocationEnabled();
+          if (!locationEnabled) {
+            console.log('Location services not enabled. Cannot update location.');
+            this.isUpdatingLocation = false;
+            return;
+          }
+          
+          try {
+            position = await Geolocation.getCurrentPosition({
+              enableHighAccuracy: true,
+              timeout: 15000
+            });
+          } catch (secondError) {
+            console.error('Location still failed after enabling:', secondError);
+            this.isUpdatingLocation = false;
+            return;
+          }
         }
       } else {
-        // Fall back to browser API
-        position = await this.getBrowserLocationWithHighAccuracy();
-        console.log('Got location via browser API:', position);
+        // For browsers, first try directly
+        try {
+          position = await this.getBrowserLocationWithHighAccuracy();
+        } catch (browserError) {
+          console.warn('Browser geolocation failed, checking if location is enabled:', browserError);
+          
+          const locationEnabled = await this.locationEnabler.ensureLocationEnabled();
+          if (!locationEnabled) {
+            console.log('Location services not enabled. Cannot update location.');
+            this.isUpdatingLocation = false;
+            return;
+          }
+          
+          position = await this.getBrowserLocationWithHighAccuracy();
+        }
       }
       
       // Process and update location in all assigned parcels
@@ -1401,10 +1461,13 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
     if (this.lastLocationUpdate && this.minimumUpdateDistance > 0) {
       // Find the first assigned parcel with location data
       const parcelWithLocation = this.assignedParcels.find(p => 
-        p.locationLat !== undefined && p.locationLng !== undefined
+        p.locationLat !== undefined && p.locationLng !== undefined && 
+        p.locationLat !== null && p.locationLng !== null
       );
       
-      if (parcelWithLocation) {
+      if (parcelWithLocation && 
+          typeof parcelWithLocation.locationLat === 'number' && 
+          typeof parcelWithLocation.locationLng === 'number') {
         const distance = this.calculateDistance(
           parcelWithLocation.locationLat, 
           parcelWithLocation.locationLng,
@@ -1415,8 +1478,8 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
         console.log(`Distance from last location: ${distance.toFixed(1)}m`);
         
         if (distance < this.minimumUpdateDistance) {
-          console.log(`Haven't moved ${this.minimumUpdateDistance}m yet (${distance.toFixed(1)}m). Skipping update.`);
           hasMovedEnough = false;
+          console.log(`Skipping location update: movement less than minimum threshold (${this.minimumUpdateDistance}m)`);
         }
       }
     }
@@ -1581,17 +1644,14 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
 
   // Add this method to your ViewAssignedParcelsPage class
   private getStatusDescription(status: string): string {
-    switch (status.toLowerCase()) {
-      case 'registered':
-        return 'Parcel registered for delivery';
-      case 'in transit':
-        return 'Parcel is in transit to distribution center';
-      case 'out for delivery':
-        return 'Parcel is out for delivery to recipient';
-      case 'delivered':
-        return 'Parcel has been delivered successfully';
+    switch (status) {
+      case 'In Transit':
+        // This will be more specific if hub name is available, handled in addParcel
+        return 'Parcel is on its way to the next distribution hub or destination.';
+      case 'Out for Delivery':
+        return 'Parcel is out for delivery to the recipient.';
       default:
-        return `Status: ${status}`;
+        return `Parcel status updated to ${status}.`;
     }
   }
 
@@ -1698,5 +1758,12 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
   // Add this method to check if running on a native platform
   private isPlatformNative(): boolean {
     return (window as any).Capacitor?.isNativePlatform() || false;
+  }
+
+  // Add this helper method to resolve hub names from IDs
+  getHubNameById(hubId: string | undefined): string {
+    if (!hubId) return 'Unknown Hub';
+    const hub = this.distributionHubs.find(h => h.id === hubId);
+    return hub ? hub.name : 'Unknown Hub';
   }
 }
