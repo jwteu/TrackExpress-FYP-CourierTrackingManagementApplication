@@ -1,222 +1,275 @@
 :host {
-  --yellow: #FFD700;
-  --light-yellow: #FFF9E5;
-  --dark-gray: #222831;
+  // Consistent Modern Color Palette
+  --yellow: #FFD700; // Vibrant gold
+  --light-yellow: #FFF9E5; // Softer light yellow
+  --gold-accent: #FFC300; // For gradients and highlights
+  --dark-gray: #1A1F26; // Deep gray for text and primary elements
+  --medium-gray: #8A95A5; // Softer gray for secondary text and borders
+  --soft-gray: #F5F6FA; // Light background utility
   --white: #FFFFFF;
-  --soft-gray: #F5F6FA;
-  --medium-gray: #95A5A6;
-  --success-green-bg: #E8F5E9;
-  --success-green-text: #2E7D32;
-  --info-blue-bg: #E3F2FD;
-  --info-blue-text: #1976D2;
-  --warning-orange-bg: #FFF3E0;
-  --warning-orange-text: #EF6C00;
-  --pending-gray-bg: #EEEEEE;
-  --pending-gray-text: #616161;
   --danger-red: #E74C3C;
   --danger-red-bg: #FDEDED;
+  --success-green: #28A745; // For success states
 
-  --page-bg: linear-gradient(135deg, var(--light-yellow) 0%, var(--white) 70%, var(--soft-gray) 100%);
-  --card-bg: rgba(255, 255, 255, 0.8);
-  --card-backdrop-filter: blur(12px);
-  --text-primary: var(--dark-gray);
-  --text-secondary: var(--medium-gray);
+  // Gradients & Effects
+  --page-bg-gradient: linear-gradient(135deg, var(--light-yellow) 0%, var(--white) 60%, var(--soft-gray) 100%);
+  --primary-button-gradient: linear-gradient(110deg, var(--yellow) 0%, var(--gold-accent) 100%);
+  --primary-button-gradient-hover: linear-gradient(110deg, var(--gold-accent) 0%, var(--yellow) 100%);
+  --card-bg: rgba(255, 255, 255, 0.85); // Slightly more opaque for readability
+  --card-backdrop-filter: blur(14px);
+  --card-border-color: rgba(255, 255, 255, 0.6);
+  --toolbar-bg: rgba(255, 255, 255, 0.9);
+  --toolbar-backdrop-filter: blur(12px);
+
+  // Shadows
+  --shadow-light: rgba(50, 60, 80, 0.07);
+  --shadow-medium: rgba(50, 60, 80, 0.1);
+  --shadow-strong: rgba(255, 215, 0, 0.3); // Yellowish glow for buttons
+
+  // Typography
+  --font-primary: 'Poppins', sans-serif;
+
+  // Transitions & Animations
+  --ease-out-quad: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --ease-out-quint: cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 ion-content {
-  --background: var(--page-bg);
-  font-family: 'Poppins', sans-serif;
+  --background: var(--page-bg-gradient);
+  font-family: var(--font-primary);
 }
 
 ion-toolbar {
-  --background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(12px);
-  --color: var(--text-primary);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  --background: var(--toolbar-bg);
+  backdrop-filter: var(--toolbar-backdrop-filter);
+  --color: var(--dark-gray);
+  --border-width: 0 0 1px 0;
+  --border-color: rgba(0, 0, 0, 0.06);
+  box-shadow: 0 3px 10px var(--shadow-light);
 
   ion-title {
-    font-size: 24px;
-    font-weight: 700;
-    letter-spacing: 0.5px;
+    font-weight: 600;
+    font-size: 20px; // Consistent title size
+    letter-spacing: 0.3px;
+  }
+
+  ion-button {
+    --color: var(--dark-gray);
+    transition: transform 0.2s var(--ease-out-quad);
+    &:active {
+      transform: scale(0.94);
+    }
+    ion-icon {
+      font-size: 24px; // Slightly larger icon for toolbar actions
+    }
   }
 }
 
-.primary-button {
-  --background: linear-gradient(90deg, var(--yellow) 0%, #FFC300 100%);
-  --color: var(--dark-gray);
-  --border-radius: 12px;
-  font-size: 17px;
-  font-weight: 600;
-  height: 50px;
-  text-transform: none;
-  letter-spacing: 0.4px;
-  box-shadow: 0 5px 18px rgba(255, 215, 0, 0.35);
-  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.3s ease;
-
-  &:hover {
-    --background: linear-gradient(90deg, #FFC300 0%, var(--yellow) 100%);
-    box-shadow: 0 7px 22px rgba(255, 215, 0, 0.45);
-    transform: translateY(-2px);
-  }
-
-  &:active {
-    transform: scale(0.96) translateY(1px);
-    box-shadow: 0 3px 12px rgba(255, 215, 0, 0.25);
-  }
-}
-
-ion-button.primary-button {
-  margin-top: 16px;
-  margin-bottom: 24px;
-  --background: var(--ion-color-primary);
-  --color: var(--ion-color-primary-contrast);
-  font-weight: 500;
-  
-  ion-icon {
-    margin-right: 8px;
-  }
-}
-
-// Add an animation for the button when processing
-@keyframes pulse {
-  0% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
-  100% {
-    opacity: 1;
-  }
-}
-
-.processing {
-  animation: pulse 1.5s infinite;
-  pointer-events: none;
-}
-
+// General Card Styling
 ion-card {
   background: var(--card-bg);
   backdrop-filter: var(--card-backdrop-filter);
-  border-radius: 18px;
-  box-shadow: 0 4px 16px rgba(34, 40, 49, 0.08);
-  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: 18px; // Consistent rounded corners
+  box-shadow: 0 6px 24px var(--shadow-medium);
+  border: 1px solid var(--card-border-color);
   margin: 16px;
-  transition: transform 0.2s ease-in-out;
+  overflow: hidden; // Important for consistent border-radius effects
+  animation: fadeInUp 0.5s var(--ease-out-quint) both;
 
+  &:nth-child(1) { animation-delay: 0.1s; }
+  &:nth-child(2) { animation-delay: 0.2s; }
+  &:nth-child(3) { animation-delay: 0.3s; }
+  &:nth-child(4) { animation-delay: 0.4s; }
+  &:nth-child(5) { animation-delay: 0.5s; } // For the button if it's outside a card
+
+  transition: transform 0.3s var(--ease-out-quad), box-shadow 0.3s var(--ease-out-quad);
   &:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 6px 20px rgba(34, 40, 49, 0.12);
+    transform: translateY(-4px);
+    box-shadow: 0 8px 28px var(--shadow-medium);
   }
 }
 
 ion-card-header {
-  background: transparent;
-  padding: 20px 20px 12px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  padding: 20px 22px 12px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.07);
+  // Optional: Add a subtle gradient or background to header if desired
+  // background: linear-gradient(to bottom, rgba(var(--dark-gray-rgb), 0.03), transparent);
 
   ion-card-subtitle {
-    font-size: 15px;
+    font-size: 13px;
     font-weight: 600;
-    color: var(--text-secondary);
+    color: var(--medium-gray);
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 5px;
+    letter-spacing: 0.8px;
+    margin-bottom: 6px;
   }
 
   ion-card-title {
-    font-size: 22px;
+    font-size: 20px; // Slightly reduced for detail page sections
     font-weight: 700;
-    color: var(--text-primary);
-    letter-spacing: 0.3px;
+    color: var(--dark-gray);
+    letter-spacing: 0.2px;
   }
 }
 
 ion-card-content {
-  padding: 20px;
+  padding: 18px 22px;
+  font-size: 15px;
+  line-height: 1.6;
+
+  .barcode-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px 10px;
+    margin-bottom: 16px;
+    background: rgba(255, 255, 255, 0.5); // Slightly different background to stand out
+    border-radius: 12px;
+    border: 1px solid var(--card-border-color);
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
+
+    .barcode-image {
+      width: 100%;
+      max-width: 280px; // Adjust as needed
+      height: auto;
+      border-radius: 6px;
+      margin-bottom: 10px;
+    }
+
+    .tracking-id {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--dark-gray);
+      letter-spacing: 0.5px; // Make tracking ID prominent
+      background: var(--light-yellow);
+      padding: 5px 12px;
+      border-radius: 20px;
+    }
+  }
 }
 
-.barcode-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-  margin: 16px 0;
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(10px);
-  border-radius: 12px;
-  box-shadow: 0 3px 10px rgba(34, 40, 49, 0.06);
-  border: 1px solid rgba(0, 0, 0, 0.05);
-}
-
-.barcode-image {
-  width: 100%;
-  max-width: 320px;
-  height: auto;
-  border-radius: 8px;
-  box-shadow: 0 2px 6px rgba(34, 40, 49, 0.05);
-}
-
-.tracking-id {
-  font-size: 17px;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin-top: 12px;
-  letter-spacing: 0.2px;
-}
-
+// Item styling within cards
 ion-item {
   --padding-start: 0;
-  margin-bottom: 14px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  --inner-padding-end: 0;
+  --background: transparent; // Items inherit card background
+  --border-color: rgba(0, 0, 0, 0.07); // Subtle separator
+  padding-top: 8px;
+  padding-bottom: 8px;
 
   ion-icon {
-    color: var(--yellow);
-    font-size: 26px;
-    margin-right: 18px;
+    color: var(--yellow); // Use accent color for icons
+    font-size: 22px; // Consistent icon size
+    margin-right: 16px;
+    margin-left: 2px; // Align with card padding
   }
 
   ion-label {
-    h3 {
-      font-size: 16px;
-      font-weight: 600;
-      color: var(--text-primary);
-      margin-bottom: 4px;
+    h3 { // Field Title (e.g., "Date", "Contact")
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--medium-gray);
+      margin-bottom: 3px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
     }
 
-    p {
+    p { // Field Value
       font-size: 15px;
-      color: var(--text-secondary);
-      opacity: 0.9;
-      line-height: 1.5;
+      font-weight: 500;
+      color: var(--dark-gray);
+      white-space: normal; // Allow text wrapping
     }
   }
 
   &:last-child {
-    border-bottom: none;
-    margin-bottom: 0;
+    --border-color: transparent; // No border for the last item in a section
   }
 }
 
-.loading-container {
+// Primary Button (e.g., Generate PDF)
+.primary-button {
+  --background: var(--primary-button-gradient);
+  --color: var(--dark-gray);
+  --border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  height: 52px;
+  margin: 24px 16px; // Consistent margin with cards
+  text-transform: none;
+  letter-spacing: 0.4px;
+  box-shadow: 0 5px 18px var(--shadow-strong);
+  transition: transform 0.2s var(--ease-out-quad), box-shadow 0.2s var(--ease-out-quad), background 0.3s ease;
+  animation: fadeInUp 0.5s var(--ease-out-quint) 0.6s both; // Delay after cards
+
+  ion-icon {
+    font-size: 20px;
+    margin-right: 8px;
+  }
+
+  &:hover {
+    --background: var(--primary-button-gradient-hover);
+    box-shadow: 0 7px 22px var(--shadow-strong);
+    transform: translateY(-2px);
+  }
+
+  &:active {
+    transform: scale(0.97) translateY(1px);
+    box-shadow: 0 3px 12px var(--shadow-strong);
+  }
+}
+
+// Loading and Error States
+.loading-container,
+.error-container { // Combined styling for error card content
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 40px;
+  padding: 40px 20px;
   text-align: center;
+  min-height: 300px; // Ensure it takes some space
 
   ion-spinner {
-    --color: var(--yellow);
-    margin-bottom: 16px;
-    width: 60px;
-    height: 60px;
+    --color: var(--yellow); // Use accent color
+    width: 50px;
+    height: 50px;
+    margin-bottom: 20px;
   }
 
   p {
-    font-size: 17px;
-    color: var(--text-primary);
+    font-size: 16px;
+    color: var(--dark-gray);
+    font-weight: 500;
+  }
+}
+
+// Specific for error card
+ion-card.error-card { // Add a class to the error card in HTML if not already present
+  background: var(--danger-red-bg);
+  border-color: var(--danger-red);
+  ion-card-header ion-card-title {
+    color: var(--danger-red);
+  }
+  .primary-button { // Style error button differently if needed
+    --background: var(--danger-red);
+    --color: var(--white);
+    box-shadow: 0 4px 15px rgba(231, 76, 60, 0.3);
+     &:hover {
+        --background: darken(var(--danger-red), 5%);
+     }
+  }
+}
+
+
+// Animation
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(25px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }

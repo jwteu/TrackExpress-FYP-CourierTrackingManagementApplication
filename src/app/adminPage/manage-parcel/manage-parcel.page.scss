@@ -1,84 +1,92 @@
 :host {
+  // Ensure all theme variables are consistent
   --yellow: #FFD700;
   --light-yellow: #FFF9E5;
-  --dark-gray: #222831;
-  --white: #FFFFFF;
+  --gold-accent: #FFC300; // Added for consistency
+  --dark-gray: #1A1F26; // Updated for consistency
+  --dark-gray-rgb: 26, 31, 38; // RGB for rgba usage
+  --medium-gray: #8A95A5; // Updated for consistency
   --soft-gray: #F5F6FA;
-  --medium-gray: #95A5A6;
-  --success-green-bg: #E8F5E9;
-  --success-green-text: #2E7D32;
-  // Change blue to yellow variants
-  --filter-yellow-bg: #FFF9E5;
-  --filter-yellow-text: #B8860B;
-  --warning-orange-bg: #FFF3E0;
-  --warning-orange-text: #EF6C00;
-  --pending-gray-bg: #EEEEEE;
-  --pending-gray-text: #616161;
+  --white: #FFFFFF;
   --danger-red: #E74C3C;
   --danger-red-bg: #FDEDED;
+  --success-green-bg: #E8F5E9;
+  --success-green-text: #2E7D32;
+  --filter-yellow-bg: #FFF9E5; // Keep for specific filter context if needed
+  --filter-yellow-text: #B8860B; // Keep
+  --warning-orange-bg: #FFF8E1; // Lighter orange
+  --warning-orange-text: #FFA000; // Brighter orange
+  --pending-gray-bg: #F1F3F4; // Lighter pending
+  --pending-gray-text: #5F6368; // Darker pending text
+
+  // Gradients & Effects from other fancy pages
+  --primary-gradient: linear-gradient(110deg, var(--yellow) 0%, var(--gold-accent) 100%);
+  --primary-gradient-hover: linear-gradient(110deg, var(--gold-accent) 0%, var(--yellow) 100%);
+  --card-bg: rgba(255, 255, 255, 0.85);
+  --card-backdrop-filter: blur(14px);
+  --card-border-color: rgba(255, 255, 255, 0.6);
+  --toolbar-bg: rgba(255, 255, 255, 0.9);
+  --toolbar-backdrop-filter: blur(12px);
+
+  // Shadows
+  --shadow-light: rgba(var(--dark-gray-rgb), 0.07);
+  --shadow-medium: rgba(var(--dark-gray-rgb), 0.1);
+  --shadow-strong: rgba(var(--gold-accent), 0.3); // Yellowish glow for important elements
 }
 
 ion-content {
-  --background: linear-gradient(135deg, var(--light-yellow) 0%, var(--white) 70%, var(--soft-gray) 100%);
+  --background: linear-gradient(135deg, var(--light-yellow) 0%, var(--white) 60%, var(--soft-gray) 100%); // Consistent gradient
   font-family: 'Poppins', sans-serif;
-  --padding-top: 10px; // Add some top padding to content
-  --padding-bottom: 20px; // Ensure space at the bottom
+  --padding-top: 12px;
+  --padding-bottom: 20px;
 }
 
 ion-toolbar {
-  --background: rgba(255, 255, 255, 0.85); // Slightly less transparent
-  backdrop-filter: blur(12px); // Slightly more blur
+  --background: var(--toolbar-bg);
+  backdrop-filter: var(--toolbar-backdrop-filter);
   --color: var(--dark-gray);
-  box-shadow: 0 2px 10px rgba(0,0,0,0.06); // Slightly stronger shadow
-  // Add a subtle bottom border
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  --border-width: 0 0 1px 0; // Consistent border
+  --border-color: rgba(var(--dark-gray-rgb), 0.06);
+  box-shadow: 0 3px 10px var(--shadow-light);
 
   ion-title {
-    font-weight: 600; // Bolder title
+    font-weight: 600;
+    font-size: 20px; // Consistent title size
+    letter-spacing: 0.3px;
   }
 }
 
-// Search functionality styling
+// Search functionality styling - Refined
 .search-container {
-  padding: 8px 16px 0 16px;
-  margin-bottom: 10px;
+  padding: 10px 16px 0px 16px; // Adjusted padding
+  margin-bottom: 12px;
 }
 
 .search-box {
   display: flex;
   align-items: center;
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 16px;
+  background: var(--card-bg); // Use card-bg for consistency
+  backdrop-filter: var(--card-backdrop-filter); // Add blur
+  border-radius: 16px; // Consistent radius
   padding: 10px 16px;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.07);
-  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 5px 18px var(--shadow-light); // Refined shadow
+  border: 1px solid var(--card-border-color); // Consistent border
   transition: all 0.3s ease;
-  position: relative;
-  overflow: hidden;
-  
+  position: relative; // Keep for ::after
+
   &:focus-within {
-    box-shadow: 0 8px 20px rgba(255, 215, 0, 0.2);
-    border-color: rgba(255, 215, 0, 0.4);
-    transform: translateY(-2px);
-    background: rgba(255, 255, 255, 0.99);
-    
-    // Add more visible highlight on focus
-    &::after {
-      content: '';
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      height: 2px;
-      background: linear-gradient(90deg, var(--yellow), #FFC300);
-      opacity: 1;
-    }
-    
+    box-shadow: 0 7px 22px var(--shadow-strong); // Use gold shadow on focus
+    border-color: var(--gold-accent); // Gold border on focus
+    transform: translateY(-2px); // Slight lift
+    background: rgba(255, 255, 255, 0.9); // Slightly more opaque on focus
+
     ion-icon[name="search-outline"] {
-      color: var(--yellow);
+      color: var(--gold-accent); // Gold icon on focus
     }
   }
-  
+  // Remove ::after pseudo-element for bottom line if not desired, or style it to match gold theme
+   &::after { display: none; } // Example: removing it for a cleaner look
+
   ion-icon[name="search-outline"] {
     font-size: 22px;
     color: var(--medium-gray);
@@ -103,9 +111,7 @@ ion-toolbar {
   // Default placeholder for larger screens
   &::placeholder {
     color: var(--medium-gray);
-    opacity: 0.7;
-    transition: opacity 0.3s ease;
-    content: "Search by tracking ID or sender name...";
+    opacity: 1; // Full opacity for placeholder
   }
   
   &:focus::placeholder {
@@ -257,13 +263,13 @@ ion-toolbar {
   justify-content: center;
   padding: 45px 30px; // Increased padding
   text-align: center;
-  max-width: 420px; // Slightly wider
+  max-width: 450px; // Slightly wider
   margin: 50px auto; // More vertical margin
-  background: rgba(255, 255, 255, 0.75); // Adjusted transparency
-  backdrop-filter: blur(18px); // More blur
-  border-radius: 24px; // More rounded
-  box-shadow: 0 10px 35px rgba(34, 40, 49, 0.12); // Softer, larger shadow
-  border: 1px solid rgba(255, 255, 255, 0.5); // Adjusted border
+  background: var(--card-bg);
+  backdrop-filter: var(--card-backdrop-filter);
+  border-radius: 20px; // Consistent radius
+  box-shadow: 0 8px 30px var(--shadow-medium);
+  border: 1px solid var(--card-border-color);
 
   ion-spinner {
     --color: var(--yellow);
@@ -274,9 +280,9 @@ ion-toolbar {
 
   ion-icon {
     font-size: 75px;
-    color: var(--yellow);
+    color: var(--gold-accent); // Use gold accent
     margin-bottom: 25px;
-    filter: drop-shadow(0 5px 12px rgba(255, 215, 0, 0.35));
+    filter: drop-shadow(0 4px 10px var(--shadow-strong)); // Gold shadow
   }
 
   h3 {
@@ -295,33 +301,57 @@ ion-toolbar {
 }
 
 .list-container-block {
-  background: rgba(255, 255, 255, 0.7); // Slightly different glass effect for the block
-  backdrop-filter: blur(20px); // More blur for the container
-  -webkit-backdrop-filter: blur(20px);
-  border-radius: 24px; // Rounded corners for the block
-  margin: 20px 16px; // Margin around the block
-  padding: 8px 8px 16px 8px; // Padding inside the block (top, sides, bottom)
-  box-shadow: 0 12px 40px rgba(34, 40, 49, 0.1); // Prominent shadow for the block
-  border: 1px solid rgba(255, 255, 255, 0.6); // Subtle border
-  overflow: hidden; // Ensure children conform to border-radius
+  background: rgba(255, 255, 255, 0.75); // Slightly more opaque than items for depth
+  backdrop-filter: blur(18px); // More blur for main container
+  border-radius: 22px; // Consistent large radius
+  margin: 16px; // Consistent margin
+  padding: 10px; // Padding around the list
+  box-shadow: 0 10px 35px var(--shadow-medium); // Refined shadow
+  border: 1px solid rgba(255, 255, 255, 0.7); // Slightly more visible border
+  overflow: hidden;
 }
 
+.list-container-block.scrollable {
+  height: calc(100vh - 230px); // Adjust based on final header/filter/search height
+  margin-bottom: 80px; // Space for FAB button
+  overflow-y: auto;
+  position: relative;
+  
+  /* Update scrollbar styling */
+  &::-webkit-scrollbar {
+    width: 6px; // Slightly thinner
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: rgba(var(--dark-gray-rgb), 0.05); // Very subtle track
+    border-radius: 3px;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: var(--gold-accent); // Gold scrollbar thumb
+    border-radius: 3px;
+    
+    &:hover {
+      background: var(--yellow); // Lighter gold on hover
+    }
+  }
+}
+
+
 .list-container-block ion-list {
-  background: transparent; // List itself is transparent
-  padding: 0; // Remove padding from ion-list itself
-  margin-top: 8px; // Space between top padding and first item
+  background: transparent;
+  padding: 0;
+  margin-top: 0; // Remove top margin if padding is on container
 }
 
 .list-container-block .parcel-item {
-  --border-radius: 16px; // Slightly less rounded than the container
-  background: rgba(255, 255, 255, 0.951); // Item background
-  backdrop-filter: blur(10px); // Less blur than the container
-  -webkit-backdrop-filter: blur(10px);
-  margin: 10px 8px; // Margin for items within the block padding
-  box-shadow: 0 4px 15px rgba(34, 40, 49, 0.06); // Softer shadow for items
-  border: 1px solid rgb(129, 129, 129);
-  // Keep existing transitions, animations, hover effects etc.
-  transition: transform 0.25s ease, box-shadow 0.25s ease, background-color 0.25s ease;
+  --border-radius: 16px;
+  background: var(--card-bg); // Use theme variable
+  backdrop-filter: var(--card-backdrop-filter); // Use theme variable
+  margin: 12px 8px; // Adjusted margin
+  box-shadow: 0 5px 18px var(--shadow-light); // Use theme variable
+  border: 1px solid var(--card-border-color); // Use theme variable
+  transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease; // Added border-color transition
   animation: slideInUp 0.55s ease-out forwards;
   opacity: 0;
   animation-delay: calc(var(--ion-item-index, 0) * 45ms);
@@ -330,26 +360,25 @@ ion-toolbar {
   // &::before { display: none; } // Uncomment this line to remove the top gradient on items
 
   &:hover {
-    transform: translateY(-4px) scale(1.01); // Keep hover effect
-    box-shadow: 0 8px 20px rgba(34, 40, 49, 0.1);
-    background-color: rgba(255, 255, 255, 0.95);
-    border-color: rgba(255, 215, 0, 0.3);
+    transform: translateY(-5px) scale(1.015); // Slightly more pronounced hover
+    box-shadow: 0 9px 28px var(--shadow-medium); // Use theme variable
+    border-color: var(--gold-accent); // Gold border on hover
   }
 
   &.delivered-parcel {
-    // Keep existing delivered styles
-    background: rgba(232, 245, 233, 0.85);
-    border-color: rgba(46, 125, 50, 0.35);
+    background: rgba(232, 245, 233, 0.9); // Slightly more opaque
+    border-color: rgba(var(--success-green-text), 0.4); // Use success text color for border
     opacity: 0.9;
     &:hover {
-       background-color: rgba(232, 245, 233, 0.95);
+       background-color: rgba(232, 245, 233, 1);
+       border-color: var(--success-green-text);
     }
   }
 
   ion-label {
     h3 {
-      font-size: 17px; // Larger sender name
-      font-weight: 700; // Bolder
+      font-size: 16px; // Slightly smaller for balance
+      font-weight: 600; // Keep bold
       color: var(--dark-gray);
       margin-bottom: 8px; // More space below title
     }
@@ -374,7 +403,7 @@ ion-toolbar {
 
   .barcode-thumbnail {
     --size: 64px; // Slightly larger thumbnail
-    border-radius: 12px; // More rounded
+    border-radius: 10px; // Consistent radius
     overflow: hidden;
     margin-right: 18px; // More space next to thumbnail
     border: 1px solid rgba(0,0,0,0.06);
@@ -383,10 +412,10 @@ ion-toolbar {
   }
 
   .status-badge {
-    font-size: 12px; // Slightly larger badge text
+    font-size: 11.5px; // Slightly smaller for a more refined look
     font-weight: 600;
-    padding: 5px 10px; // More padding
-    border-radius: 10px; // More rounded badge
+    padding: 6px 12px; // Adjusted padding
+    border-radius: 16px; // Pill shape
     display: inline-block;
     text-transform: capitalize;
     margin-top: 2px; // Add slight margin if needed
@@ -544,28 +573,48 @@ ion-list ion-item {
 .header-filter-button {
   --color: var(--dark-gray);
   position: relative;
-  margin-right: 8px;
-  
-  ion-icon {
-    color: var(--yellow); // Keep yellow for the icon
-    font-size: 22px;
+  margin-right: 8px; // Keep some margin
+  transition: transform 0.2s ease-out;
+
+  &:hover {
+    transform: scale(1.1); // Slight scale on hover
   }
-  
+
+  ion-icon {
+    color: var(--gold-accent); // Use gold-accent for more pop
+    font-size: 24px; // Slightly larger icon
+    transition: color 0.2s ease;
+  }
+
   .filter-badge {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 18px;
-    height: 18px;
-    padding: 0 4px;
-    border-radius: 9px;
-    background: var(--yellow);
+    min-width: 20px; // Slightly larger badge
+    height: 20px;
+    padding: 0 5px;
+    border-radius: 10px; // More rounded
+    background: var(--yellow); // Keep vibrant yellow
     color: var(--dark-gray);
     font-size: 11px;
-    font-weight: 600;
+    font-weight: 700; // Bolder font
     position: absolute;
-    top: -4px;
-    right: -4px;
+    top: -6px; // Adjust position
+    right: -6px;
+    box-shadow: 0 2px 6px rgba(255, 215, 0, 0.5); // Add shadow to badge
+    border: 1px solid var(--white); // White border for pop
+    animation: pulseBadge 2s infinite ease-in-out; // Subtle pulse animation
+  }
+}
+
+@keyframes pulseBadge {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 2px 6px rgba(255, 215, 0, 0.5);
+  }
+  50% {
+    transform: scale(1.1);
+    box-shadow: 0 4px 10px rgba(255, 215, 0, 0.7);
   }
 }
 
@@ -573,33 +622,53 @@ ion-list ion-item {
 .active-filters {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 12px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  gap: 10px; // Increased gap
+  margin-top: 16px; // More space above
+  padding-bottom: 12px; // More space below
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08); // Slightly darker border
 }
 
 // Filter chips for active filters
 .filter-chip {
   display: inline-flex;
   align-items: center;
-  padding: 6px 12px;
-  background: var(--filter-yellow-bg); // Changed from white to yellow background
-  border: 1px solid rgba(255, 215, 0, 0.4); // More visible yellow border
-  border-radius: 16px;
-  font-size: 13px;
+  padding: 8px 14px; // Increased padding
+  background: var(--white); // White background for chips
+  border: 1px solid var(--gold-accent); // Gold accent border
+  border-radius: 20px; // Fully rounded
+  font-size: 13.5px; // Slightly larger font
   color: var(--dark-gray);
-  box-shadow: 0 2px 8px rgba(255, 215, 0, 0.15); // Yellow shadow
-  
+  box-shadow: 0 3px 10px rgba(var(--dark-gray-rgb, 26, 31, 38), 0.08); // Softer shadow
+  transition: all 0.25s ease-out;
+  animation: popInChip 0.3s ease-out; // Pop-in animation
+
+  &:hover {
+    background: var(--light-yellow); // Light yellow on hover
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(var(--dark-gray-rgb, 26, 31, 38), 0.12);
+  }
+
   ion-icon {
-    margin-left: 6px;
-    font-size: 16px;
+    margin-left: 8px; // More space for icon
+    font-size: 18px; // Larger icon
     cursor: pointer;
-    color: var(--filter-yellow-text); // Yellow icon color
-    
+    color: var(--medium-gray); // Medium gray for icon
+    transition: color 0.2s ease;
+
     &:hover {
-      color: var(--danger-red);
+      color: var(--danger-red); // Danger red on icon hover
     }
+  }
+}
+
+@keyframes popInChip {
+  from {
+    opacity: 0;
+    transform: scale(0.8) translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
   }
 }
 
@@ -607,61 +676,110 @@ ion-list ion-item {
 .clear-all {
   display: inline-flex;
   align-items: center;
-  padding: 6px 12px;
-  font-size: 13px;
-  color: var(--filter-yellow-text); // Changed from blue to yellow
+  padding: 8px 14px;
+  font-size: 13.5px;
+  color: var(--gold-accent); // Gold accent color
   cursor: pointer;
-  margin-left: auto;
-  background: var(--filter-yellow-bg); // Add background
-  border-radius: 12px;
-  border: 1px solid rgba(255, 215, 0, 0.3);
-  
+  margin-left: auto; // Keep it to the right
+  background: transparent; // Transparent background
+  border-radius: 20px;
+  border: 1px solid transparent; // Transparent border initially
+  transition: all 0.25s ease-out;
+
   &:hover {
     color: var(--danger-red);
-    text-decoration: underline;
-    background: rgba(255, 215, 0, 0.1);
-  }
-}
-
-// Search results found text
-.search-results-indicator {
-  font-size: 14px;
-  color: var(--medium-gray);
-  
-  strong {
-    color: var(--dark-gray);
+    background: var(--danger-red-bg); // Danger background on hover
+    border-color: var(--danger-red); // Danger border on hover
+    text-decoration: none; // Remove underline on hover if background changes
   }
 }
 
 // Modal content styling
 .filter-modal-content {
-  --background: var(--white);
-  --padding-top: 16px;
-  --padding-bottom: 16px;
+  --background: var(--soft-gray); // Softer background for modal
+  --padding-top: 8px; // Reduced top padding
+  --padding-bottom: 0; // Remove bottom padding, use .filter-actions padding
+
+  ion-list {
+    background: transparent; // Transparent list background
+    padding: 0 8px; // Add some horizontal padding to list
+  }
+
+  ion-item {
+    --background: var(--white); // White background for items
+    --border-radius: 12px; // Rounded items
+    --padding-start: 16px;
+    --padding-end: 16px;
+    margin-bottom: 12px; // Space between items
+    box-shadow: 0 3px 8px rgba(var(--dark-gray-rgb, 26, 31, 38), 0.05); // Subtle shadow
+    border: 1px solid rgba(0,0,0,0.05);
+
+    ion-label {
+      font-weight: 500; // Slightly bolder label
+      color: var(--dark-gray);
+    }
+
+    ion-select {
+      --placeholder-color: var(--medium-gray);
+      font-weight: 500;
+      color: var(--dark-gray);
+      width: 100%; // Ensure select takes full width
+      max-width: 100%; // Override Ionic's max-width
+      padding-left: 0; // Adjust padding if needed
+      padding-right: 0;
+    }
+    
+    ion-datetime-button {
+        width: 100%; // Make datetime button take full width
+        justify-content: flex-end; // Align text to the right
+        --padding-end: 0; // Remove default padding
+    }
+  }
+  // Style for the datetime modal itself if needed
+  ion-modal ion-datetime {
+      --background: var(--white);
+      border-radius: 16px; // Rounded corners for datetime modal
+      box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+  }
 }
 
 // Filter action buttons at bottom of modal
 .filter-actions {
-  padding: 16px;
+  padding: 20px 16px; // More padding
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  
+  gap: 16px; // More gap
+  background: var(--white); // White background for actions footer
+  border-top: 1px solid rgba(0,0,0,0.08); // Separator line
+  position: sticky; // Make it sticky
+  bottom: 0; // Stick to bottom
+  z-index: 10; // Ensure it's above list content
+
   ion-button {
     margin: 0;
-    
+    height: 50px; // Taller buttons
+    font-size: 15px; // Slightly larger font
+    font-weight: 600; // Bolder
+
     &.primary-button {
-      --background: linear-gradient(90deg, var(--yellow) 0%, #FFC300 100%);
+      // Use existing primary button gradient and shadow
+      --background: var(--primary-gradient); // Defined in admin-home.page.scss
       --color: var(--dark-gray);
-    }
-    
-    // Update outline button to yellow theme
-    &[fill="outline"] {
-      --border-color: var(--yellow);
-      --color: var(--filter-yellow-text);
-      
+      --box-shadow: 0 6px 20px rgba(255, 215, 0, 0.25);
       &:hover {
-        --background: var(--filter-yellow-bg);
+        --background: var(--primary-gradient-hover);
+        --box-shadow: 0 9px 28px rgba(255, 215, 0, 0.35);
+        transform: translateY(-2px);
+      }
+    }
+
+    &[fill="outline"] {
+      --border-color: var(--gold-accent);
+      --color: var(--gold-accent);
+      --border-width: 1.5px; // Slightly thicker border
+      &:hover {
+        --background: var(--light-yellow); // Light yellow background on hover
+        --color: var(--dark-gray); // Darker text on hover
       }
     }
   }
@@ -674,7 +792,7 @@ ion-list ion-item {
 
 // Update list container for fixed height scrolling
 .list-container-block.scrollable {
-  height: calc(100vh - 220px); // Adjust this value based on your header/filter height
+  height: calc(100vh - 230px); // Adjust this value based on your header/filter height
   margin-bottom: 80px; // Space for FAB button
   overflow-y: auto;
   position: relative;
@@ -685,16 +803,16 @@ ion-list ion-item {
   }
   
   &::-webkit-scrollbar-track {
-    background: rgb(255, 253, 237); // More transparent
-    border-radius: 4px;
+    background: rgba(var(--dark-gray-rgb), 0.05); // Very subtle track
+    border-radius: 3px;
   }
   
   &::-webkit-scrollbar-thumb {
-    background: rgb(248, 235, 158); // Light gray, very subtle
-    border-radius: 4px;
+    background: var(--gold-accent); // Gold scrollbar thumb
+    border-radius: 3px;
     
     &:hover {
-      background: rgb(255, 250, 219); // Very light yellow on hover only
+      background: var(--yellow); // Lighter gold on hover
     }
   }
 }
@@ -705,7 +823,7 @@ ion-list ion-item {
   --background-activated: linear-gradient(135deg, #FFC300, var(--yellow));
   --background-hover: linear-gradient(135deg, var(--yellow), #FFD700);
   --color: var(--dark-gray);
-  --box-shadow: 0 6px 16px rgba(255, 215, 0, 0.35);
+  --box-shadow: 0 7px 20px var(--shadow-strong); // Use theme shadow
   height: 60px;
   width: 60px;
   margin-bottom: 16px;
@@ -731,8 +849,8 @@ ion-list ion-item {
   }
   
   &:hover {
-    transform: scale(1.1);
-    --box-shadow: 0 8px 20px rgba(255, 215, 0, 0.5);
+    transform: scale(1.12) rotate(15deg); // Add rotation for fanciness
+    --box-shadow: 0 10px 28px var(--shadow-strong); // More pronounced shadow
   }
 }
 

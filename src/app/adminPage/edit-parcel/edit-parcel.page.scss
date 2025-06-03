@@ -1,97 +1,256 @@
 :host {
+  // Consistent Modern Color Palette (from admin-home.page.scss)
   --yellow: #FFD700;
-  --light-yellow: #FFECB3;
-  --dark-gray: #333333;
+  --light-yellow: #FFF9E5; // Softer light yellow for backgrounds
+  --gold-accent: #FFC300; // For highlights and gradients
+  --dark-gray: #1A1F26; // Deep gray for text and primary elements
+  --dark-gray-rgb: 26, 31, 38; // For rgba usage
+  --medium-gray: #8A95A5; // Softer gray for secondary text, placeholders
+  --soft-gray: #F5F6FA; // Light utility gray
   --white: #FFFFFF;
-  --soft-gray: #E0E0E0;
+  --danger-red: #E74C3C; // For error states
+  --danger-red-bg: #FDEDED; // Background for error messages/cards
+
+  // Gradients & Effects (consistent with other fancy pages)
+  --page-bg-gradient: linear-gradient(135deg, var(--light-yellow) 0%, var(--white) 60%, var(--soft-gray) 100%);
+  --primary-button-gradient: linear-gradient(110deg, var(--yellow) 0%, var(--gold-accent) 100%);
+  --primary-button-gradient-hover: linear-gradient(110deg, var(--gold-accent) 0%, var(--yellow) 100%);
+  --card-bg: rgba(255, 255, 255, 0.85); // Semi-transparent white for cards
+  --card-backdrop-filter: blur(14px); // Blur effect for glassmorphism
+  --card-border-color: rgba(255, 255, 255, 0.6); // Subtle border for cards
+  --toolbar-bg: rgba(255, 255, 255, 0.9); // Semi-transparent white for toolbar
+  --toolbar-backdrop-filter: blur(12px); // Blur for toolbar
+  --input-bg: rgba(255, 255, 255, 0.7); // Background for input fields
+  --input-border-color: rgba(var(--dark-gray-rgb), 0.15); // Border for inputs
+  --input-focus-border-color: var(--gold-accent); // Border for focused inputs
+
+  // Shadows (consistent theme shadows)
+  --shadow-light: rgba(var(--dark-gray-rgb), 0.07);
+  --shadow-medium: rgba(var(--dark-gray-rgb), 0.1);
+  --shadow-strong: rgba(var(--gold-accent), 0.3); // Accent shadow
+
+  // Typography
+  --font-primary: 'Poppins', sans-serif;
+
+  // Transitions & Animations (consistent easing)
+  --ease-out-quad: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --ease-out-quint: cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 ion-content {
-  --background: var(--white);
-  font-family: 'Poppins', sans-serif;
+  --background: var(--page-bg-gradient); // Apply themed gradient
+  font-family: var(--font-primary);
 }
 
 ion-toolbar {
-  --background: var(--yellow);
+  --background: var(--toolbar-bg);
+  backdrop-filter: var(--toolbar-backdrop-filter);
   --color: var(--dark-gray);
+  --border-width: 0 0 1px 0;
+  --border-color: rgba(var(--dark-gray-rgb), 0.06); // Subtle bottom border
+  box-shadow: 0 3px 10px var(--shadow-light); // Soft shadow
+
+  ion-title {
+    font-weight: 600;
+    font-size: 20px;
+    letter-spacing: 0.3px;
+  }
+
+  ion-button { // For back button
+    --color: var(--dark-gray);
+    transition: transform 0.2s var(--ease-out-quad);
+    &:active {
+      transform: scale(0.94);
+    }
+  }
 }
 
+// Consistent Card Styling
 ion-card {
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  margin: 16px 0;
+  background: var(--card-bg);
+  backdrop-filter: var(--card-backdrop-filter);
+  border-radius: 18px;
+  box-shadow: 0 6px 24px var(--shadow-medium);
+  border: 1px solid var(--card-border-color);
+  margin: 20px 16px;
+  overflow: hidden; // Important for backdrop-filter and border-radius
+  animation: fadeInUp 0.5s var(--ease-out-quint) backwards;
+
+  // Stagger animation for multiple cards
+  &:nth-of-type(1) { animation-delay: 0.1s; }
+  &:nth-of-type(2) { animation-delay: 0.2s; }
+  // Add more if there are more cards (e.g., error card)
+  &:nth-of-type(3) { animation-delay: 0.3s; }
 }
 
 ion-card-header {
-  background: var(--light-yellow);
-  padding: 16px;
-}
+  padding: 20px 22px 12px;
+  border-bottom: 1px solid rgba(var(--dark-gray-rgb), 0.07);
 
-ion-card-subtitle {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--dark-gray);
-  text-transform: uppercase;
+  ion-card-subtitle {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--yellow); /* Changed to light yellow text color */
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 4px;
+    /* Removed background-color, padding, border-radius, and display properties */
+    text-shadow: 1px 1px 2px rgba(var(--dark-gray-rgb), 0.3); /* Added text shadow for better readability */
+  }
+
+  ion-card-title[color="danger"] { // For the error card title
+    color: var(--danger-red) !important;
+    font-size: 18px;
+    font-weight: 700;
+  }
 }
 
 ion-card-content {
-  padding: 16px;
+  padding: 18px 22px;
+  font-size: 15px;
+  line-height: 1.6;
 }
 
-.input-item {
-  --border-radius: 10px;
+// Modernized Form Item Styling
+ion-item {
+  --background: var(--input-bg);
+  --border-radius: 12px;
   --padding-start: 16px;
-  --background: var(--soft-gray);
-  margin-bottom: 12px;
+  --padding-end: 16px;
+  --border-color: var(--input-border-color);
+  --highlight-color-focused: var(--input-focus-border-color); // Gold line for focused
+  --highlight-height: 2px;
+  margin-bottom: 18px;
+  box-shadow: 0 2px 5px rgba(var(--dark-gray-rgb), 0.04);
+  transition: box-shadow 0.3s ease, border-color 0.3s ease;
 
-  ion-label {
-    color: var(--dark-gray);
+  &.item-has-focus {
+    --border-color: var(--input-focus-border-color);
+    box-shadow: 0 3px 8px rgba(var(--gold-accent), 0.15); // Subtle gold glow
+  }
+
+  ion-label[position="stacked"] {
+    color: var(--medium-gray);
     font-weight: 500;
+    font-size: 13px;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
   }
 
   ion-input, ion-textarea {
     --color: var(--dark-gray);
-    font-size: 16px;
+    font-size: 15px;
+    font-weight: 500;
+    --padding-top: 10px;
+    --padding-bottom: 10px;
+  }
+
+  ion-textarea {
+    min-height: 80px;
   }
 }
 
-.error-text {
-  font-size: 12px;
-  margin: 8px 16px;
+// Error Text Styling (for form validation messages)
+ion-text[color="danger"] {
+  display: block;
+  font-size: 13px;
+  // color: var(--danger-red); // Already set by color="danger"
+  margin: -10px 0 15px 5px; // Position below input
+  padding-left: 2px;
+  font-weight: 500;
 }
 
-.primary-button {
-  --background: var(--yellow);
+// Consistent Primary Button (Save Changes button)
+ion-button[type="submit"] {
+  --background: var(--primary-button-gradient);
   --color: var(--dark-gray);
-  --border-radius: 12px;
+  --border-radius: 16px;
   font-size: 16px;
   font-weight: 600;
-  height: 50px;
-  margin: 20px 16px;
-  transition: transform 0.2s ease;
+  height: 52px;
+  margin: 25px 16px 10px; // Consistent margin for form submit button
+  text-transform: none;
+  letter-spacing: 0.4px;
+  box-shadow: 0 6px 20px var(--shadow-strong);
+  transition: transform 0.2s var(--ease-out-quad), box-shadow 0.2s var(--ease-out-quad), background 0.3s ease;
+  animation: fadeInUp 0.5s var(--ease-out-quint) 0.3s backwards; // Delay after cards
+
+  ion-icon {
+    font-size: 20px;
+    margin-right: 8px;
+  }
+
+  &:hover {
+    --background: var(--primary-button-gradient-hover);
+    box-shadow: 0 9px 28px var(--shadow-strong);
+    transform: translateY(-2px);
+  }
 
   &:active {
-    --background: var(--white);
-    --color: var(--yellow);
-    transform: scale(0.95);
+    transform: scale(0.97) translateY(0px);
+    box-shadow: 0 4px 15px var(--shadow-strong);
+  }
+
+  ion-spinner { // For the saving state
+    --color: var(--dark-gray); // Match button text color
   }
 }
 
-.loading-container {
+// Loading State (full page)
+div.ion-text-center.ion-padding { // Targets your existing loading div
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 40px;
+  padding: 50px 20px;
   text-align: center;
+  min-height: 300px; // Ensure it takes up space
 
-  ion-spinner {
-    --color: var(--yellow);
-    margin-bottom: 16px;
+  ion-spinner[name="circles"] { // Specific spinner
+    --color: var(--gold-accent);
+    width: 50px;
+    height: 50px;
+    margin-bottom: 20px;
   }
 
   p {
     font-size: 16px;
     color: var(--dark-gray);
+    font-weight: 500;
+  }
+}
+
+// Error Card Specifics (when loadingError is true)
+ion-card:has(ion-card-title[color="danger"]) { // Targets the error card
+  background: var(--danger-red-bg);
+  border-color: var(--danger-red);
+  box-shadow: 0 6px 24px rgba(var(--danger-red), 0.2); // Reddish shadow
+
+  ion-card-content p {
+    color: var(--dark-gray); // Keep text readable
+  }
+
+  ion-button { // Style the "Go Back" button within the error card
+    --background: var(--danger-red);
+    --color: var(--white);
+    --border-radius: 12px;
+    margin-top: 16px;
+    box-shadow: 0 4px 15px rgba(var(--danger-red), 0.3);
+    &:hover {
+      --background: darken(var(--danger-red), 7%);
+    }
+  }
+}
+
+// Animation
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }

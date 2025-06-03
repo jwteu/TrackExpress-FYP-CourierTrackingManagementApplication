@@ -22,8 +22,16 @@ ion-toolbar {
   box-shadow: 0 2px 8px rgba(0,0,0,0.05); // Subtle shadow
 }
 
+.login-logo {
+  display: block;
+  width: 150px; // Adjust size as needed
+  height: auto;
+  margin: 0 auto 20px auto; // Center logo and add bottom margin
+  animation: fadeIn 0.8s ease-out; // Simple fade-in animation
+}
+
 .form-container {
-  padding: 25px;
+  padding: 30px 25px; // Slightly more vertical padding
   max-width: 400px;
   margin: 20px auto; // Add some top margin
   background: rgba(255, 255, 255, 0.7); // Glassmorphism background
@@ -38,7 +46,7 @@ ion-toolbar {
     font-weight: 700; // Bolder
     color: var(--dark-gray);
     text-align: center;
-    margin-bottom: 25px; // More space
+    margin-bottom: 30px; // More space after title, before inputs
     letter-spacing: 0.5px; // Add letter spacing
   }
 
@@ -131,4 +139,9 @@ ion-toolbar {
 @keyframes slideUp {
   from { opacity: 0; transform: translateY(40px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
 }
