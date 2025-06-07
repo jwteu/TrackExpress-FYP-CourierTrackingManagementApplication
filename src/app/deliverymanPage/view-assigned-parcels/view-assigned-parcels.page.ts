@@ -691,6 +691,20 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
               deliverymanId: this.currentUserId ?? undefined,
               deliverymanName: this.currentUserName ?? undefined
             }).toPromise();
+            
+            // Add email notification when a parcel is removed/reassigned
+            if (mainParcel.receiverEmail) {
+              this.parcelService.sendEmailNotification(
+                mainParcel.receiverEmail,
+                mainParcel.receiverName || 'Valued Customer',
+                parcel.trackingId,
+                'Removed', // Changed from 'Assignment Updated' to 'Removed'
+                `Your parcel has been removed from the current courier and will be reassigned.`
+              ).subscribe({
+                next: () => console.log('Email notification sent for parcel removal'),
+                error: (err) => console.error('Failed to send removal email notification:', err)
+              });
+            }
           }
         });
       }
@@ -727,7 +741,7 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
     try {
       const { trackingId, status, distributionHubId } = this.parcelForm.value;
 
-      // Verify parcel exists and is not already assigned by this user with the same status
+      // Verify parcel exists and is not already assigned
       const parcelSnapshot = await firstValueFrom(this.parcelService.getParcelDetails(trackingId));
       if (!parcelSnapshot) {
         throw new Error(`Parcel with Tracking ID ${trackingId} not found.`);
@@ -837,6 +851,28 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
       }
       await firstValueFrom(this.trackingHistoryService.addTrackingEvent(trackingEvent));
 
+      // After successfully assigning the parcel, send email notification
+      if (parcelSnapshot.receiverEmail) {
+        let emailMessage = '';
+        
+        if (status === 'In Transit') {
+          emailMessage = `Your parcel is in transit and will arrive at the distribution hub soon.`;
+        } else if (status === 'Out for Delivery') {
+          emailMessage = `Your parcel is out for delivery and will be delivered to your address soon.`;
+        }
+        
+        this.parcelService.sendEmailNotification(
+          parcelSnapshot.receiverEmail,
+          parcelSnapshot.receiverName || 'Valued Customer',
+          trackingId,
+          status, // Use the exact status as the subject
+          emailMessage
+        ).subscribe({
+          next: () => console.log(`Email notification sent for ${status} assignment`),
+          error: (err) => console.error(`Failed to send ${status} email notification:`, err)
+        });
+      }
+      
       this.showToast(`Parcel ${trackingId} assigned with status: ${status}`);
       this.parcelForm.reset({ status: 'In Transit' }); // Reset form, default status to 'In Transit'
       this.loadAssignedParcels(); // Refresh the list
@@ -1765,5 +1801,96 @@ export class ViewAssignedParcelsPage implements OnInit, OnDestroy {
     if (!hubId) return 'Unknown Hub';
     const hub = this.distributionHubs.find(h => h.id === hubId);
     return hub ? hub.name : 'Unknown Hub';
+  }
+
+  // Add this method to your ViewAssignedParcelsPage class
+  async updateParcelStatus(parcel: Parcel, newStatus: string) {
+    if (!parcel.id) {
+      this.showToast('Cannot update parcel: Missing ID');
+      return;
+    }
+    
+    const loading = await this.loadingCtrl.create({
+      message: `Updating parcel status to ${newStatus}...`
+    });
+    
+    await loading.present();
+    
+    try {
+      await runInInjectionContext(this.injector, async () => {
+        // Get main parcel details first
+        const mainParcel = await this.parcelService.getParcelDetails(parcel.trackingId).toPromise();
+        
+        if (mainParcel && mainParcel.id) {
+          // Update parcel status
+          await this.parcelService.updateParcelStatus(mainParcel.id, { 
+            status: newStatus,
+            deliverymanId: this.currentUserId,
+            deliverymanName: this.currentUserName
+          }).toPromise();
+          
+          // Update status in assigned_parcels
+          await this.firestore.collection('assigned_parcels').doc(parcel.id).update({
+            status: newStatus
+          }).then(() => {
+            console.log(`Status updated to ${newStatus}`);
+          });
+          
+          // Add tracking history event
+          await this.trackingHistoryService.addTrackingEvent({
+            trackingId: parcel.trackingId,
+            parcelId: mainParcel.id,
+            status: newStatus,
+            title: this.getStatusTitle(newStatus),
+            description: `Parcel status updated to ${newStatus}`,
+            timestamp: new Date(),
+            location: parcel.locationDescription || 'Unknown',
+            deliverymanId: this.currentUserId ?? undefined,
+            deliverymanName: this.currentUserName ?? undefined
+          }).toPromise();
+          
+          // Send email notification for status change
+          if (mainParcel.receiverEmail) {
+            let emailMessage = '';
+            
+            if (newStatus === 'Out for Delivery') {
+              emailMessage = `Your parcel is now out for delivery with courier ${this.currentUserName} and will arrive at your address soon.`;
+            } else {
+              emailMessage = `Your parcel status has been updated to ${newStatus}.`;
+            }
+            
+            this.parcelService.sendEmailNotification(
+              mainParcel.receiverEmail,
+              mainParcel.receiverName || 'Valued Customer',
+              parcel.trackingId,
+              newStatus, // Use the exact status in the subject line
+              emailMessage
+            ).subscribe({
+              next: () => console.log(`Email notification sent for status change to ${newStatus}`),
+              error: (err) => console.error('Failed to send status change email notification:', err)
+            });
+          }
+        }
+      });
+      
+      loading.dismiss();
+      this.showToast(`Status updated to ${newStatus}`);
+      this.loadAssignedParcels(); // Refresh the list
+    
+    } catch (error) {
+      loading.dismiss();
+      console.error('Error updating parcel status:', error);
+      this.showToast('Failed to update parcel status');
+    }
+  }
+
+  // Helper method to get status title
+  private getStatusTitle(status: string): string {
+    switch(status) {
+      case 'In Transit': return 'In Transit';
+      case 'Out for Delivery': return 'Out for Delivery';
+      case 'Delivered': return 'Delivered';
+      default: return status;
+    }
   }
 }

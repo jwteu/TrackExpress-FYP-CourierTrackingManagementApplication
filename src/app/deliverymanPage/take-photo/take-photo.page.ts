@@ -421,14 +421,14 @@ export class TakePhotoPage implements OnInit {
               );
               
               if (parcelDetails && parcelDetails.receiverEmail) {
-                // Send email notification
+                // Send email notification with proper subject and message
                 await firstValueFrom(
                   this.parcelService.sendEmailNotification(
                     parcelDetails.receiverEmail,
                     parcelDetails.receiverName || 'Valued Customer',
                     this.selectedParcel!.trackingId,
-                    'Delivered - Photo Verification Complete',
-                    this.selectedParcel?.receiverAddress || 'Delivery address'
+                    'Delivered', // Use "Delivered" as the subject as requested
+                    `Your parcel has been delivered successfully. A photo proof of delivery has been uploaded.`
                   )
                 );
                 console.log('Delivery confirmation email sent to receiver');
