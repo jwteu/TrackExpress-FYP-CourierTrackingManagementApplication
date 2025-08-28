@@ -76,25 +76,22 @@ Supervised by **Dr. Mohammed Gamal Ahmed Al-Samman**
 This project is for **educational and research purposes**.  
  
 
-## Screenshot of Application
--HomePage
-![photo_2025-08-28_13-56-08](https://github.com/user-attachments/assets/6fcccece-b6f0-4fa2-8ccc-0dbd2e5cfa7e)
-![photo_2025-08-28_13-56-33](https://github.com/user-attachments/assets/a8dda40e-5c80-451d-bc3a-0a0948aa5440)
+## 📷 Screenshots of Application  
 
+### 🏠 Home Page
+<img src="https://github.com/user-attachments/assets/6fcccece-b6f0-4fa2-8ccc-0dbd2e5cfa7e" width="250">
+<img src="https://github.com/user-attachments/assets/a8dda40e-5c80-451d-bc3a-0a0948aa5440" width="250">
 
--CustomerSide
-![photo_2025-08-28_13-56-26](https://github.com/user-attachments/assets/c19c3557-cfb9-4222-808f-acfdaac4b5f7)
-![photo_2025-08-28_13-56-30](https://github.com/user-attachments/assets/86aeed9e-e17b-4d69-a7e2-0d975c53e285)
+### 👤 Customer Side
+<img src="https://github.com/user-attachments/assets/c19c3557-cfb9-4222-808f-acfdaac4b5f7" width="250">
+<img src="https://github.com/user-attachments/assets/86aeed9e-e17b-4d69-a7e2-0d975c53e285" width="250">
 
+### 🛠️ Admin Side
+<img src="https://github.com/user-attachments/assets/60e4707e-2a82-4aa4-95b9-ff8933d7aa34" width="250">
+<img src="https://github.com/user-attachments/assets/9844d9c4-a8a1-44db-9d49-d2eb5d960e9d" width="250">
+<img src="https://github.com/user-attachments/assets/7c835be3-f93f-4fe7-98c9-f05694cc6486" width="250">
 
--AdminSide
-![photo_2025-08-28_13-56-37](https://github.com/user-attachments/assets/60e4707e-2a82-4aa4-95b9-ff8933d7aa34)
-![photo_2025-08-28_13-56-41](https://github.com/user-attachments/assets/9844d9c4-a8a1-44db-9d49-d2eb5d960e9d)
-![photo_2025-08-28_13-56-45](https://github.com/user-attachments/assets/7c835be3-f93f-4fe7-98c9-f05694cc6486)
-
-
-
--DeliverymanSide
-![photo_2025-08-28_13-57-06](https://github.com/user-attachments/assets/18dfa57b-effd-4a50-82d4-8a151391fd2b)
-![photo_2025-08-28_13-56-58](https://github.com/user-attachments/assets/a8e26af2-38a5-404d-94c6-cd5feedacae6)
-![photo_2025-08-28_13-57-02](https://github.com/user-attachments/assets/abaddb2f-235e-4def-b4f2-f8d90ce86e0f)
+### 🚴 Deliveryman Side
+<img src="https://github.com/user-attachments/assets/18dfa57b-effd-4a50-82d4-8a151391fd2b" width="250">
+<img src="https://github.com/user-attachments/assets/a8e26af2-38a5-404d-94c6-cd5feedacae6" width="250">
+<img src="https://github.com/user-attachments/assets/abaddb2f-235e-4def-b4f2-f8d90ce86e0f" width="250">
