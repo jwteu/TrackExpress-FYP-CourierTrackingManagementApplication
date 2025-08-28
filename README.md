@@ -7,6 +7,15 @@ Built with the **Ionic Framework, Angular, and Firebase**, TrackExpress provides
 
 ---
 
+## 🌟 What Makes TrackExpress Unique?  
+
+✅ **All-in-One Platform** – Combines **admin, courier, and customer roles** in a single app  
+✅ **Real-Time Map Visualization** – Live parcel movement shown on maps, not just text updates  
+✅ **Photo-Based Proof of Delivery** – Adds transparency and builds customer trust   
+✅ **Validated by Users** – Achieved **4.19/5 usability** and **4.30/5 acceptance** scores in testing  
+
+---
+
 ## 📥 Download  
 
 ➡️ [Download the latest APK](https://github.com/YourUsername/YourRepo/releases/latest)  
@@ -19,7 +28,7 @@ Built with the **Ionic Framework, Angular, and Firebase**, TrackExpress provides
 
 - 📦 **Parcel Management** – Register and track parcels with unique tracking IDs and barcodes  
 - 🗺️ **Real-Time GPS Tracking** – Interactive map powered by Google Maps API  
-- 🔔 **Push Notifications** – Automatic updates via Firebase Cloud Messaging  
+- 🔔 **Push Notifications** – Automatic updates via Email.js  
 - 📸 **Proof of Delivery (POD)** – Delivery personnel can capture and upload photos as confirmation  
 - 👥 **Role-Based Interfaces**  
   - **Admin:** Manage parcels, monitor deliveries  
@@ -32,8 +41,8 @@ Built with the **Ionic Framework, Angular, and Firebase**, TrackExpress provides
 ## 🛠️ Tech Stack  
 
 - **Frontend:** Ionic Framework, Angular  
-- **Backend & Services:** Firebase (Authentication, Realtime Database, Storage, Messaging)  
-- **APIs & Tools:** Google Maps API, Cloudinary, Email.js, JsBarcode, UUID  
+- **Backend & Services:** Firebase (Authentication, Storage)  
+- **APIs & Tools:** Google Maps API,, Cloudinary, Email.js, JsBarcode, UUID  
 
 ---
 
@@ -63,6 +72,5 @@ Universiti Utara Malaysia
 
 Supervised by **Dr. Mohammed Gamal Ahmed Al-Samman**  
 
-
 This project is for **educational and research purposes**.  
-You may adapt it with credit to the author.  
+ 
