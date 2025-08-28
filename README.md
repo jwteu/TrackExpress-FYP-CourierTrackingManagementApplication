@@ -18,7 +18,7 @@ Built with the **Ionic Framework, Angular, and Firebase**, TrackExpress provides
 
 ## 📥 Download  
 
-➡️ [Download the latest APK](https://github.com/YourUsername/YourRepo/releases/latest)  
+➡️ [Download the latest APK](https://github.com/jwteu/TrackExpress-FYP-CourierTrackingManagementApplication/blob/main/app-debug.apk)  
 
 > ⚠️ Since the app is not on Google Play, please enable **"Install from Unknown Sources"** on your Android device to install.  
 
